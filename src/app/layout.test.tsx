@@ -15,5 +15,6 @@ describe("root layout", () => {
 
     expect(themeProvider.props.defaultTheme).toBe("light");
     expect(themeProvider.props.enableSystem).toBe(false);
+    expect(themeProvider.props.forcedTheme).toBe("light");
   });
 });
