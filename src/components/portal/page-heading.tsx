@@ -11,7 +11,7 @@ export function PageHeading({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div data-page-heading className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="mb-1 text-xs text-creaw-muted">
           Home <span aria-hidden="true"> / </span>

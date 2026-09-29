@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission } from "@/lib/auth/permissions";
 import { participantsApi } from "@/features/participants/api";
@@ -13,13 +12,15 @@ export default async function ParticipantsPage() {
     participantsApi.catalog(),
   ]);
   return (
-    <>
-      <PageHeading
-        title="Participants"
-        section="Records"
-        description="One registry across all pillars — a participant can hold several enrollments"
-      />
-      <ParticipantsContent initial={initial} catalog={catalog} grants={session.grants} />
-    </>
+    <ParticipantsContent
+      heading={{
+        title: "Participants",
+        section: "Records",
+        description: "One registry across all pillars — a participant can hold several enrollments",
+      }}
+      initial={initial}
+      catalog={catalog}
+      grants={session.grants}
+    />
   );
 }
