@@ -178,7 +178,7 @@ function filteredCalendarRows(store: MockStore, grants: EffectiveGrant[], query:
   const search = query.get("search")?.toLowerCase();
   return calendarRows(store, grants).filter(row => (pillarId === undefined || row.pillarId === pillarId) && (ownerId === undefined || row.ownerId === ownerId) && (!query.get("status") || row.status === query.get("status")) && (!search || `${row.title} ${row.project} ${row.pillar}`.toLowerCase().includes(search)));
 }
-function validate(store: MockStore, table: TableName, row: Row): boolean {
+function validate(store: MockStore, table: TableName, row: Row, previous?: Row): boolean {
   const definition = tableDefinitions[table];
   if (Object.keys(row).some((key) => !Object.hasOwn(definition, key))) return false;
   for (const [key, column] of Object.entries(definition)) {
@@ -190,7 +190,7 @@ function validate(store: MockStore, table: TableName, row: Row): boolean {
     if (typeof value === "string" && (column.maxLength && value.length > column.maxLength || !column.nullable && value.trim() === "" && !["notes", "password_hash"].includes(key))) return false;
     if (column.values && !column.values.includes(String(value))) return false;
     if (column.date && (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(value) || Number.isNaN(Date.parse(value)))) return false;
-    if (column.references && !rowsFor(store, column.references).some((parent) => parent.id === value && visible(parent))) return false;
+    if (column.references && !rowsFor(store, column.references).some((parent) => parent.id === value && (previous?.[key] === value || visible(parent) && !["INACTIVE", "DISABLED"].includes(String(parent.status))))) return false;
   }
   if ((table === "enrollment" || table === "grant_application") && Boolean(row.participant_id) === Boolean(row.organisation_id)) return false;
   if (table === "activity_session" && Boolean(row.facilitator_user_id) === Boolean(row.facilitator_provider_id)) return false;
@@ -480,7 +480,10 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
     const countyId = query.has("countyId") ? Number(query.get("countyId")) : undefined;
     if (countyId !== undefined && (table !== "participant" || !Number.isSafeInteger(countyId) || countyId < 1)) return envelope(422);
-    const reserved = new Set(["page", "pageSize", "pillarId", "countyId", "table", "search", "q", "sortBy", "sortOrder", "format", "includeDeleted"]);
+    const reserved = new Set(["page", "pageSize", "pillarId", "countyId", "table", "search", "q", "sortBy", "sortOrder", "format", "includeDeleted", "ids"]);
+    if (query.has("ids") && (family !== "lookups" || query.get("format") !== "csv" || !/^(?:[1-9]\d*(?:,[1-9]\d*)*)?$/.test(query.get("ids") ?? ""))) return envelope(422);
+    const exportIds = query.has("ids") ? (query.get("ids") ? query.get("ids")!.split(",").map(Number) : []) : null;
+    if (exportIds && (exportIds.length > 5000 || exportIds.some(value => !Number.isSafeInteger(value)))) return envelope(422);
     if (query.has("includeDeleted") && (!(table === "user_role" || table === "role_permission" || family === "lookups" && hasPermission(grants, "LOOKUP_MANAGE")) || query.get("includeDeleted") !== "true")) return envelope(422);
     for (const [key] of query) if (!reserved.has(key) && (!Object.hasOwn(tableDefinitions[table], key) || isSensitiveField(table, key))) return envelope(422);
     let filtered = rows.filter((row) => (visible(row) || query.get("includeDeleted") === "true") && allowed(store, grants, permission, table, row) && (pillarFilter === undefined || scopes(store, table, row).includes(pillarFilter)));
@@ -489,6 +492,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
       return store.sub_county.some((item) => item.id === ward?.sub_county_id && item.county_id === countyId);
     });
     for (const [key, value] of query) if (!reserved.has(key)) filtered = filtered.filter((row) => String(row[key]) === value);
+    if (exportIds) { const selected = new Set(exportIds); filtered = filtered.filter(row => selected.has(row.id)); }
     // Search uses the visible representation so it cannot become an oracle for
     // masked identity numbers or other hidden data.
     if (search) filtered = filtered.filter((row) => table === "participant_stage_event"
@@ -499,7 +503,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     filtered.sort((a, b) => (typeof a[sortBy] === "number" && typeof b[sortBy] === "number" ? Number(a[sortBy]) - Number(b[sortBy]) : String(a[sortBy] ?? "").localeCompare(String(b[sortBy] ?? ""))) * (sortOrder === "desc" ? -1 : 1));
     if (query.has("format")) {
       if (query.get("format") !== "csv") return envelope(422);
-      if (!grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") || pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id }) || filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))) return envelope(403);
+      if (family === "lookups" && !hasPermission(grants, "LOOKUP_MANAGE") || !grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") || pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id }) || filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))) return envelope(403);
       const columns = table === "participant_stage_event" ? ["id", "pillar", "captured", "status", "source"] : Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
       const csvCell = (value: unknown) => {
         const text = value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
@@ -520,7 +524,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!request.body || typeof request.body !== "object" || Array.isArray(request.body)) return envelope(422);
   const body = request.body as Row;
   if (Object.keys(body).some((key) => ["id", "created_at", "updated_at", "password_hash"].includes(key))) return envelope(422);
-  if (family === "admin/pipelines") return envelope(422);
+  if (table === "pipeline_definition" || table === "stage_definition") return envelope(422, null, "Use pipeline configuration commands");
   if (family === "lookups") {
     if (!hasPermission(grants, "LOOKUP_MANAGE")) return envelope(403);
     const writable: Partial<Record<TableName, string[]>> = {
@@ -623,7 +627,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
       : body.to_project_id ?? null }
     : body;
   try { next = existing ? { ...existing, ...body, updated_at: now } : makeRow(table, input, Math.max(0, ...rows.map((row) => row.id)) + 1, now) as unknown as Row; } catch { return envelope(422); }
-  if (!validate(store, table, next)) return envelope(422);
+  if (!validate(store, table, next, existing)) return envelope(422);
   if (table === "participant" && !existing && typeof next.id_number === "string" && next.id_number && store.participant.some((row) => row.id_number?.toLowerCase() === String(next.id_number).toLowerCase())) return envelope(422, null, "A participant with this ID number is already registered");
   if (table === "grant_disbursement") {
     const award = store.grant_award.find(row => row.id === next.grant_id && !row.is_deleted);

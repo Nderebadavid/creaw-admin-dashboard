@@ -12,12 +12,10 @@ const result = (resultCode: number, message: string, id?: number) => ({ resultCo
 async function api() { const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value; if (!token) throw new Error("Sign in required"); return createAdminApi(createPortalApiClient(), token); }
 async function stageContext(stageId: number) {
   const client = await api();
-  const pipelines = await client.pipelines();
-  for (const pipeline of pipelines.items) {
-    const stage = (await client.stages(pipeline.id)).items.find(row => row.id === stageId);
-    if (stage) return { client, pipeline, stage };
-  }
-  return null;
+  const stageResponse = await client.stage(stageId);
+  if (!stageResponse.success || !stageResponse.data) return null;
+  const pipelineResponse = await client.pipeline(stageResponse.data.pipeline_id);
+  return pipelineResponse.success && pipelineResponse.data ? { client, pipeline: pipelineResponse.data, stage: stageResponse.data } : null;
 }
 function refresh() { revalidatePath("/admin/pipelines"); }
 export async function createPipelineAction(input: unknown) {
@@ -32,7 +30,7 @@ export async function addStageAction(input: unknown) {
   const session = await requireSession(); const parsed = stageAddSchema.safeParse(input);
   if (!parsed.success) return result(422, "Check stage details");
   if (!hasModulePermission(session.grants, "PILLAR_CONFIG_MANAGE")) return result(403, "Permission denied");
-  try { const client = await api(); const pipeline = (await client.pipelines()).items.find(row => row.id === parsed.data.pipelineId); if (!pipeline || !hasPermission(session.grants, "PILLAR_CONFIG_MANAGE", { pillarId: pipeline.pillar_id })) return result(403, "Permission denied");
+  try { const client = await api(); const pipelineResponse = await client.pipeline(parsed.data.pipelineId); const pipeline = pipelineResponse.data; if (!pipelineResponse.success || !pipeline || !hasPermission(session.grants, "PILLAR_CONFIG_MANAGE", { pillarId: pipeline.pillar_id })) return result(403, "Permission denied");
     const response = await client.stageCommand(pipeline.id, { action: "add", name: parsed.data.name, position: parsed.data.position }); if (response.success) refresh(); return result(response.resultCode, response.message, response.data?.id); }
   catch { return result(500, "Could not add stage"); }
 }

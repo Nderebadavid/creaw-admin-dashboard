@@ -7,7 +7,7 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { createAdminApi } from "./api";
-import { lookupActionSchema, lookupActiveActionSchema, lookupTableSchema, lookupUpdateActionSchema, type LookupTable } from "./schemas";
+import { lookupActionSchema, lookupActiveActionSchema, lookupExportActionSchema, lookupTableSchema, lookupUpdateActionSchema, type LookupTable } from "./schemas";
 
 const id = z.number().int().positive();
 const name = z.string().trim().min(1).max(160);
@@ -52,4 +52,14 @@ export async function setLookupActiveAction(input: unknown) {
   if (!hasPermission(session.grants, "LOOKUP_MANAGE")) return outcome(403, "Permission denied");
   try { const response = await (await api()).updateLookup(parsed.data.table, parsed.data.id, { status: parsed.data.active ? "ACTIVE" : "INACTIVE", is_deleted: !parsed.data.active }); if (response.success) refresh(parsed.data.table); return outcome(response.resultCode, response.message, response.data?.id); }
   catch { return outcome(500, "Could not update lookup"); }
+}
+export async function exportLookupAction(input: unknown): Promise<{ success: true; filename: string; content: string } | { success: false; error: string }> {
+  const session = await requireSession();
+  const parsed = lookupExportActionSchema.safeParse(input);
+  if (!parsed.success || parsed.data.parentId && !["sub_county", "ward"].includes(parsed.data.table)) return { success: false, error: "Invalid export selection." };
+  if (!hasPermission(session.grants, "LOOKUP_MANAGE") || !hasPermission(session.grants, "REPORT_EXPORT_CSV")) return { success: false, error: "Export permission required." };
+  try {
+    const response = await (await api()).exportLookup(parsed.data.table, { ids: parsed.data.ids, parentId: parsed.data.parentId });
+    return response.success && response.data ? { success: true, filename: response.data.filename, content: response.data.content } : { success: false, error: response.message };
+  } catch { return { success: false, error: "Could not export lookup rows." }; }
 }
