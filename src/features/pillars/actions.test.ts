@@ -57,6 +57,21 @@ describe("pillar mutations", () => {
     expect(result.success).toBe(false);
     expect(getMockStore().grant_application).toHaveLength(before);
   });
+  it("creates a grant application in the PREPARED state", async () => {
+    const result = await createPillarDomainAction("wee", { projectId: 1, participantId: 2, requestedAmount: 1500, grantType: "milestone" });
+    expect(result.success).toBe(true);
+    expect(getMockStore().grant_application.at(-1)?.status).toBe("PREPARED");
+  });
+  it("requires the existing prepare grant before creating a PREPARED application", async () => {
+    const store = getMockStore();
+    const preparePermission = store.permission.find(row => row.code === "GRANT_APPLICATION_PREPARE")!;
+    store.role_permission = store.role_permission.filter(row => !(row.role_id === 7 && row.permission_id === preparePermission.id));
+    cookieStore.get.mockReturnValue({ value: issueMockToken(4) });
+    const before = store.grant_application.length;
+    const result = await createPillarDomainAction("wee", { projectId: 1, participantId: 2, requestedAmount: 1500, grantType: "milestone" });
+    expect(result.success).toBe(false);
+    expect(store.grant_application).toHaveLength(before);
+  });
   it("creates WEE, SRHR and Skilling records with audited domain writes", async () => {
     const cases = [
       ["wee", { projectId: 1, participantId: 2, requestedAmount: 1500, grantType: "milestone" }, "grant_application"],

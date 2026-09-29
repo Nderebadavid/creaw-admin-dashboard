@@ -33,7 +33,7 @@ export async function loadPillarDomain(client: ApiClient, token: string, code: P
   const enrollmentById = new Map(enrollments.map(row => [row.id, row]));
   if (code === "vawg") {
     const rows = await read(table, schemas.vawg);
-    return { title: "Legal case register", subtitle: "Survivor names stay masked in the list", columns: ["Case", "Case type", "Court", "Officer", "Next date"], rows: rows.map(row => ({ id: row.id, title: `Case #${row.id}`, values: [`Case #${row.id}`, `Case type #${row.case_type_id}`, row.court_status ?? "Not set", "Not assigned", row.ruling_date ?? "Not scheduled"], status: row.court_status ?? row.status })) };
+    return { title: "Legal case register", subtitle: "Survivor names stay masked in the list", columns: ["Case", "Case type", "Court", "Officer", "Ruling date"], rows: rows.map(row => ({ id: row.id, title: `Case #${row.id}`, values: [`Case #${row.id}`, `Case type #${row.case_type_id}`, row.court_status ?? "Not set", "Not assigned", row.ruling_date ?? "Not scheduled"], status: row.court_status ?? row.status })) };
   }
   if (code === "wee") {
     const rows = await read(table, schemas.wee);

@@ -66,9 +66,10 @@ export async function createPillarDomainAction(code: PillarCode, values: Record<
         break;
       }
       case "wee": {
+        if (!hasPermission(session.grants, "GRANT_APPLICATION_PREPARE", { pillarId: pillar.id })) return { success: false, message: "Grant application prepare permission required." };
         const participantId = input.data.participantId;
         if (!pillar.records.some(row => row.title === `Participant #${participantId}`)) return { success: false, message: "Participant not enrolled in this pillar." };
-        result = await api.createDomainRecord(code, "grant_application", { project_id: input.data.projectId, participant_id: input.data.participantId, requested_amount: input.data.requestedAmount, grant_type: input.data.grantType });
+        result = await api.createDomainRecord(code, "grant_application", { project_id: input.data.projectId, participant_id: input.data.participantId, requested_amount: input.data.requestedAmount, grant_type: input.data.grantType, status: "PREPARED" });
         break;
       }
       case "srhr":

@@ -46,6 +46,12 @@ describe("pillar API", () => {
       expect(view.domain?.rows).toHaveLength(getMockStore()[table].length);
     }
   });
+  it("labels the legal case ruling date without implying a future appointment", async () => {
+    getMockStore().legal_case[0].ruling_date = "2026-10-20";
+    const view = await createPillarsApi(createPortalApiClient(), issueMockToken(1)).get("vawg");
+    expect(view.domain?.columns[4]).toBe("Ruling date");
+    expect(view.domain?.rows.find(row => row.id === 1)?.values[4]).toBe("2026-10-20");
+  });
   it("does not expose the WRO register without its explicit organisation grant", async () => {
     const view = await createPillarsApi(createPortalApiClient(), issueMockToken(8)).get("wros");
     expect(view.domain).toBeNull();
