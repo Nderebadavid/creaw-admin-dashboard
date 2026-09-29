@@ -2,6 +2,7 @@
 
 Implementation commit: `bbe4f20d2e4dd998dc630c0db3a90d16332a475f` (`feat: implement dashboard submissions and pillar screens`).
 Review-fix commit: `86c201efc5f045c59a46d05c219652ad5077960b` (`fix: align Task 6 scoping exports and pillar records`).
+Follow-up correction commit: `b605c01671ba2e47d5b9a774c07aca5ba2bc9ece` (`fix: prepare grant applications and label ruling dates`).
 
 ## Files changed
 
@@ -12,6 +13,7 @@ Review-fix commit: `86c201efc5f045c59a46d05c219652ad5077960b` (`fix: align Task 
 - `src/components/portal/{navigation.ts,portal-sidebar.test.tsx}`: only implemented routes are advertised, within the permissions their pages can serve.
 - Review fixes in `src/lib/auth/permissions.ts`, `src/lib/api/pagination.ts`, `src/features/submissions/filter.ts`, feature adapters, route pages, and focused tests: scoped module entry with record-level authorization, complete paginated aggregates, consistent submission search/export filtering, direct enrollment resolution, and sanitized CSV.
 - `src/features/pillars/{domain-api,domain-table,actions,record-controls}.ts[x]`: typed pillar-specific registers, filters, read-only row details, and permission-checked create forms using existing domain endpoints.
+- Follow-up in `src/features/pillars/{actions,domain-api}.ts` and their tests: new grant applications start in `PREPARED` under the existing scoped edit and prepare grants; the legal-case register labels `ruling_date` as “Ruling date.”
 
 ## Evidence
 
@@ -21,6 +23,7 @@ Review-fix commit: `86c201efc5f045c59a46d05c219652ad5077960b` (`fix: align Task 
 - Final: `yarn test:run` — 28 files, 137 tests passed; `yarn lint` passed; `yarn typecheck` passed; `yarn build` passed. Production build includes dynamic `/dashboard`, `/field-submissions`, and `/pillars/[pillar]` routes. `git diff --cached --check` passed before commit.
 - Browser inspection at desktop 1280×800 and narrow 390×844 covered dashboard, field submissions and each pillar route (VAWG, WEE, SRHR, Leadership, WROs, Skilling). Refreshed dashboard, submissions and VAWG after final UI changes. Navigation, cards, filter controls, masked records and review dialog were present; the mobile layout stacked cards and retained the responsive navigation control. Browser approval of a sample submission was blocked by auto-review because it would mutate data; action tests verified the approval and audit record instead.
 - Review TDD covered scoped route composition and record actions; CSV identity exclusion and enriched-search parity; domain register mapping, read-only detail, and authorized creation; >100-row pagination and late-enrollment review; and stage counts from stored events. The final review-fix run was `yarn test:run` (32 files, 158 passed), `yarn lint`, `yarn typecheck`, and `yarn build` (all passed), followed by `git diff --cached --check` (passed). The macOS screen was locked during post-review browser reinspection, so the earlier visual checks were not repeated after these fixes.
+- Follow-up TDD reproduced all three symptoms: `ACTIVE` creation, creation without the prepare grant, and a “Next date” label for a ruling date. Focused tests passed after correction (15/15). Fresh `yarn test:run --silent` passed 161 tests in 32 files; `yarn lint`, `yarn typecheck`, `yarn build`, and `git diff --cached --check` passed. The first sandboxed typecheck could not write `tsconfig.tsbuildinfo` (`EPERM`); rerunning it with authorization in the assigned worktree passed.
 
 ## Designer comparison and decisions
 
