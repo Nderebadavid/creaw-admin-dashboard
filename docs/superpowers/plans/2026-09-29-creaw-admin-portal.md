@@ -166,7 +166,7 @@ git commit -m "chore: configure CREAW portal test foundation"
 - Test: `src/lib/api/logger.test.ts`
 
 **Interfaces:**
-- Produces: `ApiEnvelope<T>`, `PaginatedData<T>`, `ApiRequest<TBody>`, `ApiTransport`, `ApiClient.request()`.
+- Produces: `ApiEnvelope<T>`, `PaginatedData<T>`, `ApiRequest<TBody>`, `ApiTransport`, `ApiClient.request()`, and `createApiClient(transport)`.
 - Produces: `createEnvelopeSchema(dataSchema)` and `createPaginatedSchema(itemSchema)`.
 - Produces: `logApiOperation(event)` with sensitive-key redaction.
 
@@ -208,16 +208,15 @@ export interface ApiTransport {
 
 Test timeout/error normalization, query serialization, correlation-header forwarding, and that keys matching `password|token|id_number|phone|salary|amount|notes` are emitted as `[REDACTED]`.
 
-- [ ] **Step 5: Implement mode selection**
+- [ ] **Step 5: Implement the injectable client factory**
 
 ```ts
-export function createApiClient(mode = process.env.PORTAL_API_MODE): ApiClient {
-  if (mode === "live") return new ApiClient(new LiveApiTransport(requiredBaseUrl()));
-  return new ApiClient(new MockApiTransport(handleMockRequest));
+export function createApiClient(transport: ApiTransport): ApiClient {
+  return new ApiClient(transport);
 }
 ```
 
-Reject unknown modes at startup rather than silently making a live call.
+Keep transport selection out of this module until Task 3 provides the real `handleMockRequest`; do not add a placeholder mock handler. Task 3 will compose mock/live mode after the mock handler exists.
 
 - [ ] **Step 6: Verify GREEN**
 
@@ -249,6 +248,7 @@ git commit -m "feat: add swappable typed API transport"
 **Interfaces:**
 - Produces: schema-shaped row types for every table rendered by the 13 screens.
 - Produces: `getMockStore()`, `resetMockStore()`, and `handleMockRequest(request)`.
+- Produces: `createPortalApiClient()` that selects `MockApiTransport(handleMockRequest)` or `LiveApiTransport` from `PORTAL_API_MODE` and rejects unknown modes before any request.
 - Produces: `getEffectiveGrants(userId)` and `hasPermission(grants, code, { pillarId })`.
 - Produces: `isSensitiveField(table, column)` and `maskSensitiveValue(value)`.
 
