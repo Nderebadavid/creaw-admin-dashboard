@@ -38,6 +38,7 @@ export class LiveApiTransport implements ApiTransport {
       routeTemplate: request.routeTemplate,
       correlationId: request.correlationId,
     };
+    const startedAt = performance.now();
 
     try {
       const response = await fetch(url, {
@@ -59,7 +60,7 @@ export class LiveApiTransport implements ApiTransport {
 
       try {
         const parsed = schema.parse(payload);
-        logApiOperation({ ...trace, status: response.status, outcome: response.ok ? "success" : "http" });
+        logApiOperation({ ...trace, status: response.status, outcome: response.ok ? "success" : "http", durationMs: performance.now() - startedAt });
         return parsed;
       } catch (error) {
         if (!(error instanceof ZodError)) throw error;
@@ -78,7 +79,7 @@ export class LiveApiTransport implements ApiTransport {
             : new ApiTransportError("network", "API request could not be completed", undefined, {
                 cause: error,
               });
-      logApiOperation({ ...trace, status: normalized.status, outcome: normalized.kind });
+      logApiOperation({ ...trace, status: normalized.status, outcome: normalized.kind, durationMs: performance.now() - startedAt });
       throw normalized;
     }
   }

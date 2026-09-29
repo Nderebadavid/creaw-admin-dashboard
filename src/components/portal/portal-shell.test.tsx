@@ -4,7 +4,7 @@ vi.mock("next/navigation", () => ({usePathname:()=>"/dashboard",useRouter:()=>({
 vi.mock("@/lib/auth/actions", () => ({logoutAction:vi.fn()}));
 import { PortalShell, usePortalPeriod } from "./portal-shell";
 afterEach(cleanup);
-const session = {user:{id:1,firstName:"Judy",lastName:"Mwangi",name:"Judy Mwangi",email:"judy@creaw.org",initials:"JM",role:"admin" as const,passwordChangeRequired:false},grants:[{permissionCode:"DASHBOARD_VIEW",pillarId:null}]};
+const session = {user:{id:1,firstName:"Judy",lastName:"Mwangi",name:"Judy Mwangi",email:"judy@creaw.org",initials:"JM"},grants:[{permissionCode:"DASHBOARD_VIEW",pillarId:null}]};
 function Content() {const period = usePortalPeriod();return <p>{period.quarter}</p>;}
 it("shows the signed-in identity and exposes quarter selection to pages", () => {
   render(<PortalShell session={session}><Content /></PortalShell>);

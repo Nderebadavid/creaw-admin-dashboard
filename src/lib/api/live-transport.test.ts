@@ -99,6 +99,18 @@ describe("LiveApiTransport", () => {
     expect(JSON.stringify(logSpy.mock.calls)).not.toContain("/participants/1");
   });
 
+  it("logs the duration of a live call", async () => {
+    const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })));
+
+    await new LiveApiTransport("https://api.example.test").request(
+      { method: "GET", path: "/dashboard", routeTemplate: "/dashboard", correlationId: "req-live" },
+      z.object({ ok: z.boolean() })
+    );
+
+    expect(logSpy).toHaveBeenCalledWith("[api]", expect.objectContaining({ feature: "dashboard", outcome: "success", durationMs: expect.any(Number) }));
+  });
+
   it("normalizes timeouts", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
 
@@ -161,7 +173,7 @@ describe("injected API boundary", () => {
     ).rejects.toThrow("handler failed");
     expect(logSpy).toHaveBeenCalledWith(
       "[api]",
-      expect.objectContaining({ correlationId: "req-456", routeTemplate: "/participants/:id", outcome: "error" })
+      expect.objectContaining({ correlationId: "req-456", routeTemplate: "/participants/:id", outcome: "error", durationMs: expect.any(Number) })
     );
     expect(JSON.stringify(logSpy.mock.calls)).not.toContain("/participants/1");
   });

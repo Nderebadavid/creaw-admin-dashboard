@@ -6,6 +6,7 @@ export interface ApiOperationEvent {
   correlationId?: string;
   status?: number;
   outcome?: string;
+  durationMs?: number;
   details?: unknown;
 }
 
@@ -32,14 +33,19 @@ function redact(value: unknown): unknown {
 }
 
 export function logApiOperation(event: ApiOperationEvent): void {
+  const routeTemplate = safeRouteTemplate(event.routeTemplate);
+  const feature = routeTemplate === "[invalid-route-template]" ? routeTemplate : routeTemplate.split("/")[1];
   console.info(
     "[api]",
     redact({
+      feature,
+      operation: `${event.method} ${routeTemplate}`,
       method: event.method,
-      routeTemplate: safeRouteTemplate(event.routeTemplate),
+      routeTemplate,
       correlationId: event.correlationId,
       status: event.status,
       outcome: event.outcome,
+      durationMs: event.durationMs === undefined ? undefined : Math.round(event.durationMs),
       details: event.details,
     })
   );

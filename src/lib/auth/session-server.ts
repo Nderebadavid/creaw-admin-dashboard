@@ -29,7 +29,7 @@ export async function getSession(): Promise<Session | null> {
     }, meSchema);
     if (!response.success || !response.data) return null;
     const { user, grants } = response.data;
-    return { user: toPortalSessionUser(user, grants), grants };
+    return { user: toPortalSessionUser(user), grants };
   } catch {
     return null;
   }

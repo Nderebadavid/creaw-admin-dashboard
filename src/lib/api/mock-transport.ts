@@ -13,13 +13,14 @@ export class MockApiTransport implements ApiTransport {
       routeTemplate: request.routeTemplate,
       correlationId: request.correlationId,
     };
+    const startedAt = performance.now();
     try {
       const response = await this.handler(request);
       const result = schema.parse(response);
-      logApiOperation({ ...trace, outcome: "success" });
+      logApiOperation({ ...trace, outcome: "success", durationMs: performance.now() - startedAt });
       return result;
     } catch (error) {
-      logApiOperation({ ...trace, outcome: "error" });
+      logApiOperation({ ...trace, outcome: "error", durationMs: performance.now() - startedAt });
       throw error;
     }
   }
