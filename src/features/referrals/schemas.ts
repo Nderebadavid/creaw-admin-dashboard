@@ -19,6 +19,8 @@ export const referralDtoSchema = z.object({
 export const referralReadDtoSchema = referralDtoSchema.extend({
   participant_summary: z.object({ id: positive, name: z.string() }).nullable(),
   destination_name: z.string().nullable(),
+  /** Officer (or "System (background job)") who created the referral, from the audit log. */
+  referred_by_name: z.string().nullable().default(null),
 });
 export const referralListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(referralReadDtoSchema), z.null()])

@@ -9,12 +9,12 @@ import { TableCard } from "@/components/data-table/table-card";
 import { ExportButton } from "@/components/ui/export-button";
 import { PageHeading } from "@/components/portal/page-heading";
 import { hasPermission, hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
-import type { ParticipantCatalog, ParticipantPage, ParticipantView } from "./api";
-import { exportParticipantsAction } from "./actions";
+import type { ParticipantCatalog, ParticipantPage, ParticipantQuery, ParticipantView } from "./api";
+import { exportParticipantsAction, listParticipantsAction } from "./actions";
 import { participantColumns } from "./registry/columns";
 import { ParticipantDrawer } from "./registry/participant-drawer";
 import { EditParticipantDialog, RegisterParticipantDialog } from "./registry/participant-dialogs";
-import { useParticipantList } from "./registry/use-participant-list";
+import { usePagedList } from "@/components/data-table/use-paged-list";
 
 /**
  * Participant registry: one record per person across every pillar. Rows open a
@@ -32,7 +32,11 @@ export function ParticipantsContent({
   catalog: ParticipantCatalog;
   grants: EffectiveGrant[];
 }) {
-  const list = useParticipantList(initial);
+  const list = usePagedList<ParticipantView, ParticipantQuery>(
+    initial,
+    { page: 1, pageSize: 25 },
+    listParticipantsAction
+  );
   const [search, setSearch] = useState("");
   const [feedback, setFeedback] = useState("");
   const [selected, setSelected] = useState<ParticipantView | null>(null);

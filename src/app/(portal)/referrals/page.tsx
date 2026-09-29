@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission } from "@/lib/auth/permissions";
 import { collectPages } from "@/lib/api/pagination";
@@ -30,19 +29,18 @@ export default async function ReferralsPage() {
     }))
   );
   return (
-    <>
-      <PageHeading
-        title="Referral queue"
-        section="Records"
-        description="Participants moving between pillars — accepting adds an enrollment to the same record"
-      />
-      <ReferralsContent
-        initial={initial}
-        pillars={pillars}
-        origins={origins}
-        catalog={destinations}
-        grants={session.grants}
-      />
-    </>
+    <ReferralsContent
+      heading={{
+        title: "Referral queue",
+        section: "Records",
+        description:
+          "Participants moving between pillars — accepting adds an enrollment to the same record",
+      }}
+      initial={initial}
+      pillars={pillars}
+      origins={origins}
+      catalog={destinations}
+      grants={session.grants}
+    />
   );
 }

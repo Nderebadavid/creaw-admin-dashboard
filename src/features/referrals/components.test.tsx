@@ -36,7 +36,7 @@ it("announces a decision failure inside the active dialog", async () => {
     destinationName: "WEE",
     external: false,
     reason: "Business support",
-    source: "Not recorded",
+    referredBy: "Amina Wekesa",
     date: "2026-09-27T00:00:00.000Z",
     ageDays: 2,
     status: "NEW",
@@ -56,7 +56,7 @@ it("announces a decision failure inside the active dialog", async () => {
       grants={[{ permissionCode: "REFERRAL_VIEW", pillarId: 2 }]}
     />
   );
-  fireEvent.click(screen.getByRole("button", { name: "Decide" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Open referral/ }));
   const dialog = screen.getByRole("dialog");
   fireEvent.click(within(dialog).getByRole("button", { name: "Save response" }));
   await waitFor(() =>
@@ -126,7 +126,7 @@ it("shows the external destination name in both the queue and decision dialog", 
     destinationName: "Nairobi Women's Shelter",
     external: true,
     reason: "Shelter placement",
-    source: "Not recorded",
+    referredBy: "Amina Wekesa",
     date: "2026-09-27T00:00:00.000Z",
     ageDays: 2,
     status: "NEW",
@@ -144,8 +144,71 @@ it("shows the external destination name in both the queue and decision dialog", 
     />
   );
   expect(screen.getAllByText("Nairobi Women's Shelter").length).toBeGreaterThan(0);
-  fireEvent.click(screen.getByRole("button", { name: "Decide" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Open referral/ }));
   expect(
-    within(screen.getByRole("dialog")).getByText(/Nairobi Women's Shelter/)
+    within(screen.getByRole("dialog")).getAllByText(/Nairobi Women's Shelter/).length
+  ).toBeGreaterThan(0);
+  expect(
+    within(screen.getByRole("dialog")).getByRole("option", {
+      name: "Confirm hand-off to Nairobi Women's Shelter",
+    })
   ).toBeInTheDocument();
+});
+
+it("lays out the queue like the design", () => {
+  const referral: ReferralView = {
+    id: 4,
+    enrollmentId: 7,
+    participantId: 6,
+    participant: "Aisha Mohamed",
+    fromPillarId: 1,
+    toPillarId: 2,
+    fromPillar: "VAWG",
+    toPillar: "WEE",
+    destinationName: "WEE",
+    external: false,
+    reason: "Business support",
+    referredBy: null,
+    date: "2026-09-27T00:00:00.000Z",
+    ageDays: 2,
+    status: "NEW",
+    canRespond: true,
+    respondDisabledReason: null,
+    canEdit: true,
+    canWithdraw: true,
+  };
+  render(
+    <ReferralsContent
+      heading={{
+        title: "Referral queue",
+        section: "Records",
+        description: "Participants moving between pillars",
+      }}
+      initial={{ items: [referral], page: 1, pageSize: 25, totalItems: 1, totalPages: 1 }}
+      pillars={[
+        { id: 1, name: "VAWG" },
+        { id: 2, name: "WEE" },
+      ]}
+      origins={[
+        { enrollmentId: 1, pillarId: 1, participant: "Faith Njeri", category: "Legal aid" },
+      ]}
+      grants={[
+        { permissionCode: "REFERRAL_CREATE", pillarId: 1 },
+        { permissionCode: "REPORT_EXPORT_CSV", pillarId: null },
+      ]}
+    />
+  );
+  const header = screen
+    .getByRole("heading", { level: 1, name: "Referral queue" })
+    .closest("[data-page-heading]") as HTMLElement;
+  expect(within(header).getByRole("button", { name: "New referral" })).toBeInTheDocument();
+  expect(within(header).getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "All referrals" })).toBeInTheDocument();
+  expect(
+    screen.getByText("Click a new referral to decide, edit or withdraw it")
+  ).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Referred by" })).toBeInTheDocument();
+  expect(screen.getByText("Not recorded")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "New" })).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("button", { name: "Actions for Aisha Mohamed" })).toBeInTheDocument();
 });

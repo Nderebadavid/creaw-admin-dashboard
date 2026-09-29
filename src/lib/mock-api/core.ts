@@ -271,7 +271,22 @@ export function referralRead(store: MockStore, row: Row): Row {
         }
       : null,
     destination_name: partner?.name ?? null,
+    referred_by_name: referrerName(store, row.id),
   };
+}
+
+/** Who created a referral, from its CREATE audit entry; null when none was recorded. */
+function referrerName(store: MockStore, referralId: number): string | null {
+  const created = store.audit_logs.findLast(
+    (entry) =>
+      entry.entity_type === "referral" &&
+      entry.entity_id === referralId &&
+      entry.action === "CREATE"
+  );
+  if (!created) return null;
+  if (created.source === "KAFKA") return "System (background job)";
+  const user = store.user.find((row) => row.id === created.performed_by);
+  return user ? `${user.first_name} ${user.last_name}` : null;
 }
 export function enrollmentRead(store: MockStore, row: Row): Row {
   const latestEvent = store.participant_stage_event

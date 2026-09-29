@@ -327,6 +327,18 @@ export function createSeed(): MockStore {
           ? null
           : (store.project.find((row) => row.pillar_id === pillarIds[ref.to])?.id ?? null),
     });
+    // Record who made the referral; `by: null` referrals come from the Kafka job below.
+    const referrer =
+      ref.by && store.user.find((row) => `${row.first_name} ${row.last_name}` === ref.by);
+    if (referrer)
+      add("audit_logs", {
+        entity_type: "referral",
+        entity_id: store.referral.length,
+        action: "CREATE",
+        source: "HTTP",
+        performed_by: referrer.id,
+        performed_at: SEED_DATE,
+      });
   }
   for (const submission of story.submissions) {
     const pillarId = pillarIds[submission.pillar];

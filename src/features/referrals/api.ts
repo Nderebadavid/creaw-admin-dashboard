@@ -42,7 +42,8 @@ export interface ReferralView {
   toPillar: string;
   external: boolean;
   reason: string;
-  source: string;
+  /** Who made the referral; null when no creation record exists. */
+  referredBy: string | null;
   destinationName: string;
   date: string;
   ageDays: number;
@@ -113,7 +114,7 @@ export function createReferralsApi(client: ApiClient, token: string) {
             pillarNames.get(row.to_pillar_id) ??
             `Pillar #${row.to_pillar_id}`,
           reason: row.trigger_reason ?? "No reason recorded",
-          source: "Not recorded",
+          referredBy: row.referred_by_name,
           date: row.created_at,
           ageDays: Math.max(0, Math.floor((Date.now() - Date.parse(row.created_at)) / 86_400_000)),
           status: row.status,

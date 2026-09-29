@@ -152,3 +152,23 @@ describe("referral workflows", () => {
     expect(store.audit_logs).toHaveLength(auditCount);
   });
 });
+
+describe("referral provenance", () => {
+  it("names the officer who made a referral, or the background job", async () => {
+    const api = apiFor(1);
+    expect((await api.get(1))?.referredBy).toBe("Amina Wekesa");
+    expect((await api.get(2))?.referredBy).toBe("System (background job)");
+  });
+
+  it("records the signed-in officer as the referrer of a new referral", async () => {
+    const api = apiFor(1);
+    const created = await api.create({
+      enrollmentId: 1,
+      fromPillarId: 1,
+      toPillarId: 3,
+      reason: "Peer support group intake",
+    });
+    expect(created.success).toBe(true);
+    expect((await api.get(created.data!.id))?.referredBy).toBe("Judy Mwangi");
+  });
+});
