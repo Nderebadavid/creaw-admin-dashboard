@@ -99,3 +99,54 @@ it("requires a global lookup grant while allowing a scoped pipeline grant", () =
   expect(screen.getByRole("link", { name: "Pipeline config" })).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Lookup tables" })).not.toBeInTheDocument();
 });
+
+const busyGrants = [
+  { permissionCode: "FIELD_SUBMISSION_VIEW", pillarId: null },
+  { permissionCode: "REFERRAL_VIEW", pillarId: null },
+  { permissionCode: "NARRATIVE_REPORT_MANAGE", pillarId: null },
+];
+const busyStatus = { pendingSubmissions: 5, newReferrals: 2, grantsAwaiting: 0, overdueReports: 1 };
+
+it("badges modules with waiting work", () => {
+  render(<PortalSidebar pathname="/dashboard" grants={busyGrants} status={busyStatus} />);
+  expect(screen.getByRole("link", { name: /Field submissions/ })).toHaveTextContent("5");
+  expect(screen.getByRole("link", { name: /Referral queue/ })).toHaveTextContent("2");
+  expect(screen.getByRole("link", { name: /Reporting calendar/ })).toHaveTextContent("1");
+});
+
+it("marks waiting work with a dot when collapsed", () => {
+  render(<PortalSidebar collapsed pathname="/dashboard" grants={busyGrants} status={busyStatus} />);
+  expect(screen.getByRole("link", { name: /Field submissions/ })).toHaveAccessibleName(
+    "Field submissions, 5 waiting"
+  );
+});
+
+it("shows the reporting window with the overdue count and a calendar link", () => {
+  render(
+    <PortalSidebar
+      pathname="/dashboard"
+      grants={busyGrants}
+      status={busyStatus}
+      today={new Date("2026-09-27T09:00:00")}
+    />
+  );
+  expect(screen.getByText("Q3 reporting window")).toBeInTheDocument();
+  expect(
+    screen.getByText("1 donor report overdue. Submit before 30 Sep to stay compliant.")
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Review calendar" })).toHaveAttribute(
+    "href",
+    "/reporting"
+  );
+});
+
+it("hides the reporting window from users without the calendar", () => {
+  render(
+    <PortalSidebar
+      pathname="/dashboard"
+      grants={[{ permissionCode: "DASHBOARD_VIEW", pillarId: null }]}
+      status={busyStatus}
+    />
+  );
+  expect(screen.queryByText("Q3 reporting window")).not.toBeInTheDocument();
+});

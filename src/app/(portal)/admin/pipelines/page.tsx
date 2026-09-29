@@ -26,7 +26,7 @@ export default async function PipelinesPage() {
       <PageHeading
         title="Pipeline & stage configuration"
         section="Admin"
-        description="Configure each pillar’s participant pathway"
+        description="pipeline_definition + stage_definition for each active pillar"
       />
       <PipelineContent
         pillars={pillars}

@@ -20,7 +20,7 @@ export default async function PermissionsPage() {
       <PageHeading
         title="Roles & permissions"
         section="Admin"
-        description="Configure the access available to each staff role"
+        description="Create roles and permissions, then choose exactly what each role can do"
       />
       <PermissionsContent
         roles={roles}

@@ -20,6 +20,16 @@ import {
 } from "lucide-react";
 import type { EffectiveGrant } from "@/lib/auth/permissions";
 
+/** Work waiting in each module, shown as sidebar badges and in notifications. */
+export interface NavigationStatus {
+  /** Field submissions not yet approved (pending review or flagged). */
+  pendingSubmissions: number;
+  newReferrals: number;
+  /** Grant applications still in their sign-off chain. */
+  grantsAwaiting: number;
+  overdueReports: number;
+}
+
 export interface NavigationItem {
   label: string;
   href: string;
@@ -27,6 +37,8 @@ export interface NavigationItem {
   icon: LucideIcon;
   pillarId?: number;
   color?: string;
+  /** The waiting-work count shown as this item's badge. */
+  badge?: keyof NavigationStatus;
 }
 export const implementedPortalRoutes: readonly string[] = [
   "/dashboard",
@@ -63,6 +75,7 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         href: "/field-submissions",
         permissions: ["FIELD_SUBMISSION_VIEW"],
         icon: Camera,
+        badge: "pendingSubmissions",
       },
     ],
   },
@@ -133,8 +146,15 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         href: "/referrals",
         permissions: ["REFERRAL_VIEW"],
         icon: ArrowLeftRight,
+        badge: "newReferrals",
       },
-      { label: "Grants", href: "/grants", permissions: ["GRANT_APPLICATION_VIEW"], icon: Receipt },
+      {
+        label: "Grants",
+        href: "/grants",
+        permissions: ["GRANT_APPLICATION_VIEW"],
+        icon: Receipt,
+        badge: "grantsAwaiting",
+      },
       {
         label: "Org assessments",
         href: "/assessments",
@@ -151,6 +171,7 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         href: "/reporting",
         permissions: ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW"],
         icon: CalendarDays,
+        badge: "overdueReports",
       },
       { label: "Audit log", href: "/audit", permissions: ["AUDIT_LOG_VIEW"], icon: History },
     ],

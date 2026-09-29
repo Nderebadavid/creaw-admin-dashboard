@@ -21,7 +21,7 @@ export default async function UsersPage() {
       <PageHeading
         title="Users & roles"
         section="Admin"
-        description="Staff accounts, role grants and pillar scope"
+        description="Staff accounts and the roles that drive their navigation"
       />
       <UsersContent
         initial={initial}

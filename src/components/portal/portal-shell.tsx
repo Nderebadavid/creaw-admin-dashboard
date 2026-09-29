@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PortalSidebar } from "./portal-sidebar";
 import { PortalHeader } from "./portal-header";
-import { permittedNavigation } from "./navigation";
+import { permittedNavigation, type NavigationStatus } from "./navigation";
 
 const PortalPeriodContext = createContext<{
   quarter: string;
@@ -21,18 +21,21 @@ export function PortalShell({
   session,
   children,
   availableRoutes,
+  status,
   initialQuarter = "2026-Q3",
 }: {
   session: Session;
   children: ReactNode;
   availableRoutes?: readonly string[];
+  /** Waiting-work counts for sidebar badges and notifications. */
+  status?: NavigationStatus;
   initialQuarter?: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false),
     [mobileOpen, setMobileOpen] = useState(false),
     [quarter, setQuarter] = useState(initialQuarter);
-  const sidebarProps = { grants: session.grants, pathname, availableRoutes };
+  const sidebarProps = { grants: session.grants, pathname, availableRoutes, status };
   const destinations = permittedNavigation(session.grants, availableRoutes).flatMap((group) =>
     group.items.map((item) => ({ label: item.label, href: item.href }))
   );

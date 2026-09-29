@@ -27,7 +27,7 @@ export default async function AuditPage({
       <PageHeading
         title="Audit log"
         section="Reporting"
-        description="A trace of changes across the portal and integrations"
+        description="Every create, edit, reveal, upload and export — portal and mobile"
       />
       <AuditContent
         initial={initial}

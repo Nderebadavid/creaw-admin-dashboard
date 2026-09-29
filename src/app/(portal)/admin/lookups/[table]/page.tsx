@@ -87,7 +87,7 @@ export default async function LookupPage({
       <PageHeading
         title="Lookup & reference data"
         section="Admin"
-        description="Manage the reference values used throughout forms and records"
+        description="County → sub-county → ward, and the reference tables every form points at"
       />
       <LookupContent
         table={table}
