@@ -357,6 +357,12 @@ git commit -m "feat: add stubbed CREAW authentication flow"
 ### Task 5: Portal Shell and Shared Interaction Components
 
 **Files:**
+- Delete: `src/app/(dashboard)`
+- Delete: `src/components/features/member`
+- Delete: `src/components/layout/header`
+- Delete: `src/components/layout/sidebar`
+- Delete: `src/lib/mock-db`
+- Delete: `src/types/member.ts`
 - Create: `src/app/(portal)/layout.tsx`
 - Create: `src/app/(portal)/loading.tsx`
 - Create: `src/app/(portal)/error.tsx`
@@ -398,7 +404,7 @@ Expected: FAIL because components do not exist.
 
 - [ ] **Step 3: Implement the designer shell**
 
-Build the exact five nav groups, CREAW logo, global search, quarter selector, notification bell, user identity, responsive drawer, and compact collapsed mode. Navigation entries must be generated from permissions; no dead route is rendered.
+Remove the conflicting VSLA dashboard/member route group and its feature-only dependencies, then build the exact five nav groups, CREAW logo, global search, quarter selector, notification bell, user identity, responsive drawer, and compact collapsed mode. Navigation entries must be generated from permissions; no dead route is rendered.
 
 - [ ] **Step 4: Implement reusable table and state patterns**
 
@@ -416,7 +422,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/app/'(portal)' src/components/portal src/components/data-table src/components/ui
+git add -A src/app/'(dashboard)' src/app/'(portal)' src/components/features/member src/components/layout/header src/components/layout/sidebar src/lib/mock-db src/types/member.ts src/components/portal src/components/data-table src/components/ui
 git commit -m "feat: build CREAW portal shell and shared UI"
 ```
 
@@ -689,12 +695,6 @@ git commit -m "feat: implement pipelines and lookup management"
 ### Task 11: Remove Starter Surface and Complete Verification
 
 **Files:**
-- Delete: `src/app/(dashboard)`
-- Delete: `src/components/features/member`
-- Delete: `src/components/layout/header`
-- Delete: `src/components/layout/sidebar`
-- Delete: `src/lib/mock-db`
-- Delete: `src/types/member.ts`
 - Replace: `src/app/page.tsx`
 - Modify: `README.md`
 - Test: all test files
@@ -710,11 +710,11 @@ Create `src/test/route-inventory.test.ts` asserting the expected page files exis
 - [ ] **Step 2: Verify RED**
 
 Run: `yarn test:run src/test/route-inventory.test.ts`  
-Expected: FAIL while the old `(dashboard)/members` route remains.
+Expected: FAIL until the final route inventory test and root redirect are implemented.
 
 - [ ] **Step 3: Remove the starter surface and update documentation**
 
-Delete only the listed VSLA-only files after verifying no CREAW imports depend on them. Make `/` redirect through the authenticated session to `/dashboard` or `/login`. Document demo credentials, mock/live environment settings, standard envelopes, test commands, and the fact that mock state resets with the server process.
+Remove any remaining unused VSLA-only auth/navigation types after verifying no CREAW imports depend on them. Make `/` redirect through the authenticated session to `/dashboard` or `/login`. Document demo credentials, mock/live environment settings, standard envelopes, test commands, and the fact that mock state resets with the server process.
 
 - [ ] **Step 4: Run automated verification**
 
