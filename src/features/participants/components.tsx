@@ -133,7 +133,7 @@ export function ParticipantsContent({
       cell: (row) => (
         <div>
           <span className="font-semibold">{row.name}</span>
-          <p className="text-xs text-[#81766d]">
+          <p className="text-xs text-creaw-muted">
             {row.idNumber ? `ID ${row.idNumber}` : "No ID recorded"}
           </p>
         </div>
@@ -145,7 +145,7 @@ export function ParticipantsContent({
       cell: (row) => (
         <div>
           {row.county}
-          <p className="text-xs text-[#81766d]">{row.ward}</p>
+          <p className="text-xs text-creaw-muted">{row.ward}</p>
         </div>
       ),
     },
@@ -157,7 +157,7 @@ export function ParticipantsContent({
           {row.pillarIds.map((id) => (
             <span
               key={id}
-              className="rounded-full bg-[#FBEDE5] px-2 py-1 text-xs font-semibold text-primary"
+              className="rounded-full bg-creaw-orange-soft px-2 py-1 text-xs font-semibold text-primary"
             >
               {pillarName(id)}
             </span>
@@ -171,7 +171,7 @@ export function ParticipantsContent({
       cell: (row) => (
         <div>
           {row.currentStage}
-          <p className="text-xs text-[#81766d]">
+          <p className="text-xs text-creaw-muted">
             {row.enrollments.length} enrollment{row.enrollments.length === 1 ? "" : "s"}
           </p>
         </div>
@@ -193,7 +193,7 @@ export function ParticipantsContent({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">Participant registry</h2>
-          <p className="text-sm text-[#81766d]">
+          <p className="text-sm text-creaw-muted">
             IDs and contact details stay masked until an audited reveal.
           </p>
         </div>
@@ -218,7 +218,7 @@ export function ParticipantsContent({
         <button
           type="button"
           aria-pressed={!query.pillarId}
-          className={`rounded-full border px-3 py-1.5 text-sm ${!query.pillarId ? "bg-[#FBEDE5] text-primary" : "bg-white"}`}
+          className={`rounded-full border px-3 py-1.5 text-sm ${!query.pillarId ? "bg-creaw-orange-soft text-primary" : "bg-white"}`}
           onClick={() => filter({ pillarId: undefined })}
         >
           All
@@ -228,7 +228,7 @@ export function ParticipantsContent({
             key={pillar.id}
             type="button"
             aria-pressed={query.pillarId === pillar.id}
-            className={`rounded-full border px-3 py-1.5 text-sm ${query.pillarId === pillar.id ? "bg-[#FBEDE5] text-primary" : "bg-white"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm ${query.pillarId === pillar.id ? "bg-creaw-orange-soft text-primary" : "bg-white"}`}
             onClick={() => filter({ pillarId: pillar.id })}
           >
             {pillar.name}
@@ -268,12 +268,18 @@ export function ParticipantsContent({
         </label>
       </div>
       {feedback && (
-        <p role="status" className="rounded-xl bg-[#EAF5ED] px-4 py-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-xl bg-creaw-success-soft px-4 py-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] px-4 py-3 text-sm text-[#B8352C]">
+        <p
+          role="alert"
+          className="rounded-xl bg-creaw-danger-soft px-4 py-3 text-sm text-creaw-danger"
+        >
           {error}
         </p>
       )}
@@ -321,17 +327,17 @@ export function ParticipantsContent({
             <div className="space-y-5 text-sm">
               <div className="grid gap-3 sm:grid-cols-2">
                 <p>
-                  <span className="text-[#81766d]">County / ward</span>
+                  <span className="text-creaw-muted">County / ward</span>
                   <br />
                   {selected.county} · {selected.ward}
                 </p>
                 <p>
-                  <span className="text-[#81766d]">Registered</span>
+                  <span className="text-creaw-muted">Registered</span>
                   <br />
                   {date(selected.registered)}
                 </p>
                 <p>
-                  <span className="text-[#81766d]">ID number</span>
+                  <span className="text-creaw-muted">ID number</span>
                   <br />
                   <MaskedField
                     label="ID number"
@@ -344,7 +350,7 @@ export function ParticipantsContent({
                   />
                 </p>
                 <p>
-                  <span className="text-[#81766d]">Phone number</span>
+                  <span className="text-creaw-muted">Phone number</span>
                   <br />
                   <MaskedField
                     label="Phone number"
@@ -364,7 +370,7 @@ export function ParticipantsContent({
                     <li key={item.id} className="rounded-xl border p-3">
                       <span className="font-semibold">{pillarName(item.pillarId)}</span> ·{" "}
                       {item.category}
-                      <span className="block text-xs text-[#81766d]">
+                      <span className="block text-xs text-creaw-muted">
                         Stage: {item.currentStage ?? "Not started"} · Since {date(item.date)} ·{" "}
                         {item.status}
                       </span>
@@ -374,7 +380,7 @@ export function ParticipantsContent({
               </div>
               <div>
                 <h3 className="font-heading text-lg font-bold">History</h3>
-                <p className="mt-2 text-[#81766d]">
+                <p className="mt-2 text-creaw-muted">
                   Registered {date(selected.registered)}; {selected.enrollments.length} enrollment
                   {selected.enrollments.length === 1 ? "" : "s"} recorded.
                 </p>
@@ -406,7 +412,10 @@ export function ParticipantsContent({
             One participant record, shared across every pillar they join.
           </DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}
@@ -502,7 +511,10 @@ export function ParticipantsContent({
           <DialogTitle>Edit participant</DialogTitle>
           <DialogDescription>{selected?.name}</DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}

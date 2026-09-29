@@ -20,7 +20,7 @@ export function MetricCard({
           {icon}
         </div>
       )}
-      <h3 className="text-sm text-[#81766d]">{label}</h3>
+      <h3 className="text-sm text-creaw-muted">{label}</h3>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-2">
         <p className="font-heading text-4xl font-bold tabular-nums">{value}</p>
         {detail}

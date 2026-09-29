@@ -138,7 +138,7 @@ export function ReportingContent({
       cell: (row) => (
         <div>
           <span className="font-semibold">{row.title}</span>
-          <p className="text-xs text-[#81766d]">
+          <p className="text-xs text-creaw-muted">
             {row.type === "grant" ? "Grant compliance" : "Narrative report"}
           </p>
         </div>
@@ -150,7 +150,7 @@ export function ReportingContent({
       id: "due",
       header: "Due",
       cell: (row) => (
-        <span className={row.status === "overdue" ? "font-semibold text-[#B8352C]" : ""}>
+        <span className={row.status === "overdue" ? "font-semibold text-creaw-danger" : ""}>
           {date(row.dueDate)}
         </span>
       ),
@@ -179,7 +179,7 @@ export function ReportingContent({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">Reporting calendar</h2>
-          <p className="text-sm text-[#81766d]">Donor and grant reports across pillars</p>
+          <p className="text-sm text-creaw-muted">Donor and grant reports across pillars</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canExport && <ExportButton exportAction={() => exportReportsAction(query)} />}
@@ -211,7 +211,7 @@ export function ReportingContent({
             type="button"
             aria-pressed={(query.status ?? "All") === status}
             onClick={() => filter({ status: status === "All" ? undefined : status })}
-            className={`rounded-full border px-3 py-1.5 text-sm ${(query.status ?? "All") === status ? "bg-[#FBEDE5] text-primary" : "bg-white"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm ${(query.status ?? "All") === status ? "bg-creaw-orange-soft text-primary" : "bg-white"}`}
           >
             {status[0].toUpperCase() + status.slice(1)}
           </button>
@@ -266,12 +266,15 @@ export function ReportingContent({
         </label>
       </div>
       {feedback && (
-        <p role="status" className="rounded-xl bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-xl bg-creaw-success-soft p-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
@@ -435,7 +438,7 @@ export function ReportingContent({
                 className="mt-1 w-full rounded-lg border p-2"
               />
             </label>
-            <p className="text-xs text-[#81766d]">Mock mode stores document metadata only.</p>
+            <p className="text-xs text-creaw-muted">Mock mode stores document metadata only.</p>
             <Button type="submit" disabled={busy}>
               Mark submitted
             </Button>

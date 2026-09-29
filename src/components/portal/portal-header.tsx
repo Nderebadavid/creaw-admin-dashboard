@@ -109,7 +109,7 @@ export function PortalHeader({
             </span>
             <span className="hidden xl:block">
               <span className="block text-sm font-semibold">{user.name}</span>
-              <span className="block text-xs text-[#81766d]">CREAW MERL Portal</span>
+              <span className="block text-xs text-creaw-muted">CREAW MERL Portal</span>
             </span>
             <ChevronDown size={16} aria-hidden="true" className="hidden sm:block" />
           </DropdownMenuTrigger>

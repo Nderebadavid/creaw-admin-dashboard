@@ -79,7 +79,7 @@ export function SubmissionsContent({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">Review queue</h2>
-          <p className="text-sm text-[#81766d]">
+          <p className="text-sm text-creaw-muted">
             Mobile updates linked to existing programme records
           </p>
         </div>
@@ -107,7 +107,7 @@ export function SubmissionsContent({
               setPage(1);
             }}
             aria-pressed={active === tab}
-            className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${active === tab ? "border-[#F0CDBB] bg-[#FBEDE5] text-primary" : "bg-white text-[#6B625B]"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "bg-white text-creaw-body"}`}
           >
             {tab}{" "}
             <span className="ml-1 text-xs">
@@ -135,13 +135,13 @@ export function SubmissionsContent({
       {feedback && (
         <p
           role="status"
-          className="rounded-xl border border-[#D5E8D9] bg-[#EAF5ED] px-4 py-3 text-sm text-[#246842]"
+          className="rounded-xl border border-[#D5E8D9] bg-creaw-success-soft px-4 py-3 text-sm text-creaw-success"
         >
           {feedback}
         </p>
       )}
       {visible.length === 0 ? (
-        <div className="rounded-2xl border bg-white p-10 text-center text-sm text-[#81766d]">
+        <div className="rounded-2xl border bg-white p-10 text-center text-sm text-creaw-muted">
           No submissions match these filters.
         </div>
       ) : (
@@ -151,14 +151,14 @@ export function SubmissionsContent({
             return (
               <article key={row.id} className="rounded-2xl border bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-lg bg-[#FBEDE5] px-2.5 py-1 text-xs font-semibold text-primary">
+                  <span className="inline-flex items-center gap-2 rounded-lg bg-creaw-orange-soft px-2.5 py-1 text-xs font-semibold text-primary">
                     <Camera size={14} />
                     {row.type}
                   </span>
                   <StatusBadge tone={tone[row.status]}>{row.status}</StatusBadge>
                 </div>
                 <h3 className="mt-4 font-heading text-xl font-bold">{row.title}</h3>
-                <p className="mt-1 text-sm text-[#81766d]">
+                <p className="mt-1 text-sm text-creaw-muted">
                   {row.pillar} · Captured{" "}
                   {new Date(row.captured).toLocaleDateString("en-KE", {
                     day: "2-digit",
@@ -166,7 +166,7 @@ export function SubmissionsContent({
                     year: "numeric",
                   })}
                 </p>
-                <p className="mt-2 flex items-center gap-1 text-xs text-[#81766d]">
+                <p className="mt-2 flex items-center gap-1 text-xs text-creaw-muted">
                   <MapPin size={13} aria-hidden="true" />
                   Location not recorded in this event
                 </p>

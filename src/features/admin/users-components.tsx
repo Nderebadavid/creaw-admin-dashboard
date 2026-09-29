@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { fieldClass } from "./form-styles";
 import { useRouter } from "next/navigation";
 import { Plus, Search, UserRound, Shield, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,6 @@ import type { AdminPage, RoleView, UserRoleView, UserView } from "./api";
 
 type Pillar = { id: number; name: string };
 type UserQuery = { page: number; pageSize: number; search?: string; status?: string };
-const fieldClass =
-  "mt-1 w-full rounded-lg border border-[#E2DBD3] bg-white p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary";
 export function UsersContent({
   initial,
   roles,
@@ -182,7 +181,7 @@ export function UsersContent({
             <strong>
               {user.first_name} {user.last_name}
             </strong>
-            <div className="font-mono text-xs text-[#8A8078]">{user.username}</div>
+            <div className="font-mono text-xs text-creaw-faint">{user.username}</div>
           </div>
         </div>
       ),
@@ -191,7 +190,7 @@ export function UsersContent({
       id: "contact",
       header: "Contact",
       cell: (user) => (
-        <div className="space-y-1 text-xs text-[#6B625B]">
+        <div className="space-y-1 text-xs text-creaw-body">
           <div>{user.email ?? "—"}</div>
           <div className="font-mono">{user.phone_number ?? "—"}</div>
         </div>
@@ -203,7 +202,7 @@ export function UsersContent({
       cell: (user) => (
         <div className="flex flex-wrap gap-1">
           {grantsOf(user.id).map((grant) => (
-            <span key={grant.id} className="rounded-md border bg-[#F7F4F0] px-2 py-1 text-xs">
+            <span key={grant.id} className="rounded-md border bg-creaw-canvas px-2 py-1 text-xs">
               {roles.find((role) => role.id === grant.role_id)?.name ?? `Role #${grant.role_id}`}
             </span>
           ))}
@@ -214,7 +213,7 @@ export function UsersContent({
       id: "scope",
       header: "Scope",
       cell: (user) => (
-        <span className="text-sm text-[#6B625B]">
+        <span className="text-sm text-creaw-body">
           {[...new Set(grantsOf(user.id).map(scopeOf))].join(", ") || "No role"}
         </span>
       ),
@@ -247,24 +246,24 @@ export function UsersContent({
           return (
             <div
               key={index}
-              className="flex items-center gap-3 rounded-2xl border border-[#ECE6DF] bg-white p-4"
+              className="flex items-center gap-3 rounded-2xl border border-creaw-line bg-white p-4"
             >
-              <span className="rounded-xl bg-[#F7E6DC] p-3 text-[#B4552E]">
+              <span className="rounded-xl bg-[#F7E6DC] p-3 text-creaw-orange">
                 <Component size={22} />
               </span>
               <div>
                 <strong className="font-heading text-2xl">{value as number}</strong>
-                <p className="text-xs text-[#8A8078]">{label as string}</p>
+                <p className="text-xs text-creaw-faint">{label as string}</p>
               </div>
             </div>
           );
         })}
       </div>
-      <div className="rounded-2xl border border-[#ECE6DF] bg-white p-3 sm:p-5">
+      <div className="rounded-2xl border border-creaw-line bg-white p-3 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-heading text-xl font-bold">Staff accounts</h2>
-            <p className="text-sm text-[#8A8078]">
+            <p className="text-sm text-creaw-faint">
               Multiple roles combine their permitted modules and pillar scopes.
             </p>
           </div>
@@ -278,7 +277,7 @@ export function UsersContent({
           </Button>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <label className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border bg-[#F7F4F0] px-3 py-2">
+          <label className="flex min-w-56 flex-1 items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2">
             <Search size={16} aria-hidden />
             <span className="sr-only">Search staff</span>
             <input
@@ -296,7 +295,7 @@ export function UsersContent({
                 type="button"
                 aria-pressed={(query.status ?? "All") === status}
                 onClick={() => filter({ status: status === "All" ? undefined : status })}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${(query.status ?? "All") === status ? "border-[#F0CDBB] bg-[#FBEDE5] text-[#B4552E]" : "bg-white text-[#6B625B]"}`}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${(query.status ?? "All") === status ? "border-[#F0CDBB] bg-creaw-orange-soft text-creaw-orange" : "bg-white text-creaw-body"}`}
               >
                 {status === "All" ? "All" : status[0] + status.slice(1).toLowerCase()}
               </button>
@@ -304,12 +303,18 @@ export function UsersContent({
           </div>
         </div>
         {feedback && (
-          <p role="status" className="mb-3 rounded-lg bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+          <p
+            role="status"
+            className="mb-3 rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
+          >
             {feedback}
           </p>
         )}
         {error && !modal && (
-          <p role="alert" className="mb-3 rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+          <p
+            role="alert"
+            className="mb-3 rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+          >
             {error}
           </p>
         )}
@@ -481,7 +486,7 @@ export function UsersContent({
                       {roles.find((role) => role.id === grant.role_id)?.name ??
                         `Role #${grant.role_id}`}
                     </strong>
-                    <span className="block text-xs text-[#8A8078]">{scopeOf(grant)}</span>
+                    <span className="block text-xs text-creaw-faint">{scopeOf(grant)}</span>
                   </span>
                   <Button
                     size="sm"

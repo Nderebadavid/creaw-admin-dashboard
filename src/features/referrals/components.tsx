@@ -171,7 +171,7 @@ export function ReferralsContent({
       cell: (row) => (
         <div>
           <span className="font-semibold">{row.participant}</span>
-          <p className="text-xs text-[#81766d]">
+          <p className="text-xs text-creaw-muted">
             {row.fromPillar} → {row.destinationName}
             {row.external ? " (external)" : ""}
           </p>
@@ -183,7 +183,7 @@ export function ReferralsContent({
       header: "From → to",
       cell: (row) => (
         <div className="flex flex-wrap gap-1">
-          <span className="rounded-full bg-[#FBEDE5] px-2 py-1 text-xs text-primary">
+          <span className="rounded-full bg-creaw-orange-soft px-2 py-1 text-xs text-primary">
             {row.fromPillar}
           </span>
           <span aria-hidden="true">→</span>
@@ -205,7 +205,7 @@ export function ReferralsContent({
       cell: (row) => (
         <div>
           {date(row.date)}
-          <p className="text-xs text-[#81766d]">{row.ageDays} days ago</p>
+          <p className="text-xs text-creaw-muted">{row.ageDays} days ago</p>
         </div>
       ),
     },
@@ -220,7 +220,7 @@ export function ReferralsContent({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">All referrals</h2>
-          <p className="text-sm text-[#81766d]">
+          <p className="text-sm text-creaw-muted">
             Accepting an internal referral adds a destination enrollment to the same participant.
           </p>
         </div>
@@ -248,7 +248,7 @@ export function ReferralsContent({
             key={status}
             type="button"
             aria-pressed={(query.status ?? "All") === status}
-            className={`rounded-full border px-3 py-1.5 text-sm ${(query.status ?? "All") === status ? "bg-[#FBEDE5] text-primary" : "bg-white"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm ${(query.status ?? "All") === status ? "bg-creaw-orange-soft text-primary" : "bg-white"}`}
             onClick={() => filter({ status: status === "All" ? undefined : status })}
           >
             {status === "NEW" ? "New" : status[0] + status.slice(1).toLowerCase()}
@@ -288,12 +288,18 @@ export function ReferralsContent({
         </label>
       </div>
       {feedback && (
-        <p role="status" className="rounded-xl bg-[#EAF5ED] px-4 py-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-xl bg-creaw-success-soft px-4 py-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] px-4 py-3 text-sm text-[#B8352C]">
+        <p
+          role="alert"
+          className="rounded-xl bg-creaw-danger-soft px-4 py-3 text-sm text-creaw-danger"
+        >
           {error}
         </p>
       )}
@@ -377,7 +383,10 @@ export function ReferralsContent({
             Refer a participant to a pillar project or partner institution.
           </DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}
@@ -474,7 +483,10 @@ export function ReferralsContent({
             {selected?.participant} · {selected?.fromPillar} → {selected?.destinationName}
           </DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}
@@ -509,7 +521,10 @@ export function ReferralsContent({
           <DialogTitle>Edit referral</DialogTitle>
           <DialogDescription>{selected?.participant}</DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}
@@ -541,7 +556,10 @@ export function ReferralsContent({
           <DialogTitle>Withdraw referral</DialogTitle>
           <DialogDescription>{selected?.participant}</DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}

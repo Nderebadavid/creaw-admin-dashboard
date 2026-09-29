@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState, type FormEvent } from "react";
+import { fieldClass } from "./form-styles";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, History, Pencil, Plus, Search } from "lucide-react";
@@ -161,8 +162,6 @@ const tabs: { label: string; table: LookupTable }[] = [
   { label: "Partner institutions", table: "partner_institution" },
   { label: "Activity types", table: "activity_type_definition" },
 ];
-const inputClass =
-  "mt-1 w-full rounded-lg border border-[#E2DBD3] bg-white p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary";
 function labelFor(
   row: LookupView,
   key: string,
@@ -279,7 +278,7 @@ export function LookupContent({
     <div className="space-y-5">
       <nav
         aria-label="Lookup categories"
-        className="flex gap-1 overflow-x-auto border-b border-[#E2DBD3]"
+        className="flex gap-1 overflow-x-auto border-b border-creaw-line-strong"
       >
         {tabs.map((tab) => (
           <Link
@@ -288,29 +287,32 @@ export function LookupContent({
             aria-current={
               table === tab.table || (isGeo && tab.table === "county") ? "page" : undefined
             }
-            className={`shrink-0 border-b-2 px-3 py-2 text-sm font-semibold ${table === tab.table || (isGeo && tab.table === "county") ? "border-[#B4552E] text-[#B4552E]" : "border-transparent text-[#6B625B]"}`}
+            className={`shrink-0 border-b-2 px-3 py-2 text-sm font-semibold ${table === tab.table || (isGeo && tab.table === "county") ? "border-creaw-orange text-creaw-orange" : "border-transparent text-creaw-body"}`}
           >
             {tab.label}
           </Link>
         ))}
       </nav>
       {feedback && (
-        <p role="status" className="rounded-lg bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
-      <section className="min-w-0 overflow-hidden rounded-2xl border border-[#ECE6DF] bg-white">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#F1ECE6] p-5">
+      <section className="min-w-0 overflow-hidden rounded-2xl border border-creaw-line bg-white">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
           <div>
             <h2 className="font-heading text-2xl font-bold">
               {parent ? `${parent.name} · ${config.label.toLowerCase()}` : config.label}
             </h2>
-            <p className="text-sm text-[#8A8078]">
+            <p className="text-sm text-creaw-faint">
               {config.subtitle} · {rows.length} rows
             </p>
           </div>
@@ -342,7 +344,7 @@ export function LookupContent({
           >
             <Link
               href="/admin/lookups/county"
-              className="rounded-full bg-[#F7F4F0] px-3 py-1 font-semibold"
+              className="rounded-full bg-creaw-canvas px-3 py-1 font-semibold"
             >
               Kenya
             </Link>
@@ -352,12 +354,12 @@ export function LookupContent({
                 {parent?.parentId ? (
                   <Link
                     href={`/admin/lookups/sub_county?countyId=${parent.parentId}`}
-                    className="rounded-full bg-[#F7F4F0] px-3 py-1 font-semibold"
+                    className="rounded-full bg-creaw-canvas px-3 py-1 font-semibold"
                   >
                     {counties.find((row) => row.id === parent.parentId)?.name ?? "County"}
                   </Link>
                 ) : (
-                  <span className="rounded-full bg-[#B4552E] px-3 py-1 font-semibold text-white">
+                  <span className="rounded-full bg-creaw-orange px-3 py-1 font-semibold text-white">
                     {parent?.name ?? "All counties"}
                   </span>
                 )}
@@ -366,7 +368,7 @@ export function LookupContent({
             {table === "ward" && (
               <>
                 <ChevronRight size={15} />
-                <span className="rounded-full bg-[#B4552E] px-3 py-1 font-semibold text-white">
+                <span className="rounded-full bg-creaw-orange px-3 py-1 font-semibold text-white">
                   {parent?.name ?? "All sub-counties"}
                 </span>
               </>
@@ -374,13 +376,13 @@ export function LookupContent({
           </nav>
         )}
         {isGeo && !parent && table !== "county" && (
-          <p className="px-5 pt-3 text-sm text-[#8A8078]">
+          <p className="px-5 pt-3 text-sm text-creaw-faint">
             Open a {table === "ward" ? "sub-county" : "county"} from the geography hierarchy to add
             a child.
           </p>
         )}
         <div className="flex flex-wrap gap-3 p-5">
-          <label className="flex min-w-52 flex-1 items-center gap-2 rounded-lg border bg-[#F7F4F0] px-3 py-2">
+          <label className="flex min-w-52 flex-1 items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2">
             <Search size={16} />
             <span className="sr-only">Search {config.label.toLowerCase()}</span>
             <input
@@ -412,7 +414,7 @@ export function LookupContent({
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[660px] text-left text-sm">
-            <thead className="bg-[#FCFAF7] text-xs text-[#6B625B]">
+            <thead className="bg-creaw-surface text-xs text-creaw-body">
               <tr>
                 {config.columns.map((column) => (
                   <th key={column.key} className="p-3">
@@ -429,12 +431,12 @@ export function LookupContent({
                   {config.columns.map((column, index) => (
                     <td
                       key={column.key}
-                      className={`p-3 ${index === 0 ? "font-semibold" : "text-[#6B625B]"}`}
+                      className={`p-3 ${index === 0 ? "font-semibold" : "text-creaw-body"}`}
                     >
                       {index === 0 && isGeo && table !== "ward" ? (
                         <Link
                           href={drillHref(row)}
-                          className="inline-flex items-center gap-1 text-[#B4552E] hover:underline"
+                          className="inline-flex items-center gap-1 text-creaw-orange hover:underline"
                         >
                           {labelFor(row, column.key, counties, subCounties, pillars)}
                           <ChevronRight size={15} />
@@ -466,7 +468,7 @@ export function LookupContent({
                     {canViewAudit ? (
                       <Link
                         href={`/audit?module=${table}&targetId=${row.id}`}
-                        className="ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#6B625B] hover:bg-[#F7F4F0]"
+                        className="ml-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-creaw-body hover:bg-creaw-canvas"
                       >
                         <History size={14} />
                         History
@@ -488,7 +490,7 @@ export function LookupContent({
             </tbody>
           </table>
           {pageRows.length === 0 && (
-            <p className="p-8 text-center text-sm text-[#8A8078]">
+            <p className="p-8 text-center text-sm text-creaw-faint">
               {rows.length === 0 ? "No entries yet." : "No entries match these filters."}
             </p>
           )}
@@ -506,7 +508,7 @@ export function LookupContent({
           />
         </div>
         {table === "pillar" && (
-          <p className="mx-5 mb-5 rounded-lg bg-[#F7F4F0] p-3 text-sm text-[#6B625B]">
+          <p className="mx-5 mb-5 rounded-lg bg-creaw-canvas p-3 text-sm text-creaw-body">
             Leadership has a pillar row but no pipeline yet. Configure its pathway under Pipeline
             config.
           </p>
@@ -538,7 +540,10 @@ export function LookupContent({
                 : config.subtitle}
           </DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}
@@ -579,7 +584,7 @@ export function LookupContent({
                         {field.label}
                         {field.kind === "textarea" ? (
                           <textarea
-                            className={inputClass}
+                            className={fieldClass}
                             name={field.key}
                             defaultValue={
                               typeof value === "string" && !value.startsWith("••") ? value : ""
@@ -587,7 +592,7 @@ export function LookupContent({
                           />
                         ) : field.kind === "select" ? (
                           <select
-                            className={inputClass}
+                            className={fieldClass}
                             name={field.key}
                             required={field.required}
                             defaultValue={value == null ? "" : String(value)}
@@ -609,7 +614,7 @@ export function LookupContent({
                           </select>
                         ) : (
                           <input
-                            className={inputClass}
+                            className={fieldClass}
                             name={field.key}
                             required={field.required}
                             readOnly={

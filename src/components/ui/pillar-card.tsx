@@ -24,10 +24,10 @@ export function PillarCard({
       style={{ borderTopColor: color }}
     >
       <h3 className="font-heading text-xl font-bold">{name}</h3>
-      <p className="text-xs text-[#81766d]">{description}</p>
+      <p className="text-xs text-creaw-muted">{description}</p>
       <div className="mt-5 flex items-end justify-between gap-2">
         <strong className="font-heading text-3xl">{value.toLocaleString()}</strong>
-        <span className="text-xs text-[#81766d]">of {target.toLocaleString()} target</span>
+        <span className="text-xs text-creaw-muted">of {target.toLocaleString()} target</span>
       </div>
       <div
         role="progressbar"

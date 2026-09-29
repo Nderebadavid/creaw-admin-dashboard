@@ -1,5 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
+import { fieldClass } from "./form-styles";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, History, Pencil, Plus, Trash2 } from "lucide-react";
@@ -16,8 +17,6 @@ import {
 
 type Pillar = { id: number; code: string; name: string };
 export type PipelineRecord = PipelineView & { stages: StageView[] };
-const fieldClass =
-  "mt-1 w-full rounded-lg border border-[#E2DBD3] bg-white p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary";
 const colors: Record<string, string> = {
   VAWG: "#C04F53",
   WEE: "#DB8A45",
@@ -109,7 +108,7 @@ export function PipelineContent({
               role="tab"
               aria-selected={selected?.id === pillar.id}
               onClick={() => setSelectedId(pillar.id)}
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold ${selected?.id === pillar.id ? "border-[#B4552E] bg-[#FBEDE5] text-[#B4552E]" : "border-[#E2DBD3] bg-white text-[#6B625B]"}`}
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold ${selected?.id === pillar.id ? "border-creaw-orange bg-creaw-orange-soft text-creaw-orange" : "border-creaw-line-strong bg-white text-creaw-body"}`}
             >
               <span
                 className="size-2.5 rounded-full"
@@ -122,21 +121,24 @@ export function PipelineContent({
         })}
       </div>
       {feedback && (
-        <p role="status" className="rounded-lg bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
       <div className="flex flex-wrap items-start gap-5">
-        <section className="min-w-0 flex-[2_1_520px] rounded-2xl border border-[#ECE6DF] bg-white">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#F1ECE6] p-5">
+        <section className="min-w-0 flex-[2_1_520px] rounded-2xl border border-creaw-line bg-white">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
             <div>
               <h2 className="font-heading text-2xl font-bold">{selected?.name} pathway</h2>
-              <p className="text-sm text-[#8A8078]">
+              <p className="text-sm text-creaw-faint">
                 {pipeline
                   ? `pipeline_definition v${pipeline.version} · ${stages.length} stages`
                   : "No pipeline definition yet"}
@@ -154,18 +156,18 @@ export function PipelineContent({
               <ol className="divide-y divide-[#F7F2EC]">
                 {stages.map((stage, index) => (
                   <li key={stage.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#FBEDE5] text-sm font-bold text-[#B4552E]">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-creaw-orange-soft text-sm font-bold text-creaw-orange">
                       {index + 1}
                     </span>
                     <div className="min-w-36 flex-1">
                       <span className="font-semibold">{stage.name}</span>
                       {index === 0 && (
-                        <span className="ml-2 rounded-md bg-[#F7F4F0] px-2 py-1 text-xs text-[#8A8078]">
+                        <span className="ml-2 rounded-md bg-creaw-canvas px-2 py-1 text-xs text-creaw-faint">
                           Entry
                         </span>
                       )}
                       {index === stages.length - 1 && (
-                        <span className="ml-2 rounded-md bg-[#F7F4F0] px-2 py-1 text-xs text-[#8A8078]">
+                        <span className="ml-2 rounded-md bg-creaw-canvas px-2 py-1 text-xs text-creaw-faint">
                           Exit
                         </span>
                       )}
@@ -205,13 +207,13 @@ export function PipelineContent({
                         disabled={busy || stages.length <= 1}
                         onClick={() => open("remove", stage)}
                       >
-                        <Trash2 className="text-[#B8352C]" />
+                        <Trash2 className="text-creaw-danger" />
                       </Button>
                     </div>
                   </li>
                 ))}
               </ol>
-              <p className="p-5 text-xs text-[#8A8078]">
+              <p className="p-5 text-xs text-creaw-faint">
                 Reordering updates stage_definition.step_no. Existing participant events retain
                 their stage references and audit history.
               </p>
@@ -221,7 +223,7 @@ export function PipelineContent({
               <h3 className="font-heading text-xl font-bold">
                 {selected?.name} has no pipeline yet
               </h3>
-              <p className="mt-2 max-w-lg text-sm text-[#6B625B]">
+              <p className="mt-2 max-w-lg text-sm text-creaw-body">
                 Create a pathway before participants can be staged here.
               </p>
               <Button className="mt-4" onClick={() => open("create")}>
@@ -232,7 +234,7 @@ export function PipelineContent({
           )}
         </section>
         <aside className="min-w-64 flex-[1_1_280px] space-y-4">
-          <div className="rounded-2xl border border-[#ECE6DF] bg-white p-5">
+          <div className="rounded-2xl border border-creaw-line bg-white p-5">
             <h2 className="font-heading text-xl font-bold">Stage counts by pillar</h2>
             <dl className="mt-3 space-y-3">
               {pillars.map((pillar) => (
@@ -254,9 +256,9 @@ export function PipelineContent({
               row.code.toLowerCase() === "leadership" &&
               !pipelines.some((pipe) => pipe.pillar_id === row.id)
           ) && (
-            <div className="rounded-2xl border border-dashed border-[#ECE6DF] bg-white p-5">
+            <div className="rounded-2xl border border-dashed border-creaw-line bg-white p-5">
               <h2 className="font-heading text-xl font-bold">Leadership</h2>
-              <p className="mt-2 text-sm text-[#6B625B]">
+              <p className="mt-2 text-sm text-creaw-body">
                 Has a pillar row but no pipeline_definition yet, so participants cannot be staged in
                 it.
               </p>
@@ -278,7 +280,7 @@ export function PipelineContent({
       {canViewAudit && (
         <Link
           href="/audit?module=stage_definition"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-[#B4552E] hover:underline"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-creaw-orange hover:underline"
         >
           <History size={16} />
           View stage history
@@ -310,7 +312,10 @@ export function PipelineContent({
                 : (selected?.name ?? "Pipeline configuration")}
           </DialogDescription>
           {error && (
-            <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+            <p
+              role="alert"
+              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
+            >
               {error}
             </p>
           )}

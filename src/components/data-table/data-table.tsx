@@ -36,7 +36,7 @@ export function DataTable<T>({
       ) : (
         <div className="overflow-x-auto" role="region" aria-label={`${label} table`} tabIndex={0}>
           <table aria-label={label} className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b bg-[#fcfaf7] text-xs uppercase tracking-wide text-[#786e65]">
+            <thead className="border-b bg-creaw-surface text-xs uppercase tracking-wide text-[#786e65]">
               <tr>
                 {columns.map((column) => (
                   <th key={column.id} scope="col" className={`px-5 py-4 ${column.className ?? ""}`}>

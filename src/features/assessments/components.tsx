@@ -84,17 +84,20 @@ export function AssessmentsContent({
     <div className="space-y-5">
       <div>
         <h2 className="font-heading text-xl font-bold">Organisation capacity assessments</h2>
-        <p className="text-sm text-[#81766d]">
+        <p className="text-sm text-creaw-muted">
           WRO capacity scoring, due diligence and document checks
         </p>
       </div>
       {feedback && (
-        <p role="status" className="rounded-xl bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-xl bg-creaw-success-soft p-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
@@ -105,13 +108,13 @@ export function AssessmentsContent({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-semibold">{item.organisation}</h3>
-                <p className="text-xs text-[#81766d]">
+                <p className="text-xs text-creaw-muted">
                   WRO partner · {item.dueDiligence.replaceAll("_", " ")}
                 </p>
               </div>
               <div className="text-right">
                 <strong className="font-heading text-3xl">{item.score.toFixed(1)}</strong>
-                <p className="text-xs text-[#81766d]">of {item.maxScore?.toFixed(1) ?? "—"}</p>
+                <p className="text-xs text-creaw-muted">of {item.maxScore?.toFixed(1) ?? "—"}</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -123,7 +126,7 @@ export function AssessmentsContent({
                   <span className="truncate">{score.label}</span>
                   <span className="h-2 overflow-hidden rounded-full bg-[#F4EEE8]">
                     <span
-                      className="block h-full rounded-full bg-[#B4552E]"
+                      className="block h-full rounded-full bg-creaw-orange"
                       style={{
                         width: `${Math.min(100, Math.max(0, score.max && score.max > 0 ? (score.score / score.max) * 100 : 0))}%`,
                       }}
@@ -162,7 +165,7 @@ export function AssessmentsContent({
         ))}
       </div>
       {!loading && !data.items.length && (
-        <p className="rounded-2xl border bg-white p-8 text-center text-sm text-[#81766d]">
+        <p className="rounded-2xl border bg-white p-8 text-center text-sm text-creaw-muted">
           No assessments available.
         </p>
       )}
@@ -207,7 +210,7 @@ export function AssessmentsContent({
                     >
                       <span>
                         {doc.name}
-                        <span className="ml-2 text-xs text-[#81766d]">
+                        <span className="ml-2 text-xs text-creaw-muted">
                           {doc.status === "obtained" ? "Received" : "Missing"}
                         </span>
                       </span>
@@ -342,7 +345,7 @@ export function AssessmentsContent({
                 className="mt-1 w-full rounded-lg border p-2"
               />
             </label>
-            <p className="text-xs text-[#81766d]">Mock mode stores document metadata only.</p>
+            <p className="text-xs text-creaw-muted">Mock mode stores document metadata only.</p>
             <Button type="submit" disabled={busy}>
               Attach document
             </Button>

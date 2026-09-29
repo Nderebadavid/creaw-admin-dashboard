@@ -49,7 +49,7 @@ export function PortalSidebar({
           <section key={group.label} aria-label={group.label}>
             <h2
               className={cn(
-                "px-3 pb-2 text-[11px] font-semibold uppercase tracking-[.12em] text-[#81766d]",
+                "px-3 pb-2 text-[11px] font-semibold uppercase tracking-[.12em] text-creaw-muted",
                 collapsed && "sr-only"
               )}
             >
@@ -66,8 +66,8 @@ export function PortalSidebar({
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[#4a413a] hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary",
-                        active && "bg-[#fbede5] text-primary",
+                        "flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-creaw-ink-soft hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary",
+                        active && "bg-creaw-orange-soft text-primary",
                         collapsed && "justify-center px-2"
                       )}
                     >

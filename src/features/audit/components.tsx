@@ -95,7 +95,7 @@ export function AuditContent({
         <span className="font-semibold">
           {row.entity_type ?? "System"}
           {row.entity_id ? (
-            <span className="block font-mono text-xs text-[#8A8078]">#{row.entity_id}</span>
+            <span className="block font-mono text-xs text-creaw-faint">#{row.entity_id}</span>
           ) : null}
         </span>
       ),
@@ -104,7 +104,7 @@ export function AuditContent({
       id: "action",
       header: "Action",
       cell: (row) => (
-        <span className="rounded-full bg-[#FBEDE5] px-2.5 py-1 text-xs font-semibold text-[#B4552E]">
+        <span className="rounded-full bg-creaw-orange-soft px-2.5 py-1 text-xs font-semibold text-creaw-orange">
           {row.action}
         </span>
       ),
@@ -131,7 +131,7 @@ export function AuditContent({
       id: "when",
       header: "Performed at",
       cell: (row) => (
-        <time dateTime={row.performed_at} className="whitespace-nowrap text-[#6B625B]">
+        <time dateTime={row.performed_at} className="whitespace-nowrap text-creaw-body">
           {displayDate(row.performed_at)}
         </time>
       ),
@@ -142,7 +142,7 @@ export function AuditContent({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">Activity trail</h2>
-          <p className="text-sm text-[#8A8078]">
+          <p className="text-sm text-creaw-faint">
             Portal, integration and background activity. Records are immutable.
           </p>
         </div>
@@ -152,11 +152,11 @@ export function AuditContent({
       </div>
       <section
         aria-label="Audit filters"
-        className="rounded-2xl border border-[#ECE6DF] bg-white p-4 sm:p-5"
+        className="rounded-2xl border border-creaw-line bg-white p-4 sm:p-5"
       >
         {query.targetId && (
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-            <span className="rounded-full bg-[#FBEDE5] px-3 py-1 font-semibold text-[#B4552E]">
+            <span className="rounded-full bg-creaw-orange-soft px-3 py-1 font-semibold text-creaw-orange">
               History for {query.module ?? "record"} #{query.targetId}
             </span>
             <Button
@@ -169,7 +169,7 @@ export function AuditContent({
           </div>
         )}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="flex items-center gap-2 rounded-lg border bg-[#F7F4F0] px-3 py-2 sm:col-span-2">
+          <label className="flex items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2 sm:col-span-2">
             <Search size={17} aria-hidden="true" />
             <span className="sr-only">Search audit entries</span>
             <input
@@ -180,7 +180,7 @@ export function AuditContent({
               className="min-w-0 w-full bg-transparent text-sm outline-none"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
             Module
             <select
               aria-label="Module"
@@ -196,7 +196,7 @@ export function AuditContent({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
             Action
             <select
               aria-label="Action"
@@ -210,7 +210,7 @@ export function AuditContent({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
             Source
             <select
               aria-label="Source"
@@ -227,7 +227,7 @@ export function AuditContent({
               <option value="KAFKA">Kafka (system)</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
             Performed by
             <select
               aria-label="Performed by"
@@ -243,7 +243,7 @@ export function AuditContent({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
             From date
             <input
               aria-label="From date"
@@ -254,7 +254,7 @@ export function AuditContent({
               className="rounded-lg border bg-white p-2 text-sm font-normal"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
             To date
             <input
               aria-label="To date"
@@ -268,11 +268,11 @@ export function AuditContent({
         </div>
       </section>
       {error && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
-      <div className="rounded-2xl border border-[#ECE6DF] bg-white p-3 sm:p-5">
+      <div className="rounded-2xl border border-creaw-line bg-white p-3 sm:p-5">
         <DataTable
           label="Audit entries"
           columns={columns}
@@ -317,17 +317,17 @@ export function AuditContent({
           </DialogDescription>
           {selected && (
             <div className="space-y-4 text-sm">
-              <dl className="grid grid-cols-2 gap-3 rounded-xl bg-[#F7F4F0] p-3">
+              <dl className="grid grid-cols-2 gap-3 rounded-xl bg-creaw-canvas p-3">
                 <div>
-                  <dt className="text-[#8A8078]">Performed by</dt>
+                  <dt className="text-creaw-faint">Performed by</dt>
                   <dd>{selected.performed_by_name ?? "System"}</dd>
                 </div>
                 <div>
-                  <dt className="text-[#8A8078]">Source</dt>
+                  <dt className="text-creaw-faint">Source</dt>
                   <dd>{selected.source ?? "System"}</dd>
                 </div>
                 <div className="col-span-2">
-                  <dt className="text-[#8A8078]">Endpoint / event</dt>
+                  <dt className="text-creaw-faint">Endpoint / event</dt>
                   <dd className="break-all font-mono text-xs">
                     {selected.endpoint ?? selected.event_name ?? "—"}
                   </dd>
@@ -340,7 +340,7 @@ export function AuditContent({
               ].map(([label, value]) => (
                 <section key={label}>
                   <h3 className="mb-1 font-semibold">{label}</h3>
-                  <pre className="max-h-52 overflow-auto rounded-xl border bg-[#FCFAF7] p-3 text-xs whitespace-pre-wrap break-words">
+                  <pre className="max-h-52 overflow-auto rounded-xl border bg-creaw-surface p-3 text-xs whitespace-pre-wrap break-words">
                     {formattedJson(value)}
                   </pre>
                 </section>

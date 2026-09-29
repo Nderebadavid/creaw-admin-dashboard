@@ -1,5 +1,6 @@
 "use client";
 import { Fragment, useState, type FormEvent } from "react";
+import { fieldClass } from "./form-styles";
 import { useRouter } from "next/navigation";
 import { Plus, Search, ShieldCheck, KeyRound, Grid2X2, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,6 @@ import {
 } from "./actions";
 import type { PermissionView, RolePermissionView, RoleView } from "./api";
 
-const fieldClass =
-  "mt-1 w-full rounded-lg border border-[#E2DBD3] bg-white p-2 text-sm focus-visible:outline-2 focus-visible:outline-primary";
 const key = (roleId: number, permissionId: number) => `${roleId}:${permissionId}`;
 export function PermissionsContent({
   roles,
@@ -184,7 +183,7 @@ export function PermissionsContent({
       <div
         role="tablist"
         aria-label="Roles and permissions"
-        className="flex gap-1 overflow-x-auto border-b border-[#E2DBD3]"
+        className="flex gap-1 overflow-x-auto border-b border-creaw-line-strong"
       >
         {[
           ["roles", "Roles", ShieldCheck, roles.length],
@@ -199,11 +198,11 @@ export function PermissionsContent({
               role="tab"
               aria-selected={tab === value}
               onClick={() => setTab(value as typeof tab)}
-              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold ${tab === value ? "border-[#B4552E] text-[#B4552E]" : "border-transparent text-[#6B625B]"}`}
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold ${tab === value ? "border-creaw-orange text-creaw-orange" : "border-transparent text-creaw-body"}`}
             >
               <Component size={18} />
               {label as string}
-              <span className="rounded-full bg-[#F1ECE6] px-2 py-0.5 text-xs">
+              <span className="rounded-full bg-creaw-divider px-2 py-0.5 text-xs">
                 {count as string | number}
               </span>
             </button>
@@ -211,18 +210,21 @@ export function PermissionsContent({
         })}
       </div>
       {feedback && (
-        <p role="status" className="rounded-lg bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-lg bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
       {tab === "roles" && (
         <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-[#ECE6DF] bg-white p-3">
+          <aside className="rounded-2xl border border-creaw-line bg-white p-3">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-heading text-lg font-bold">Roles</h2>
               <Button
@@ -244,7 +246,7 @@ export function PermissionsContent({
                   type="button"
                   onClick={() => setSelectedId(role.id)}
                   aria-current={selected?.id === role.id ? "true" : undefined}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm ${selected?.id === role.id ? "bg-[#FBEDE5] font-semibold text-[#B4552E]" : "hover:bg-[#FCFAF7]"}`}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm ${selected?.id === role.id ? "bg-creaw-orange-soft font-semibold text-creaw-orange" : "hover:bg-creaw-surface"}`}
                 >
                   {role.name}
                   {role.is_system_role && <LockKeyhole size={12} className="ml-2 inline" />}
@@ -252,18 +254,18 @@ export function PermissionsContent({
               ))}
             </div>
           </aside>
-          <section className="min-w-0 rounded-2xl border border-[#ECE6DF] bg-white">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#F1ECE6] p-5">
+          <section className="min-w-0 rounded-2xl border border-creaw-line bg-white">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
               <div>
                 <h2 className="font-heading text-2xl font-bold">
                   {selected?.name ?? "Select a role"}
                 </h2>
-                <p className="text-sm text-[#8A8078]">
+                <p className="text-sm text-creaw-faint">
                   {selected?.description ?? "Permissions assigned to this role"}
                 </p>
-                <div className="mt-2 flex gap-2 text-xs text-[#6B625B]">
-                  <span className="rounded-full bg-[#F7F4F0] px-2 py-1">{selected?.code}</span>
-                  <span className="rounded-full bg-[#F7F4F0] px-2 py-1">
+                <div className="mt-2 flex gap-2 text-xs text-creaw-body">
+                  <span className="rounded-full bg-creaw-canvas px-2 py-1">{selected?.code}</span>
+                  <span className="rounded-full bg-creaw-canvas px-2 py-1">
                     {selected ? permissions.filter((item) => hasGrant(selected, item)).length : 0}{" "}
                     permissions
                   </span>
@@ -283,13 +285,13 @@ export function PermissionsContent({
               )}
             </div>
             {selected?.is_system_role && (
-              <p className="mx-5 mt-4 flex items-center gap-2 rounded-lg bg-[#F7F4F0] p-3 text-sm text-[#6B625B]">
+              <p className="mx-5 mt-4 flex items-center gap-2 rounded-lg bg-creaw-canvas p-3 text-sm text-creaw-body">
                 <LockKeyhole size={17} />
                 Built-in roles cannot be edited. System Administrator always has every permission.
               </p>
             )}
             <div className="p-5">
-              <label className="mb-4 flex max-w-sm items-center gap-2 rounded-lg border bg-[#F7F4F0] px-3 py-2">
+              <label className="mb-4 flex max-w-sm items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2">
                 <Search size={16} aria-hidden />
                 <span className="sr-only">Search permissions</span>
                 <input
@@ -305,11 +307,11 @@ export function PermissionsContent({
                   byModule.map((group) => (
                     <section
                       key={group.module}
-                      className="overflow-hidden rounded-xl border border-[#F1ECE6]"
+                      className="overflow-hidden rounded-xl border border-creaw-divider"
                     >
-                      <h3 className="flex items-center justify-between bg-[#FCFAF7] px-4 py-3 font-heading font-bold">
+                      <h3 className="flex items-center justify-between bg-creaw-surface px-4 py-3 font-heading font-bold">
                         {group.module.replaceAll("_", " ")}
-                        <span className="text-xs font-normal text-[#8A8078]">
+                        <span className="text-xs font-normal text-creaw-faint">
                           {group.items.length}
                         </span>
                       </h3>
@@ -320,25 +322,25 @@ export function PermissionsContent({
                           disabled={!canManagePermissions || selected.is_system_role}
                           aria-pressed={hasGrant(selected, permission)}
                           onClick={() => toggle(selected, permission)}
-                          className="flex w-full items-center gap-3 border-t border-[#F1ECE6] px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-70"
+                          className="flex w-full items-center gap-3 border-t border-creaw-divider px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           <span
-                            className={`flex size-5 shrink-0 items-center justify-center rounded border ${hasGrant(selected, permission) ? "border-[#B4552E] bg-[#B4552E] text-white" : "border-[#CFC6BC]"}`}
+                            className={`flex size-5 shrink-0 items-center justify-center rounded border ${hasGrant(selected, permission) ? "border-creaw-orange bg-creaw-orange text-white" : "border-[#CFC6BC]"}`}
                           >
                             {hasGrant(selected, permission) && "✓"}
                           </span>
                           <span className="min-w-0 flex-1">
                             <strong className="text-sm">{permission.name}</strong>
-                            <span className="ml-2 font-mono text-xs text-[#8A8078]">
+                            <span className="ml-2 font-mono text-xs text-creaw-faint">
                               {permission.code}
                             </span>
-                            <span className="block text-xs text-[#8A8078]">
+                            <span className="block text-xs text-creaw-faint">
                               {permission.description}
                             </span>
                           </span>
                           {draft.has(key(selected.id, permission.id)) !==
                             saved.has(key(selected.id, permission.id)) && (
-                            <span className="rounded-full bg-[#FBEDE5] px-2 py-1 text-xs text-[#B4552E]">
+                            <span className="rounded-full bg-creaw-orange-soft px-2 py-1 text-xs text-creaw-orange">
                               Unsaved
                             </span>
                           )}
@@ -347,7 +349,7 @@ export function PermissionsContent({
                     </section>
                   ))}
                 {byModule.length === 0 && (
-                  <p className="py-8 text-center text-sm text-[#8A8078]">
+                  <p className="py-8 text-center text-sm text-creaw-faint">
                     No permissions match this filter.
                   </p>
                 )}
@@ -357,11 +359,11 @@ export function PermissionsContent({
         </div>
       )}
       {tab === "permissions" && (
-        <section className="rounded-2xl border border-[#ECE6DF] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#F1ECE6] p-5">
+        <section className="rounded-2xl border border-creaw-line bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-creaw-divider p-5">
             <div>
               <h2 className="font-heading text-xl font-bold">Permission catalogue</h2>
-              <p className="text-sm text-[#8A8078]">
+              <p className="text-sm text-creaw-faint">
                 The smallest units of access, grouped by module.
               </p>
             </div>
@@ -377,7 +379,7 @@ export function PermissionsContent({
             </Button>
           </div>
           <div className="flex flex-wrap gap-3 p-4">
-            <label className="flex min-w-52 flex-1 items-center gap-2 rounded-lg border bg-[#F7F4F0] px-3 py-2">
+            <label className="flex min-w-52 flex-1 items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2">
               <Search size={16} aria-hidden />
               <span className="sr-only">Search permission catalogue</span>
               <input
@@ -409,7 +411,7 @@ export function PermissionsContent({
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[740px] text-left text-sm">
-              <thead className="bg-[#FCFAF7] text-xs text-[#6B625B]">
+              <thead className="bg-creaw-surface text-xs text-creaw-body">
                 <tr>
                   <th className="p-3">Permission</th>
                   <th className="p-3">Module</th>
@@ -419,22 +421,22 @@ export function PermissionsContent({
               </thead>
               <tbody>
                 {catalogPage.map((permission) => (
-                  <tr key={permission.id} className="border-t border-[#F1ECE6]">
+                  <tr key={permission.id} className="border-t border-creaw-divider">
                     <td className="p-3">
                       <strong>{permission.name}</strong>
-                      <span className="block font-mono text-xs text-[#8A8078]">
+                      <span className="block font-mono text-xs text-creaw-faint">
                         {permission.code}
                       </span>
                     </td>
                     <td className="p-3">{permission.module}</td>
-                    <td className="p-3 text-[#6B625B]">{permission.description ?? "—"}</td>
+                    <td className="p-3 text-creaw-body">{permission.description ?? "—"}</td>
                     <td className="p-3">
                       {roles
                         .filter((role) => hasGrant(role, permission))
                         .map((role) => (
                           <span
                             key={role.id}
-                            className="mr-1 inline-block rounded-md bg-[#F7F4F0] px-2 py-1 text-xs"
+                            className="mr-1 inline-block rounded-md bg-creaw-canvas px-2 py-1 text-xs"
                           >
                             {role.name}
                           </span>
@@ -445,7 +447,7 @@ export function PermissionsContent({
               </tbody>
             </table>
             {catalogPage.length === 0 && (
-              <p className="p-8 text-center text-sm text-[#8A8078]">No permissions match.</p>
+              <p className="p-8 text-center text-sm text-creaw-faint">No permissions match.</p>
             )}
           </div>
           <div className="px-4">
@@ -463,18 +465,18 @@ export function PermissionsContent({
         </section>
       )}
       {tab === "matrix" && (
-        <section className="rounded-2xl border border-[#ECE6DF] bg-white">
+        <section className="rounded-2xl border border-creaw-line bg-white">
           <div className="p-5">
             <h2 className="font-heading text-xl font-bold">Role × permission matrix</h2>
-            <p className="text-sm text-[#8A8078]">
+            <p className="text-sm text-creaw-faint">
               Click a cell to stage a grant or revocation, then review and save.
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-[#FCFAF7]">
+              <thead className="bg-creaw-surface">
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-56 border-b bg-[#FCFAF7] p-3 text-left">
+                  <th className="sticky left-0 z-10 min-w-56 border-b bg-creaw-surface p-3 text-left">
                     Permission
                   </th>
                   {roles.map((role) => (
@@ -488,7 +490,7 @@ export function PermissionsContent({
                 {modules.map((module) => (
                   <Fragment key={module}>
                     <tr className="bg-[#FFFBF7]">
-                      <th className="sticky left-0 bg-[#FFFBF7] p-3 text-left font-heading font-bold text-[#B4552E]">
+                      <th className="sticky left-0 bg-[#FFFBF7] p-3 text-left font-heading font-bold text-creaw-orange">
                         {module}
                       </th>
                       <td colSpan={roles.length} />
@@ -496,10 +498,10 @@ export function PermissionsContent({
                     {permissions
                       .filter((permission) => permission.module === module)
                       .map((permission) => (
-                        <tr key={permission.id} className="border-t border-[#F1ECE6]">
+                        <tr key={permission.id} className="border-t border-creaw-divider">
                           <th className="sticky left-0 bg-white p-3 text-left font-medium">
                             {permission.name}
-                            <span className="block font-mono text-xs text-[#8A8078]">
+                            <span className="block font-mono text-xs text-creaw-faint">
                               {permission.code}
                             </span>
                           </th>
@@ -511,7 +513,7 @@ export function PermissionsContent({
                                 aria-pressed={hasGrant(role, permission)}
                                 disabled={!canManagePermissions || role.is_system_role}
                                 onClick={() => toggle(role, permission)}
-                                className={`size-8 rounded-lg border text-sm font-bold disabled:cursor-not-allowed ${draft.has(key(role.id, permission.id)) !== saved.has(key(role.id, permission.id)) ? "border-2 border-[#E0822F]" : "border-[#E2DBD3]"} ${hasGrant(role, permission) ? "bg-[#E3F3EA] text-[#1F7A4D]" : "bg-white"}`}
+                                className={`size-8 rounded-lg border text-sm font-bold disabled:cursor-not-allowed ${draft.has(key(role.id, permission.id)) !== saved.has(key(role.id, permission.id)) ? "border-2 border-[#E0822F]" : "border-creaw-line-strong"} ${hasGrant(role, permission) ? "bg-[#E3F3EA] text-[#1F7A4D]" : "bg-white"}`}
                               >
                                 {hasGrant(role, permission) ? "✓" : ""}
                               </button>
@@ -527,7 +529,7 @@ export function PermissionsContent({
         </section>
       )}
       {differences.length > 0 && (
-        <div className="sticky bottom-4 z-20 ml-auto flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl bg-[#221C18] p-3 text-sm text-white shadow-xl">
+        <div className="sticky bottom-4 z-20 ml-auto flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl bg-creaw-ink p-3 text-sm text-white shadow-xl">
           <span>
             {differences.length} unsaved change{differences.length === 1 ? "" : "s"}
           </span>

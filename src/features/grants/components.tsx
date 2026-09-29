@@ -91,7 +91,7 @@ export function GrantsContent({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-bold">Grant applications</h2>
-          <p className="text-sm text-[#81766d]">Prepared → Reviewed → Approved sign-off chain</p>
+          <p className="text-sm text-creaw-muted">Prepared → Reviewed → Approved sign-off chain</p>
         </div>
         {canExport && <ExportButton exportAction={() => exportGrantsAction(query)} />}
       </div>
@@ -101,7 +101,7 @@ export function GrantsContent({
             key={status}
             type="button"
             aria-pressed={(query.status ?? "All") === status}
-            className={`rounded-full border px-3 py-1.5 text-sm ${(query.status ?? "All") === status ? "bg-[#FBEDE5] text-primary" : "bg-white"}`}
+            className={`rounded-full border px-3 py-1.5 text-sm ${(query.status ?? "All") === status ? "bg-creaw-orange-soft text-primary" : "bg-white"}`}
             onClick={() => filter({ status: status === "All" ? undefined : status })}
           >
             {status === "ACTIVE" ? "New" : status[0] + status.slice(1).toLowerCase()}
@@ -141,7 +141,7 @@ export function GrantsContent({
         </label>
       </div>
       {error && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
@@ -256,7 +256,7 @@ export function GrantDetailContent({
     <div className="space-y-5">
       <Link
         href="/grants"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-[#6B625B]"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-creaw-body"
       >
         <ArrowLeft size={16} />
         All applications
@@ -264,7 +264,7 @@ export function GrantDetailContent({
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-white p-6">
         <div>
           <h2 className="font-heading text-2xl font-bold">{detail.applicant}</h2>
-          <p className="text-sm text-[#81766d]">
+          <p className="text-sm text-creaw-muted">
             {detail.project} · {detail.grantType.replaceAll("_", " ")} · {detail.requestedAmount}{" "}
             requested
           </p>
@@ -294,31 +294,34 @@ export function GrantDetailContent({
         </div>
       </section>
       {feedback && (
-        <p role="status" className="rounded-xl bg-[#EAF5ED] p-3 text-sm text-[#246842]">
+        <p
+          role="status"
+          className="rounded-xl bg-creaw-success-soft p-3 text-sm text-creaw-success"
+        >
           {feedback}
         </p>
       )}
       {error && !modal && (
-        <p role="alert" className="rounded-xl bg-[#FBE9E6] p-3 text-sm text-[#B8352C]">
+        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
           {error}
         </p>
       )}
       <section className="rounded-2xl border bg-white p-6">
         <h2 className="font-heading text-xl font-bold">Sign-off chain</h2>
-        <p className="text-xs text-[#81766d]">
+        <p className="text-xs text-creaw-muted">
           Stages reflect application status; accountable officers are retained in the audit trail.
         </p>
         <ol className="mt-5 grid gap-3 sm:grid-cols-4">
           {["Application", "Prepared", "Reviewed", "Approved"].map((step, index) => (
             <li
               key={step}
-              className={`rounded-xl border p-3 ${index <= detail.stage ? "border-[#E8C6B5] bg-[#FCF4EF]" : "bg-[#FCFAF7]"}`}
+              className={`rounded-xl border p-3 ${index <= detail.stage ? "border-[#E8C6B5] bg-[#FCF4EF]" : "bg-creaw-surface"}`}
             >
               <span className="mb-2 inline-flex size-7 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
                 {index + 1}
               </span>
               <p className="font-semibold">{step}</p>
-              <p className="text-xs text-[#81766d]">
+              <p className="text-xs text-creaw-muted">
                 {index < detail.stage
                   ? "Complete"
                   : index === detail.stage
@@ -369,25 +372,25 @@ export function GrantDetailContent({
           </div>
           {detail.award ? (
             <>
-              <p className="mt-3 text-sm text-[#81766d]">
+              <p className="mt-3 text-sm text-creaw-muted">
                 Awarded: {detail.award.currency} {detail.award.amountAwarded} ·{" "}
                 {detail.award.lifecycle}
               </p>
               <ul className="mt-3 space-y-2">
                 {detail.disbursements.map((item) => (
-                  <li key={item.id} className="rounded-xl border bg-[#FCFAF7] p-3 text-sm">
+                  <li key={item.id} className="rounded-xl border bg-creaw-surface p-3 text-sm">
                     <span className="font-semibold">{item.amount}</span> ·{" "}
                     {item.date ? date(item.date) : "Date pending"}
-                    {item.notes && <p className="text-xs text-[#81766d]">{item.notes}</p>}
+                    {item.notes && <p className="text-xs text-creaw-muted">{item.notes}</p>}
                   </li>
                 ))}
               </ul>
               {!detail.disbursements.length && (
-                <p className="mt-3 text-sm text-[#81766d]">No payments recorded.</p>
+                <p className="mt-3 text-sm text-creaw-muted">No payments recorded.</p>
               )}
             </>
           ) : (
-            <p className="mt-3 text-sm text-[#81766d]">
+            <p className="mt-3 text-sm text-creaw-muted">
               Disbursement opens once the application is approved.
             </p>
           )}
@@ -414,7 +417,7 @@ export function GrantDetailContent({
         {detail.reports.length ? (
           <ul className="mt-3 space-y-2">
             {detail.reports.map((report) => (
-              <li key={report.id} className="rounded-xl border bg-[#FCFAF7] p-3 text-sm">
+              <li key={report.id} className="rounded-xl border bg-creaw-surface p-3 text-sm">
                 {date(report.periodStart)} – {date(report.periodEnd)} · due {date(report.dueDate)}{" "}
                 <StatusBadge tone={report.submittedDate ? "success" : "warning"}>
                   {report.submittedDate ? "Submitted" : "Pending"}
@@ -423,7 +426,7 @@ export function GrantDetailContent({
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-[#81766d]">
+          <p className="mt-3 text-sm text-creaw-muted">
             {detail.reportingAwardId
               ? "No reporting periods logged yet."
               : "Reporting opens once an award exists."}

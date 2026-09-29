@@ -58,7 +58,7 @@ export function PillarDomainTable({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-heading text-2xl font-bold">{domain.title}</h2>
-          <p className="text-sm text-[#81766d]">{domain.subtitle}</p>
+          <p className="text-sm text-creaw-muted">{domain.subtitle}</p>
         </div>
         {actions}
       </div>
@@ -72,7 +72,7 @@ export function PillarDomainTable({
               setStatus(value);
               setPage(1);
             }}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? "border-primary bg-[#FBEDE5] text-primary" : "bg-white text-[#6B625B]"}`}
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? "border-primary bg-creaw-orange-soft text-primary" : "bg-white text-creaw-body"}`}
           >
             {value.replaceAll("_", " ")}
           </button>
@@ -131,12 +131,12 @@ export function PillarDomainTable({
             <dl className="space-y-3 text-sm">
               {domain.columns.map((header, index) => (
                 <div key={header} className="grid grid-cols-[8rem_1fr] gap-2">
-                  <dt className="text-[#81766d]">{header}</dt>
+                  <dt className="text-creaw-muted">{header}</dt>
                   <dd>{selected.values[index] ?? "—"}</dd>
                 </div>
               ))}
               <div className="grid grid-cols-[8rem_1fr] gap-2">
-                <dt className="text-[#81766d]">Status</dt>
+                <dt className="text-creaw-muted">Status</dt>
                 <dd>{selected.status.replaceAll("_", " ")}</dd>
               </div>
             </dl>
