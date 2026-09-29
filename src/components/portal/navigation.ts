@@ -9,19 +9,22 @@ export interface NavigationItem {
   pillarId?: number;
   color?: string;
 }
-export const implementedPortalRoutes: readonly string[] = ["/dashboard"];
+export const implementedPortalRoutes: readonly string[] = [
+  "/dashboard", "/field-submissions", "/pillars/vawg", "/pillars/wee", "/pillars/srhr",
+  "/pillars/leadership", "/pillars/wros", "/pillars/skilling",
+];
 export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   { label: "Overview", items: [
     {label:"Dashboard",href:"/dashboard",permissions:["DASHBOARD_VIEW"],icon:LayoutDashboard},
     {label:"Field submissions",href:"/field-submissions",permissions:["FIELD_SUBMISSION_VIEW"],icon:Camera},
   ]},
   { label: "Pillars", items: [
-    {label:"VAWG",href:"/pillars/vawg",permissions:["DASHBOARD_VIEW","CASE_VIEW","COUNSELLING_VIEW"],pillarId:1,icon:Gavel,color:"var(--pillar-vawg)"},
-    {label:"WEE",href:"/pillars/wee",permissions:["DASHBOARD_VIEW","GRANT_APPLICATION_VIEW"],pillarId:2,icon:Store,color:"var(--pillar-wee)"},
-    {label:"SRHR",href:"/pillars/srhr",permissions:["DASHBOARD_VIEW","ACTIVITY_SESSION_VIEW"],pillarId:3,icon:ShieldPlus,color:"var(--pillar-srhr)"},
-    {label:"Leadership",href:"/pillars/leadership",permissions:["DASHBOARD_VIEW","ACTIVITY_SESSION_VIEW"],pillarId:4,icon:Megaphone,color:"var(--pillar-leadership)"},
-    {label:"Skilling",href:"/pillars/skilling",permissions:["DASHBOARD_VIEW","TRAINING_ENROLLMENT_VIEW"],pillarId:6,icon:GraduationCap,color:"var(--pillar-skilling)"},
-    {label:"WROs",href:"/pillars/wros",permissions:["DASHBOARD_VIEW","ORGANISATION_VIEW","ORG_ASSESSMENT_VIEW"],pillarId:5,icon:Users,color:"var(--pillar-wros)"},
+    {label:"VAWG",href:"/pillars/vawg",permissions:["DASHBOARD_VIEW"],pillarId:1,icon:Gavel,color:"var(--pillar-vawg)"},
+    {label:"WEE",href:"/pillars/wee",permissions:["DASHBOARD_VIEW"],pillarId:2,icon:Store,color:"var(--pillar-wee)"},
+    {label:"SRHR",href:"/pillars/srhr",permissions:["DASHBOARD_VIEW"],pillarId:3,icon:ShieldPlus,color:"var(--pillar-srhr)"},
+    {label:"Leadership",href:"/pillars/leadership",permissions:["DASHBOARD_VIEW"],pillarId:4,icon:Megaphone,color:"var(--pillar-leadership)"},
+    {label:"Skilling",href:"/pillars/skilling",permissions:["DASHBOARD_VIEW"],pillarId:6,icon:GraduationCap,color:"var(--pillar-skilling)"},
+    {label:"WROs",href:"/pillars/wros",permissions:["DASHBOARD_VIEW"],pillarId:5,icon:Users,color:"var(--pillar-wros)"},
   ]},
   { label: "Records", items: [
     {label:"Participants",href:"/participants",permissions:["PARTICIPANT_VIEW"],icon:Users},

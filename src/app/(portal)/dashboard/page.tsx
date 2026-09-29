@@ -1,7 +1,15 @@
-import { requireSession } from "@/lib/auth/session-server";
+import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/portal/page-heading";
-import { AlertBanner } from "@/components/ui/alert-banner";
-export default async function DashboardPage() {
-  const {user,grants} = await requireSession();
-  return <><PageHeading title="MERL overview" section="Overview" description={`Welcome, ${user.firstName}.`} /><AlertBanner tone="info">{grants.some(grant => grant.permissionCode === "DASHBOARD_VIEW") ? "Your CREAW workspace is ready. Programme summaries will appear here." : "Your account has no dashboard access. Contact an administrator to review your permissions."}</AlertBanner></>;
+import { hasPermission } from "@/lib/auth/permissions";
+import { requireSession } from "@/lib/auth/session-server";
+import { dashboardApi } from "@/features/dashboard/api";
+import { DashboardContent } from "@/features/dashboard/components";
+
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ year?: string | string[] }> }) {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "DASHBOARD_VIEW")) notFound();
+  const rawYear = (await searchParams).year;
+  const year = typeof rawYear === "string" && /^(2025|2026)$/.test(rawYear) ? rawYear : "2026";
+  const overview = await dashboardApi.getOverview(year);
+  return <><PageHeading title="MERL overview" section="Overview" description={`Welcome, ${session.user.firstName}. Your programme snapshot for Q3 ${year}.`} /><DashboardContent overview={overview} year={year} canViewSubmissions={hasPermission(session.grants, "FIELD_SUBMISSION_VIEW")} /></>;
 }

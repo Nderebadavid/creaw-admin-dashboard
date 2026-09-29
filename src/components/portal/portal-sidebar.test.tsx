@@ -21,9 +21,14 @@ it("uses effective grants, scope, and implemented routes", () => {
   expect(screen.queryByRole("link", {name:"Users & roles"})).not.toBeInTheDocument();
   expect(screen.queryByRole("link", {name:"Grants"})).not.toBeInTheDocument();
 });
-it("retains accessible names when collapsed and omits unavailable routes", () => {
+it("retains accessible names when collapsed and shows only implemented permitted routes", () => {
   render(<PortalSidebar collapsed pathname="/dashboard" grants={[{permissionCode:"DASHBOARD_VIEW",pillarId:null}]} />);
   expect(screen.getByRole("link", {name:"Dashboard"})).toHaveAttribute("title", "Dashboard");
   expect(screen.getByText("Dashboard")).toHaveClass("sr-only");
+  expect(screen.getByRole("link", {name:"VAWG"})).toHaveAttribute("href", "/pillars/vawg");
+  expect(screen.queryByRole("link", {name:"Participants"})).not.toBeInTheDocument();
+});
+it("does not advertise a pillar page to a grant that the page cannot serve", () => {
+  render(<PortalSidebar pathname="/field-submissions" grants={[{permissionCode:"COUNSELLING_VIEW",pillarId:1}]} />);
   expect(screen.queryByRole("link", {name:"VAWG"})).not.toBeInTheDocument();
 });
