@@ -176,4 +176,23 @@ describe("injected API boundary", () => {
 
     expect(seenCorrelationId).toBe("upstream-123");
   });
+
+  it("never logs an unknown route template passed through the transport", async () => {
+    const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const transport = new MockApiTransport(() => ({ ok: true }));
+
+    await transport.request(
+      {
+        method: "GET",
+        path: "/participants/abc123",
+        routeTemplate: "/participants/abc123" as never,
+        correlationId: "req-unknown",
+      },
+      z.object({ ok: z.boolean() })
+    );
+
+    const serialized = JSON.stringify(logSpy.mock.calls);
+    expect(serialized).toContain("[invalid-route-template]");
+    expect(serialized).not.toContain("/participants/abc123");
+  });
 });

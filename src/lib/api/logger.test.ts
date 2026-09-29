@@ -34,20 +34,29 @@ describe("logApiOperation", () => {
   });
 
   it.each([
-    ["/participants/1", "/participants/:id"],
-    ["/participants/p1", "/participants/:id"],
-    ["/grants/g2", "/grants/:id"],
-    ["/referrals/f3", "/referrals/:id"],
-    ["/participants/550e8400-e29b-41d4-a716-446655440000", "/participants/:id"],
-    ["/participants/abcdef0123456789", "/participants/:id"],
-    ["/admin/lookups/:table", "/admin/lookups/:table"],
-  ])("sanitizes dynamic route segment %s", (routeTemplate, expected) => {
+    "/participants/abc123",
+    "/participants/1",
+    "/participants/p1",
+    "/grants/g2",
+    "/referrals/f3",
+    "/participants/550e8400-e29b-41d4-a716-446655440000",
+    "/participants/abcdef0123456789",
+    "/admin/lookups/:table",
+  ])("replaces unknown route template %s with a fixed marker", (routeTemplate) => {
     const spy = vi.spyOn(console, "info").mockImplementation(() => {});
 
-    logApiOperation({ method: "GET", routeTemplate });
+    logApiOperation({ method: "GET", routeTemplate: routeTemplate as never });
 
     const serialized = JSON.stringify(spy.mock.calls[0]);
-    expect(serialized).toContain(expected);
-    if (routeTemplate !== expected) expect(serialized).not.toContain(routeTemplate);
+    expect(serialized).toContain("[invalid-route-template]");
+    expect(serialized).not.toContain(routeTemplate);
+  });
+
+  it("logs an exact known catalogue route", () => {
+    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    logApiOperation({ method: "GET", routeTemplate: "/lookups/:table" });
+
+    expect(JSON.stringify(spy.mock.calls[0])).toContain("/lookups/:table");
   });
 });

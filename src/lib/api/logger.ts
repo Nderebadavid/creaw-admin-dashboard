@@ -1,6 +1,8 @@
+import { API_ROUTE_TEMPLATES, type ApiRouteTemplate } from "./transport";
+
 export interface ApiOperationEvent {
   method: string;
-  routeTemplate: string;
+  routeTemplate: ApiRouteTemplate;
   correlationId?: string;
   status?: number;
   outcome?: string;
@@ -8,14 +10,12 @@ export interface ApiOperationEvent {
 }
 
 const sensitiveKey = /password|token|id_number|phone|salary|amount|notes|authorization|secret|cookie/i;
-const dynamicSegment = /^(?:\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}|[a-z]{1,2}\d+)$/i;
+const approvedTemplates: ReadonlySet<string> = new Set(API_ROUTE_TEMPLATES);
 
-export function sanitizeRouteTemplate(routeTemplate: string): string {
-  return routeTemplate
-    .split(/[?#]/, 1)[0]
-    .split("/")
-    .map((segment) => (dynamicSegment.test(segment) ? ":id" : segment))
-    .join("/");
+function safeRouteTemplate(value: unknown): ApiRouteTemplate | "[invalid-route-template]" {
+  return typeof value === "string" && approvedTemplates.has(value)
+    ? (value as ApiRouteTemplate)
+    : "[invalid-route-template]";
 }
 
 function redact(value: unknown): unknown {
@@ -36,7 +36,7 @@ export function logApiOperation(event: ApiOperationEvent): void {
     "[api]",
     redact({
       method: event.method,
-      routeTemplate: sanitizeRouteTemplate(event.routeTemplate),
+      routeTemplate: safeRouteTemplate(event.routeTemplate),
       correlationId: event.correlationId,
       status: event.status,
       outcome: event.outcome,
