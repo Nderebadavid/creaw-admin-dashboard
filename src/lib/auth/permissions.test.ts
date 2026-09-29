@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { getEffectiveGrants, hasPermission } from "./permissions";
+import { getEffectiveGrants, hasPermission, hasModulePermission } from "./permissions";
 import { getMockStore, resetMockStore } from "../mock-api/store";
 
 beforeEach(() => resetMockStore());
@@ -11,6 +11,11 @@ describe("effective grants", () => {
     expect(hasPermission(grants, "REFERRAL_ACCEPT", { pillarId: 3 })).toBe(false);
     expect(hasPermission(grants, "REFERRAL_ACCEPT")).toBe(false);
     expect(hasPermission([{ permissionCode: "REFERRAL_ACCEPT", pillarId: null }], "REFERRAL_ACCEPT", { pillarId: 3 })).toBe(true);
+  });
+  it("opens a module for a scoped grant without broadening record access", () => {
+    const grants = [{ permissionCode: "FIELD_SUBMISSION_VIEW", pillarId: 2 }];
+    expect(hasModulePermission(grants, "FIELD_SUBMISSION_VIEW")).toBe(true);
+    expect(hasPermission(grants, "FIELD_SUBMISSION_VIEW", { pillarId: 1 })).toBe(false);
   });
   it("walks active user_role, role, role_permission and permission rows, not names", () => {
     const store = getMockStore();

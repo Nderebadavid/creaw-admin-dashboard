@@ -24,4 +24,17 @@ describe("dashboard API", () => {
     expect(overview.pillars.map(pillar => pillar.code)).toEqual(["vawg"]);
     expect(overview.activeParticipants).toBeLessThan(getMockStore().participant.length);
   });
+  it("counts records after page one in monthly and pending aggregates", async () => {
+    const store = getMockStore();
+    const person = store.participant[0];
+    const event = store.participant_stage_event.find(row => row.stage_event_status === "recorded")!;
+    for (let index = 0; index < 110; index += 1) {
+      store.participant.push({ ...person, id: 1000 + index, created_at: "2026-08-15T12:00:00.000Z" });
+      store.participant_stage_event.push({ ...event, id: 1000 + index, event_date: "2026-08-15" });
+    }
+    const overview = await createDashboardApi(createPortalApiClient(), issueMockToken(1)).getOverview("2026");
+    expect(overview.newThisQuarter).toBeGreaterThanOrEqual(110);
+    expect(overview.pendingSubmissions).toBeGreaterThanOrEqual(110);
+    expect(overview.monthly[7].newCount).toBeGreaterThanOrEqual(110);
+  });
 });

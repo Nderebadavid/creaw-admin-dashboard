@@ -2,8 +2,10 @@ import type { ApiClient } from "@/lib/api/client";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { collectPages } from "@/lib/api/pagination";
 import { dashboardDtoSchema } from "@/features/dashboard/schemas";
-import { enrollmentLookupSchema, submissionDetailSchema, submissionListSchema, submissionMutationSchema, type SubmissionDto } from "./schemas";
+import { enrollmentDetailSchema, enrollmentLookupSchema, submissionDetailSchema, submissionListSchema, submissionMutationSchema, type SubmissionDto } from "./schemas";
+import { filterSubmissionRows } from "./filter";
 
 export type SubmissionStatus = "Pending review" | "Flagged" | "Approved";
 export interface SubmissionRow {
@@ -18,12 +20,19 @@ function statusOf(value: string): SubmissionStatus {
 }
 
 export function createSubmissionsApi(client: ApiClient, token: string) {
-  async function enrich(rows: SubmissionDto[]): Promise<SubmissionRow[]> {
+  async function enrich(rows: SubmissionDto[], directEnrollment = false): Promise<SubmissionRow[]> {
     const [enrollmentResponse, dashboardResponse] = await Promise.all([
-      client.request({ method: "GET", path: "/participants", routeTemplate: "/participants", token, query: { table: "enrollment", pageSize: 100 } }, enrollmentLookupSchema).catch(() => null),
+      directEnrollment ? Promise.all([...new Set(rows.map(row => row.enrollment_id))].map(async id => {
+        const response = await client.request({ method: "GET", path: `/participants/${id}`, routeTemplate: "/participants/:id", token, query: { table: "enrollment" } }, enrollmentDetailSchema).catch(() => null);
+        return response?.data ?? null;
+      })).then(items => items.filter((item): item is NonNullable<typeof item> => item !== null)) : collectPages(async (page, pageSize) => {
+        const response = await client.request({ method: "GET", path: "/participants", routeTemplate: "/participants", token, query: { table: "enrollment", page, pageSize } }, enrollmentLookupSchema);
+        if (!response.success || !response.data) throw new Error(response.message);
+        return response.data;
+      }).catch(() => []),
       client.request({ method: "GET", path: "/dashboard", routeTemplate: "/dashboard", token }, dashboardDtoSchema).catch(() => null),
     ]);
-    const enrollments = new Map(enrollmentResponse?.data?.items.map(row => [row.id, row]));
+    const enrollments = new Map(enrollmentResponse.map(row => [row.id, row]));
     const pillars = new Map(dashboardResponse?.data?.pillars.map(row => [row.id, row.name]));
     return rows.map(row => {
       const enrollment = enrollments.get(row.enrollment_id);
@@ -33,19 +42,25 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
         captured: row.event_date, source: row.source_channel, status: statusOf(row.stage_event_status), flag: row.stage_event_status === "disputed" ? "Requires follow-up" : null };
     });
   }
+  async function loadAll(): Promise<SubmissionRow[]> {
+    const rows = await collectPages(async (page, pageSize) => {
+      const response = await client.request({ method: "GET", path: "/field-submissions", routeTemplate: "/field-submissions", token, query: { page, pageSize } }, submissionListSchema);
+      if (!response.success || !response.data) throw new Error(response.message);
+      return response.data;
+    });
+    return enrich(rows);
+  }
   return {
     async list(query: SubmissionQuery = {}): Promise<SubmissionList> {
-      const response = await client.request({ method: "GET", path: "/field-submissions", routeTemplate: "/field-submissions", token,
-        query: { page: query.page ?? 1, pageSize: query.pageSize ?? 25, search: query.search || undefined,
-          stage_event_status: query.status && query.status !== "All" ? ({ "Pending review": "recorded", Flagged: "disputed", Approved: "verified" } as const)[query.status] : undefined },
-      }, submissionListSchema);
-      if (!response.success || !response.data) throw new Error(response.message);
-      return { ...response.data, items: await enrich(response.data.items) };
+      const page = query.page ?? 1, pageSize = query.pageSize ?? 25;
+      const filtered = filterSubmissionRows(await loadAll(), query);
+      return { items: filtered.slice((page - 1) * pageSize, page * pageSize), page, pageSize, totalItems: filtered.length, totalPages: Math.ceil(filtered.length / pageSize) };
     },
+    listAll: loadAll,
     async get(id: number): Promise<SubmissionRow | null> {
       const response = await client.request({ method: "GET", path: `/field-submissions/${id}`, routeTemplate: "/field-submissions/:id", token }, submissionDetailSchema);
       if (!response.success || !response.data) return null;
-      return (await enrich([response.data]))[0];
+      return (await enrich([response.data], true))[0];
     },
     async review(id: number, decision: "approve" | "flag") {
       return client.request({ method: "PATCH", path: `/field-submissions/${id}`, routeTemplate: "/field-submissions/:id", token,
@@ -60,5 +75,10 @@ export const submissionsApi = {
     const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
     if (!token) throw new Error("Sign in required");
     return createSubmissionsApi(createPortalApiClient(), token).list(query);
+  },
+  async listAll() {
+    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+    if (!token) throw new Error("Sign in required");
+    return createSubmissionsApi(createPortalApiClient(), token).listAll();
   },
 };

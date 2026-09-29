@@ -32,4 +32,15 @@ describe("submission review", () => {
     expect(result.success).toBe(false);
     expect(row.stage_event_status).toBe(before);
   });
+  it("reviews a scoped event whose enrollment is after the first hundred", async () => {
+    cookieStore.get.mockReturnValue({ value: issueMockToken(5) });
+    const store = getMockStore();
+    const enrollment = store.enrollment.find(item => item.pillar_id === 1)!;
+    const event = store.participant_stage_event.find(item => item.enrollment_id === enrollment.id)!;
+    for (let index = 0; index < 110; index += 1) store.enrollment.push({ ...enrollment, id: 501 + index });
+    store.participant_stage_event.push({ ...event, id: 501, enrollment_id: 610, stage_event_status: "recorded", local_ref: "late-501" });
+    const result = await reviewSubmissionAction(501, "approve");
+    expect(result.success).toBe(true);
+    expect(store.participant_stage_event.find(item => item.id === 501)?.stage_event_status).toBe("verified");
+  });
 });

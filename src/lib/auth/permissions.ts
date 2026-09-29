@@ -22,3 +22,7 @@ export function getEffectiveGrants(userId: number): EffectiveGrant[] {
 export function hasPermission(grants: readonly EffectiveGrant[], code: string, options: { pillarId?: number | null } = {}): boolean {
   return grants.some((grant) => grant.permissionCode === code && (grant.pillarId === null || (options.pillarId != null && grant.pillarId === options.pillarId)));
 }
+
+export function hasModulePermission(grants: readonly EffectiveGrant[], code: string): boolean {
+  return grants.some((grant) => grant.permissionCode === code);
+}

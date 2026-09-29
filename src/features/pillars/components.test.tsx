@@ -34,4 +34,14 @@ describe("pillar screen", () => {
       color: "#B4552E", tint: "#FBEDE5", target: 450, records: [], stages: ["Intake"], hasPipeline: true };
     expect(renderToStaticMarkup(<PillarContent pillar={pillar} canCreate={false} canViewSubmissions={false} />)).not.toContain('href="/field-submissions"');
   });
+  it("shows the case register as the primary searchable workflow", () => {
+    const pillar: PillarView = { id: 1, code: "vawg", name: "VAWG", fullName: "Violence Against Women & Girls", leadUserId: 5,
+      color: "#B4552E", tint: "#FBEDE5", target: 450, records: [], stages: ["Intake"], hasPipeline: true,
+      domain: { title: "Legal case register", subtitle: "Survivor names masked", columns: ["Case", "Case type"], rows: [{ id: 1, title: "Case #1", values: ["Case #1", "Assault"], status: "in hearing" }] } };
+    const html = renderToStaticMarkup(<PillarContent pillar={pillar} canCreate={false} domainActions={<span>Open legal case</span>} />);
+    expect(html).toContain("Legal case register");
+    expect(html).toContain("Case #1");
+    expect(html).toContain("Search legal case register");
+    expect(html).toContain("Open legal case");
+  });
 });

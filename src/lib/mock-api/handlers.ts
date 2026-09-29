@@ -10,10 +10,20 @@ import { tableDefinitions } from "./schema";
 import { makeRow } from "./rows";
 import { MOCK_PASSWORD } from "./seed";
 import { uniqueKeys } from "./unique-keys";
+import { filterSubmissionRows } from "@/features/submissions/filter";
 
 type Row = Record<string, unknown> & { id: number };
 const rowsFor = (store: MockStore, table: TableName) => store[table] as unknown as Row[];
 const visible = (row: Row) => row.is_deleted !== true;
+function submissionSummary(store: MockStore, row: Row) {
+  const enrollment = store.enrollment.find(item => item.id === row.enrollment_id && !item.is_deleted);
+  const pillar = store.pillar.find(item => item.id === enrollment?.pillar_id);
+  const stageStatus = String(row.stage_event_status);
+  const status: "Approved" | "Flagged" | "Pending review" = stageStatus === "verified" ? "Approved" : stageStatus === "disputed" ? "Flagged" : "Pending review";
+  return { id: row.id, title: String(row.notes ?? `Submission #${row.id}`).split(" — ")[0], type: enrollment?.entry_category ?? "Field update",
+    pillar: pillar?.name ?? "Pillar unavailable", status,
+    captured: String(row.event_date), source: String(row.source_channel) };
+}
 const envelope = (resultCode: number, data: unknown = null, message = resultCode < 400 ? "OK" : resultCode === 404 ? "Record or route not found" : resultCode === 403 ? "Permission denied" : "Invalid request"): ApiEnvelope<unknown> => ({ resultCode, success: resultCode < 400, message, data: structuredClone(data) });
 const routeTables: Record<string, TableName> = {
   participants: "participant", referrals: "referral", grants: "grant_application", assessments: "organisation_assessment", reports: "narrative_report", "field-submissions": "participant_stage_event", "audit-logs": "audit_logs",
@@ -205,19 +215,24 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     for (const [key, value] of query) if (!reserved.has(key)) filtered = filtered.filter((row) => String(row[key]) === value);
     // Search uses the visible representation so it cannot become an oracle for
     // masked identity numbers or other hidden data.
-    if (search) filtered = filtered.filter((row) => Object.values(masked(table, row)).some((value) => typeof value === "string" && value.toLowerCase().includes(search)));
+    if (search) filtered = filtered.filter((row) => table === "participant_stage_event"
+      ? filterSubmissionRows([submissionSummary(store, row)], { search }).length > 0
+      : Object.values(masked(table, row)).some((value) => typeof value === "string" && value.toLowerCase().includes(search)));
     const sortBy = query.get("sortBy") ?? "id", sortOrder = query.get("sortOrder") ?? "asc";
     if (!Object.hasOwn(tableDefinitions[table], sortBy) || !["asc", "desc"].includes(sortOrder) || isSensitiveField(table, sortBy)) return envelope(422);
     filtered.sort((a, b) => (typeof a[sortBy] === "number" && typeof b[sortBy] === "number" ? Number(a[sortBy]) - Number(b[sortBy]) : String(a[sortBy] ?? "").localeCompare(String(b[sortBy] ?? ""))) * (sortOrder === "desc" ? -1 : 1));
     if (query.has("format")) {
       if (query.get("format") !== "csv") return envelope(422);
       if (!grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") || pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id }) || filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))) return envelope(403);
-      const columns = Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
+      const columns = table === "participant_stage_event" ? ["id", "pillar", "captured", "status", "source"] : Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
       const csvCell = (value: unknown) => {
         const text = value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
         return '"' + (/^[=+\-@\t\r\n]/.test(text) ? "'" + text : text).replaceAll('"', '""') + '"';
       };
-      const content = [columns.join(","), ...filtered.map((row) => { const safe = masked(table, row); return columns.map((key) => csvCell(safe[key])).join(","); })].join("\r\n");
+      const content = [columns.join(","), ...filtered.map((row) => {
+        const safe = table === "participant_stage_event" ? (() => { const summary = submissionSummary(store, row); return { id: summary.id, pillar: summary.pillar, captured: summary.captured, status: summary.status, source: summary.source }; })() : masked(table, row);
+        return columns.map((key) => csvCell(safe[key as keyof typeof safe])).join(",");
+      })].join("\r\n");
       const now = new Date().toISOString();
       store.audit_logs.push(makeRow("audit_logs", { entity_type: table, action: "EXPORT", source: "HTTP", performed_by: userId, performed_at: now, endpoint: request.routeTemplate }, Math.max(0, ...store.audit_logs.map((row) => row.id)) + 1, now));
       return envelope(200, { filename: `${table}.csv`, content, totalItems: filtered.length });
