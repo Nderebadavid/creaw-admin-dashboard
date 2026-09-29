@@ -3,11 +3,12 @@ import type { ApiClient } from "@/lib/api/client";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { collectPages } from "@/lib/api/pagination";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import { applicationListSchema, applicationDetailSchema, awardListSchema, disbursementListSchema, grantReportListSchema, documentListSchema, documentDetailSchema, projectListSchema, pillarListSchema, mutationSchema, packSchema, signoffSchema, exportSchema, type ApplicationDto } from "./schemas";
+import { createReportingApi, type ReportView } from "@/features/reporting/api";
+import { applicationListSchema, applicationDetailSchema, awardListSchema, disbursementListSchema, documentListSchema, documentDetailSchema, projectListSchema, pillarListSchema, mutationSchema, packSchema, signoffSchema, exportSchema, type ApplicationDto } from "./schemas";
 
 export interface GrantQuery { page?: number; pageSize?: number; pillarId?: number; status?: string; search?: string }
 export interface GrantRow { id: number; applicant: string; project: string; pillarId: number; status: string; requestedAmount: string; grantType: string; createdAt: string }
-export interface GrantDetail extends GrantRow { notes: string | null; participantId: number | null; organisationId: number | null; stage: number; nextStatus: "PREPARED" | "REVIEWED" | "APPROVED" | null; signoffs: { preparedBy: number | null; reviewedBy: number | null; approvedBy: number | null }; award: { id: number; amountAwarded: string; currency: string; lifecycle: string } | null; disbursements: { id: number; amount: string; date: string | null; notes: string | null }[]; reports: { id: number; periodStart: string; periodEnd: string; dueDate: string; submittedDate: string | null }[]; documents: { id: number; name: string }[] }
+export interface GrantDetail extends GrantRow { notes: string | null; participantId: number | null; organisationId: number | null; stage: number; nextStatus: "PREPARED" | "REVIEWED" | "APPROVED" | null; signoffs: { preparedBy: number | null; reviewedBy: number | null; approvedBy: number | null }; award: { id: number; amountAwarded: string; currency: string; lifecycle: string } | null; reportingAwardId: number | null; disbursements: { id: number; amount: string; date: string | null; notes: string | null }[]; reports: { id: number; periodStart: string; periodEnd: string; dueDate: string; submittedDate: string | null }[]; documents: { id: number; name: string }[] }
 export interface GrantPage { items: GrantRow[]; page: number; pageSize: number; totalItems: number; totalPages: number }
 function required<T>(result: { success: boolean; data: T | null; message: string }): T { if (!result.success || !result.data) throw new Error(result.message); return result.data; }
 const stages = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"] as const;
@@ -16,7 +17,7 @@ export function stageFor(status: string) { return Math.max(0, stages.indexOf(sta
 
 export function createGrantsApi(client: ApiClient, token: string) {
   const request = <T>(input: Parameters<ApiClient["request"]>[0], schema: Parameters<ApiClient["request"]>[1]) => client.request(input, schema) as Promise<T>;
-  const all = <T>(table: "grant_award" | "grant_disbursement" | "grant_report" | "document" | "project", schema: Parameters<ApiClient["request"]>[1]) => collectPages<T>(async (page, pageSize) => {
+  const all = <T>(table: "grant_award" | "grant_disbursement" | "document" | "project", schema: Parameters<ApiClient["request"]>[1]) => collectPages<T>(async (page, pageSize) => {
     const family = table === "project" ? "/reports" : "/grants";
     const result = await request<{ success: boolean; data: { items: T[]; page: number; pageSize: number; totalItems: number; totalPages: number } | null; message: string }>({ method: "GET", path: family, routeTemplate: family, token, query: { table, page, pageSize } }, schema);
     return required(result);
@@ -45,14 +46,19 @@ export function createGrantsApi(client: ApiClient, token: string) {
       const awards = await all<import("zod").infer<typeof import("./schemas").awardSchema>>("grant_award", awardListSchema).catch(() => []);
       const award = awards.find(item => item.application_id === id);
       const disbursements = award ? await all<import("zod").infer<typeof import("./schemas").disbursementSchema>>("grant_disbursement", disbursementListSchema).catch(() => []) : [];
-      const reports = award ? await all<import("zod").infer<typeof import("./schemas").grantReportSchema>>("grant_report", grantReportListSchema).catch(() => []) : [];
+      const reporting = createReportingApi(client, token);
+      const [catalog, reports] = await Promise.all([
+        reporting.catalog().catch(() => null),
+        collectPages<ReportView>((page, pageSize) => reporting.list({ page, pageSize })).catch(() => []),
+      ]);
+      const reportingAwardId = catalog?.awards.find(item => item.applicationId === id)?.id ?? null;
       const documents = await all<import("zod").infer<typeof import("./schemas").documentSchema>>("document", documentListSchema).catch(() => []);
       const stage = stageFor(row.status);
       return { ...summary, notes: row.notes, participantId: row.participant_id, organisationId: row.organisation_id, stage, signoffs,
         nextStatus: stage < 3 ? stages[stage + 1] as GrantDetail["nextStatus"] : null,
-        award: award ? { id: award.id, amountAwarded: award.amount_awarded, currency: award.currency, lifecycle: award.grant_lifecycle_status } : null,
+        award: award ? { id: award.id, amountAwarded: award.amount_awarded, currency: award.currency, lifecycle: award.grant_lifecycle_status } : null, reportingAwardId,
         disbursements: disbursements.filter(item => item.grant_id === award?.id).map(item => ({ id: item.id, amount: item.amount, date: item.disbursement_date, notes: item.notes })),
-        reports: reports.filter(item => item.grant_award_id === award?.id).map(item => ({ id: item.id, periodStart: item.reporting_period_start, periodEnd: item.reporting_period_end, dueDate: item.due_date, submittedDate: item.submitted_date })),
+        reports: reports.filter(item => item.type === "grant" && item.applicationId === id).map(item => ({ id: item.id, periodStart: item.periodStart, periodEnd: item.periodEnd, dueDate: item.dueDate, submittedDate: item.submittedDate })),
         documents: documents.filter(item => item.owner_type === "grant_application" && item.owner_id === id).map(item => ({ id: item.id, name: item.document_type.replaceAll("_", " ") })) };
     },
     advance(id: number, status: "PREPARED" | "REVIEWED" | "APPROVED") { return request<import("zod").infer<typeof mutationSchema>>({ method: "PATCH", path: `/grants/${id}`, routeTemplate: "/grants/:id", token, body: { status } }, mutationSchema); },

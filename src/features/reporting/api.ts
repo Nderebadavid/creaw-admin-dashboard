@@ -6,7 +6,7 @@ import { reportPageSchema, catalogSchema, documentDetailSchema, mutationSchema, 
 import type { z } from "zod";
 
 export interface ReportQuery { page?: number; pageSize?: number; pillarId?: number; ownerId?: number; status?: string; search?: string }
-export interface ReportView { key: string; id: number; type: "narrative" | "grant"; title: string; project: string; pillarId: number; pillar: string; ownerId: number | null; ownerName: string | null; dueDate: string; status: string; submittedDate: string | null; documentId: number | null }
+export interface ReportView { key: string; id: number; type: "narrative" | "grant"; applicationId: number | null; title: string; project: string; pillarId: number; pillar: string; ownerId: number | null; ownerName: string | null; periodStart: string; periodEnd: string; dueDate: string; status: string; submittedDate: string | null; documentId: number | null }
 export interface ReportPage { items: ReportView[]; page: number; pageSize: number; totalItems: number; totalPages: number }
 export type ReportCatalog = NonNullable<z.infer<typeof catalogSchema>["data"]>;
 function required<T>(result: { success: boolean; data: T | null; message: string }): T { if (!result.success || !result.data) throw new Error(result.message); return result.data; }
