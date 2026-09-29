@@ -1,20 +1,26 @@
 "use client";
-import { Fragment, useState, type FormEvent } from "react";
-import { fieldClass } from "./form-styles";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, ShieldCheck, KeyRound, Grid2X2, LockKeyhole } from "lucide-react";
+import { Grid2X2, KeyRound, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Pagination, type PageSize } from "@/components/data-table/pagination";
-import {
-  createPermissionAction,
-  createRoleAction,
-  setRolePermissionAction,
-  updateRoleAction,
-} from "./actions";
+import { setRolePermissionAction } from "./actions";
 import type { PermissionView, RolePermissionView, RoleView } from "./api";
+import { CatalogueTab } from "./permissions/catalogue-tab";
+import { MatrixTab } from "./permissions/matrix-tab";
+import { PermissionDialog } from "./permissions/permission-dialog";
+import { ReviewDialog } from "./permissions/review-dialog";
+import { RoleDialog } from "./permissions/role-dialog";
+import { RolesTab } from "./permissions/roles-tab";
+import { cellKey, usePermissionMatrix } from "./permissions/use-permission-matrix";
 
-const key = (roleId: number, permissionId: number) => `${roleId}:${permissionId}`;
+type Tab = "roles" | "permissions" | "matrix";
+type Modal = "new-role" | "edit-role" | "new-permission" | "review" | null;
+
+/**
+ * Roles & permissions screen. Grant edits are staged locally in all three tabs
+ * and saved together from the review dialog; role and permission creation save
+ * immediately.
+ */
 export function PermissionsContent({
   roles,
   permissions,
@@ -24,106 +30,49 @@ export function PermissionsContent({
 }: {
   roles: RoleView[];
   permissions: PermissionView[];
+  /** Current role-permission rows from the server; a new array means a refresh. */
   grants: RolePermissionView[];
   canManageRoles: boolean;
   canManagePermissions: boolean;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"roles" | "permissions" | "matrix">("roles"),
-    [selectedId, setSelectedId] = useState(roles[0]?.id ?? 0);
-  const [roleQuery, setRoleQuery] = useState(""),
-    [catalogQuery, setCatalogQuery] = useState(""),
-    [moduleFilter, setModuleFilter] = useState("");
-  const [page, setPage] = useState(1),
-    [pageSize, setPageSize] = useState<PageSize>(10);
-  const [modal, setModal] = useState<"new-role" | "edit-role" | "new-permission" | "review" | null>(
-      null
-    ),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [feedback, setFeedback] = useState("");
-  const authoritativeKey = grants
-    .filter((row) => row.status === "ACTIVE" && !row.is_deleted)
-    .map((row) => key(row.role_id, row.permission_id))
-    .sort()
-    .join("|");
-  const [matrix, setMatrix] = useState(() => {
-    const initial = new Set(authoritativeKey ? authoritativeKey.split("|") : []);
-    return { source: grants, saved: initial, draft: new Set(initial) };
-  });
-  let { saved, draft } = matrix;
-  if (matrix.source !== grants) {
-    const authoritative = new Set(authoritativeKey ? authoritativeKey.split("|") : []);
-    const unresolved = new Set(
-      [...matrix.saved, ...matrix.draft].filter(
-        (entry) => matrix.saved.has(entry) !== matrix.draft.has(entry)
-      )
-    );
-    const nextDraft = new Set(authoritative);
-    for (const entry of unresolved)
-      if (matrix.draft.has(entry)) nextDraft.add(entry);
-      else nextDraft.delete(entry);
-    saved = authoritative;
-    draft = nextDraft;
-    setMatrix({ source: grants, saved, draft });
-  }
+  const [tab, setTab] = useState<Tab>("roles");
+  const [selectedId, setSelectedId] = useState(roles[0]?.id ?? 0);
+  const [modal, setModal] = useState<Modal>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const matrix = usePermissionMatrix(roles, permissions, grants);
   const selected = roles.find((role) => role.id === selectedId) ?? roles[0];
-  const systemGrant = (role: RoleView) => role.is_system_role && role.code === "SYSTEM_ADMIN";
-  const hasGrant = (role: RoleView, permission: PermissionView) =>
-    systemGrant(role) || draft.has(key(role.id, permission.id));
-  const differences = roles.flatMap((role) =>
-    permissions
-      .filter(
-        (permission) =>
-          !role.is_system_role &&
-          draft.has(key(role.id, permission.id)) !== saved.has(key(role.id, permission.id))
-      )
-      .map((permission) => ({ role, permission, enabled: draft.has(key(role.id, permission.id)) }))
-  );
-  const modules = [...new Set(permissions.map((permission) => permission.module))].sort();
-  const byModule = modules
-    .map((module) => ({
-      module,
-      items: permissions.filter(
-        (permission) =>
-          permission.module === module &&
-          `${permission.name} ${permission.code} ${permission.description ?? ""}`
-            .toLowerCase()
-            .includes(roleQuery.toLowerCase())
-      ),
-    }))
-    .filter((group) => group.items.length > 0);
-  const filteredPermissions = permissions.filter(
-    (permission) =>
-      (!moduleFilter || permission.module === moduleFilter) &&
-      `${permission.name} ${permission.code} ${permission.description ?? ""}`
-        .toLowerCase()
-        .includes(catalogQuery.toLowerCase())
-  );
-  const catalogPage = filteredPermissions.slice((page - 1) * pageSize, page * pageSize);
-  const toggle = (role: RoleView, permission: PermissionView) => {
-    if (!canManagePermissions || role.is_system_role) return;
-    setMatrix((current) => {
-      const next = new Set(current.draft);
-      const entry = key(role.id, permission.id);
-      if (next.has(entry)) next.delete(entry);
-      else next.add(entry);
-      return { ...current, draft: next };
-    });
+
+  const open = (next: Modal) => {
+    setError("");
+    setModal(next);
   };
+  const toggle = (role: RoleView, permission: PermissionView) => {
+    if (canManagePermissions && !role.is_system_role) matrix.toggle(role, permission);
+  };
+  const saved = (message: string) => {
+    setFeedback(message);
+    setModal(null);
+    router.refresh();
+  };
+
+  // Applies staged changes one at a time. On the first failure, whatever was
+  // applied so far becomes the saved state and the rest stay staged for review.
   async function saveChanges() {
     setBusy(true);
     setError("");
-    const next = new Set(saved);
+    const next = new Set(matrix.saved);
     let applied = 0;
-    for (const item of differences) {
+    for (const item of matrix.changes) {
       const response = await setRolePermissionAction({
         roleId: item.role.id,
         permissionId: item.permission.id,
         enabled: item.enabled,
       });
       if (!response.success) {
-        setMatrix((current) => ({ ...current, saved: next }));
+        matrix.markSaved(next, false);
         setError(
           `${response.message}. ${applied === 0 ? "No changes saved." : "Some changes were saved; review remaining changes."}`
         );
@@ -132,52 +81,26 @@ export function PermissionsContent({
         return;
       }
       applied++;
-      const entry = key(item.role.id, item.permission.id);
+      const entry = cellKey(item.role.id, item.permission.id);
       if (item.enabled) next.add(entry);
       else next.delete(entry);
     }
-    setMatrix((current) => ({ ...current, saved: next, draft: new Set(next) }));
-    setModal(null);
+    matrix.markSaved(next, true);
     setBusy(false);
-    setFeedback("Permission changes saved and effective grants updated.");
-    router.refresh();
+    saved("Permission changes saved and effective grants updated.");
   }
-  async function saveRole(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    const form = new FormData(event.currentTarget);
-    const name = String(form.get("name") ?? ""),
-      description = String(form.get("description") ?? "");
-    const response =
-      modal === "new-role"
-        ? await createRoleAction({ code: String(form.get("code") ?? ""), name, description })
-        : await updateRoleAction({ id: selected?.id, name, description });
-    setBusy(false);
-    if (response.success) {
-      setFeedback(modal === "new-role" ? "Role created." : "Role updated.");
-      setModal(null);
-      router.refresh();
-    } else setError(response.message);
-  }
-  async function savePermission(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    const form = new FormData(event.currentTarget);
-    const response = await createPermissionAction({
-      code: String(form.get("code") ?? ""),
-      module: String(form.get("module") ?? ""),
-      name: String(form.get("name") ?? ""),
-      description: String(form.get("description") ?? ""),
-    });
-    setBusy(false);
-    if (response.success) {
-      setFeedback("Permission created. Add it to a role to enable access.");
-      setModal(null);
-      router.refresh();
-    } else setError(response.message);
-  }
+
+  const tabs = [
+    { value: "roles", label: "Roles", Icon: ShieldCheck, count: roles.length },
+    { value: "permissions", label: "Permissions", Icon: KeyRound, count: permissions.length },
+    {
+      value: "matrix",
+      label: "Matrix overview",
+      Icon: Grid2X2,
+      count: `${roles.length}×${permissions.length}`,
+    },
+  ] as const;
+
   return (
     <div className="space-y-5">
       <div
@@ -185,29 +108,20 @@ export function PermissionsContent({
         aria-label="Roles and permissions"
         className="flex gap-1 overflow-x-auto border-b border-creaw-line-strong"
       >
-        {[
-          ["roles", "Roles", ShieldCheck, roles.length],
-          ["permissions", "Permissions", KeyRound, permissions.length],
-          ["matrix", "Matrix overview", Grid2X2, `${roles.length}×${permissions.length}`],
-        ].map(([value, label, Icon, count]) => {
-          const Component = Icon as typeof ShieldCheck;
-          return (
-            <button
-              key={value as string}
-              type="button"
-              role="tab"
-              aria-selected={tab === value}
-              onClick={() => setTab(value as typeof tab)}
-              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold ${tab === value ? "border-creaw-orange text-creaw-orange" : "border-transparent text-creaw-body"}`}
-            >
-              <Component size={18} />
-              {label as string}
-              <span className="rounded-full bg-creaw-divider px-2 py-0.5 text-xs">
-                {count as string | number}
-              </span>
-            </button>
-          );
-        })}
+        {tabs.map(({ value, label, Icon, count }) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => setTab(value)}
+            className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold ${tab === value ? "border-creaw-orange text-creaw-orange" : "border-transparent text-creaw-body"}`}
+          >
+            <Icon size={18} />
+            {label}
+            <span className="rounded-full bg-creaw-divider px-2 py-0.5 text-xs">{count}</span>
+          </button>
+        ))}
       </div>
       {feedback && (
         <p
@@ -223,480 +137,71 @@ export function PermissionsContent({
         </p>
       )}
       {tab === "roles" && (
-        <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-creaw-line bg-white p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-heading text-lg font-bold">Roles</h2>
-              <Button
-                size="sm"
-                disabled={!canManageRoles}
-                onClick={() => {
-                  setError("");
-                  setModal("new-role");
-                }}
-              >
-                <Plus size={14} />
-                New
-              </Button>
-            </div>
-            <div className="space-y-1">
-              {roles.map((role) => (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => setSelectedId(role.id)}
-                  aria-current={selected?.id === role.id ? "true" : undefined}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm ${selected?.id === role.id ? "bg-creaw-orange-soft font-semibold text-creaw-orange" : "hover:bg-creaw-surface"}`}
-                >
-                  {role.name}
-                  {role.is_system_role && <LockKeyhole size={12} className="ml-2 inline" />}
-                </button>
-              ))}
-            </div>
-          </aside>
-          <section className="min-w-0 rounded-2xl border border-creaw-line bg-white">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
-              <div>
-                <h2 className="font-heading text-2xl font-bold">
-                  {selected?.name ?? "Select a role"}
-                </h2>
-                <p className="text-sm text-creaw-faint">
-                  {selected?.description ?? "Permissions assigned to this role"}
-                </p>
-                <div className="mt-2 flex gap-2 text-xs text-creaw-body">
-                  <span className="rounded-full bg-creaw-canvas px-2 py-1">{selected?.code}</span>
-                  <span className="rounded-full bg-creaw-canvas px-2 py-1">
-                    {selected ? permissions.filter((item) => hasGrant(selected, item)).length : 0}{" "}
-                    permissions
-                  </span>
-                </div>
-              </div>
-              {selected && (
-                <Button
-                  variant="outline"
-                  disabled={!canManageRoles || selected.is_system_role}
-                  onClick={() => {
-                    setError("");
-                    setModal("edit-role");
-                  }}
-                >
-                  Edit role
-                </Button>
-              )}
-            </div>
-            {selected?.is_system_role && (
-              <p className="mx-5 mt-4 flex items-center gap-2 rounded-lg bg-creaw-canvas p-3 text-sm text-creaw-body">
-                <LockKeyhole size={17} />
-                Built-in roles cannot be edited. System Administrator always has every permission.
-              </p>
-            )}
-            <div className="p-5">
-              <label className="mb-4 flex max-w-sm items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2">
-                <Search size={16} aria-hidden />
-                <span className="sr-only">Search permissions</span>
-                <input
-                  type="search"
-                  value={roleQuery}
-                  onChange={(event) => setRoleQuery(event.target.value)}
-                  placeholder="Search permissions"
-                  className="min-w-0 w-full bg-transparent text-sm outline-none"
-                />
-              </label>
-              <div className="space-y-4">
-                {selected &&
-                  byModule.map((group) => (
-                    <section
-                      key={group.module}
-                      className="overflow-hidden rounded-xl border border-creaw-divider"
-                    >
-                      <h3 className="flex items-center justify-between bg-creaw-surface px-4 py-3 font-heading font-bold">
-                        {group.module.replaceAll("_", " ")}
-                        <span className="text-xs font-normal text-creaw-faint">
-                          {group.items.length}
-                        </span>
-                      </h3>
-                      {group.items.map((permission) => (
-                        <button
-                          key={permission.id}
-                          type="button"
-                          disabled={!canManagePermissions || selected.is_system_role}
-                          aria-pressed={hasGrant(selected, permission)}
-                          onClick={() => toggle(selected, permission)}
-                          className="flex w-full items-center gap-3 border-t border-creaw-divider px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          <span
-                            className={`flex size-5 shrink-0 items-center justify-center rounded border ${hasGrant(selected, permission) ? "border-creaw-orange bg-creaw-orange text-white" : "border-[#CFC6BC]"}`}
-                          >
-                            {hasGrant(selected, permission) && "✓"}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <strong className="text-sm">{permission.name}</strong>
-                            <span className="ml-2 font-mono text-xs text-creaw-faint">
-                              {permission.code}
-                            </span>
-                            <span className="block text-xs text-creaw-faint">
-                              {permission.description}
-                            </span>
-                          </span>
-                          {draft.has(key(selected.id, permission.id)) !==
-                            saved.has(key(selected.id, permission.id)) && (
-                            <span className="rounded-full bg-creaw-orange-soft px-2 py-1 text-xs text-creaw-orange">
-                              Unsaved
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </section>
-                  ))}
-                {byModule.length === 0 && (
-                  <p className="py-8 text-center text-sm text-creaw-faint">
-                    No permissions match this filter.
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-        </div>
+        <RolesTab
+          roles={roles}
+          permissions={permissions}
+          selected={selected}
+          onSelect={setSelectedId}
+          hasGrant={matrix.hasGrant}
+          isUnsaved={matrix.isUnsaved}
+          onToggle={toggle}
+          canManageRoles={canManageRoles}
+          canManagePermissions={canManagePermissions}
+          onNewRole={() => open("new-role")}
+          onEditRole={() => open("edit-role")}
+        />
       )}
       {tab === "permissions" && (
-        <section className="rounded-2xl border border-creaw-line bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-creaw-divider p-5">
-            <div>
-              <h2 className="font-heading text-xl font-bold">Permission catalogue</h2>
-              <p className="text-sm text-creaw-faint">
-                The smallest units of access, grouped by module.
-              </p>
-            </div>
-            <Button
-              disabled={!canManagePermissions}
-              onClick={() => {
-                setError("");
-                setModal("new-permission");
-              }}
-            >
-              <Plus size={16} />
-              New permission
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-3 p-4">
-            <label className="flex min-w-52 flex-1 items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2">
-              <Search size={16} aria-hidden />
-              <span className="sr-only">Search permission catalogue</span>
-              <input
-                value={catalogQuery}
-                onChange={(event) => {
-                  setCatalogQuery(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search code, name or description"
-                className="min-w-0 w-full bg-transparent text-sm outline-none"
-              />
-            </label>
-            <label className="text-sm">
-              Module
-              <select
-                value={moduleFilter}
-                onChange={(event) => {
-                  setModuleFilter(event.target.value);
-                  setPage(1);
-                }}
-                className="ml-2 rounded-lg border bg-white p-2"
-              >
-                <option value="">All modules</option>
-                {modules.map((module) => (
-                  <option key={module}>{module}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[740px] text-left text-sm">
-              <thead className="bg-creaw-surface text-xs text-creaw-body">
-                <tr>
-                  <th className="p-3">Permission</th>
-                  <th className="p-3">Module</th>
-                  <th className="p-3">Description</th>
-                  <th className="p-3">Roles</th>
-                </tr>
-              </thead>
-              <tbody>
-                {catalogPage.map((permission) => (
-                  <tr key={permission.id} className="border-t border-creaw-divider">
-                    <td className="p-3">
-                      <strong>{permission.name}</strong>
-                      <span className="block font-mono text-xs text-creaw-faint">
-                        {permission.code}
-                      </span>
-                    </td>
-                    <td className="p-3">{permission.module}</td>
-                    <td className="p-3 text-creaw-body">{permission.description ?? "—"}</td>
-                    <td className="p-3">
-                      {roles
-                        .filter((role) => hasGrant(role, permission))
-                        .map((role) => (
-                          <span
-                            key={role.id}
-                            className="mr-1 inline-block rounded-md bg-creaw-canvas px-2 py-1 text-xs"
-                          >
-                            {role.name}
-                          </span>
-                        ))}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {catalogPage.length === 0 && (
-              <p className="p-8 text-center text-sm text-creaw-faint">No permissions match.</p>
-            )}
-          </div>
-          <div className="px-4">
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              totalItems={filteredPermissions.length}
-              onPageChange={setPage}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setPage(1);
-              }}
-            />
-          </div>
-        </section>
+        <CatalogueTab
+          roles={roles}
+          permissions={permissions}
+          hasGrant={matrix.hasGrant}
+          canManagePermissions={canManagePermissions}
+          onNewPermission={() => open("new-permission")}
+        />
       )}
       {tab === "matrix" && (
-        <section className="rounded-2xl border border-creaw-line bg-white">
-          <div className="p-5">
-            <h2 className="font-heading text-xl font-bold">Role × permission matrix</h2>
-            <p className="text-sm text-creaw-faint">
-              Click a cell to stage a grant or revocation, then review and save.
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-creaw-surface">
-                <tr>
-                  <th className="sticky left-0 z-10 min-w-56 border-b bg-creaw-surface p-3 text-left">
-                    Permission
-                  </th>
-                  {roles.map((role) => (
-                    <th key={role.id} className="min-w-24 border-b p-2 text-center text-xs">
-                      {role.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {modules.map((module) => (
-                  <Fragment key={module}>
-                    <tr className="bg-[#FFFBF7]">
-                      <th className="sticky left-0 bg-[#FFFBF7] p-3 text-left font-heading font-bold text-creaw-orange">
-                        {module}
-                      </th>
-                      <td colSpan={roles.length} />
-                    </tr>
-                    {permissions
-                      .filter((permission) => permission.module === module)
-                      .map((permission) => (
-                        <tr key={permission.id} className="border-t border-creaw-divider">
-                          <th className="sticky left-0 bg-white p-3 text-left font-medium">
-                            {permission.name}
-                            <span className="block font-mono text-xs text-creaw-faint">
-                              {permission.code}
-                            </span>
-                          </th>
-                          {roles.map((role) => (
-                            <td key={role.id} className="p-2 text-center">
-                              <button
-                                type="button"
-                                aria-label={`${role.name}: ${permission.name}`}
-                                aria-pressed={hasGrant(role, permission)}
-                                disabled={!canManagePermissions || role.is_system_role}
-                                onClick={() => toggle(role, permission)}
-                                className={`size-8 rounded-lg border text-sm font-bold disabled:cursor-not-allowed ${draft.has(key(role.id, permission.id)) !== saved.has(key(role.id, permission.id)) ? "border-2 border-[#E0822F]" : "border-creaw-line-strong"} ${hasGrant(role, permission) ? "bg-[#E3F3EA] text-[#1F7A4D]" : "bg-white"}`}
-                              >
-                                {hasGrant(role, permission) ? "✓" : ""}
-                              </button>
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <MatrixTab
+          roles={roles}
+          permissions={permissions}
+          hasGrant={matrix.hasGrant}
+          isUnsaved={matrix.isUnsaved}
+          onToggle={toggle}
+          canManagePermissions={canManagePermissions}
+        />
       )}
-      {differences.length > 0 && (
+      {matrix.changes.length > 0 && (
         <div className="sticky bottom-4 z-20 ml-auto flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl bg-creaw-ink p-3 text-sm text-white shadow-xl">
           <span>
-            {differences.length} unsaved change{differences.length === 1 ? "" : "s"}
+            {matrix.changes.length} unsaved change{matrix.changes.length === 1 ? "" : "s"}
           </span>
-          <Button
-            variant="outline"
-            onClick={() => setMatrix((current) => ({ ...current, draft: new Set(current.saved) }))}
-          >
+          <Button variant="outline" onClick={matrix.discard}>
             Discard
           </Button>
-          <Button
-            disabled={busy}
-            onClick={() => {
-              setError("");
-              setModal("review");
-            }}
-          >
+          <Button disabled={busy} onClick={() => open("review")}>
             Review &amp; save
           </Button>
         </div>
       )}
-      <Dialog
+      <RoleDialog
         open={modal === "new-role" || modal === "edit-role"}
-        onOpenChange={(value) => {
-          if (!value && !busy) setModal(null);
-        }}
-      >
-        <DialogContent>
-          <DialogTitle>{modal === "new-role" ? "New role" : "Edit role"}</DialogTitle>
-          <DialogDescription>
-            Roles group permissions and can be assigned to staff within a pillar.
-          </DialogDescription>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <form onSubmit={saveRole} className="space-y-3">
-            {modal === "new-role" && (
-              <label className="block text-sm">
-                Code
-                <input
-                  name="code"
-                  required
-                  pattern="[A-Z][A-Z0-9_]+"
-                  maxLength={40}
-                  placeholder="ROLE_CODE"
-                  className={fieldClass}
-                />
-              </label>
-            )}
-            <label className="block text-sm">
-              Name
-              <input
-                name="name"
-                required
-                maxLength={120}
-                defaultValue={modal === "edit-role" ? selected?.name : ""}
-                className={fieldClass}
-              />
-            </label>
-            <label className="block text-sm">
-              Description
-              <textarea
-                name="description"
-                maxLength={500}
-                defaultValue={modal === "edit-role" ? (selected?.description ?? "") : ""}
-                className={fieldClass}
-              />
-            </label>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save role"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog
+        role={modal === "edit-role" ? selected : undefined}
+        onClose={() => setModal(null)}
+        onSaved={saved}
+      />
+      <PermissionDialog
         open={modal === "new-permission"}
-        onOpenChange={(value) => {
-          if (!value && !busy) setModal(null);
-        }}
-      >
-        <DialogContent>
-          <DialogTitle>New permission</DialogTitle>
-          <DialogDescription>
-            Create a code, then grant it to a role. The System Administrator receives it
-            automatically.
-          </DialogDescription>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <form onSubmit={savePermission} className="space-y-3">
-            <label className="block text-sm">
-              Code
-              <input
-                name="code"
-                required
-                pattern="[A-Z][A-Z0-9_]+"
-                maxLength={60}
-                placeholder="MODULE_ACTION"
-                className={fieldClass}
-              />
-            </label>
-            <label className="block text-sm">
-              Module
-              <input
-                name="module"
-                required
-                pattern="[A-Z][A-Z0-9_]+"
-                maxLength={40}
-                placeholder="ADMIN"
-                className={fieldClass}
-              />
-            </label>
-            <label className="block text-sm">
-              Name
-              <input name="name" required maxLength={160} className={fieldClass} />
-            </label>
-            <label className="block text-sm">
-              Description
-              <textarea name="description" maxLength={500} className={fieldClass} />
-            </label>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Create permission"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog
+        onClose={() => setModal(null)}
+        onSaved={saved}
+      />
+      <ReviewDialog
         open={modal === "review"}
-        onOpenChange={(value) => {
-          if (!value && !busy) setModal(null);
-        }}
-      >
-        <DialogContent className="max-h-[85dvh] overflow-y-auto">
-          <DialogTitle>Review permission changes</DialogTitle>
-          <DialogDescription>
-            Changes to active roles immediately alter effective access and are recorded in the audit
-            log.
-          </DialogDescription>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <ul className="max-h-64 space-y-2 overflow-y-auto">
-            {differences.map((item) => (
-              <li
-                key={key(item.role.id, item.permission.id)}
-                className="rounded-lg border p-2 text-sm"
-              >
-                {item.enabled ? "Grant" : "Revoke"} <strong>{item.permission.name}</strong> ·{" "}
-                {item.role.name}
-              </li>
-            ))}
-          </ul>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" disabled={busy} onClick={() => setModal(null)}>
-              Cancel
-            </Button>
-            <Button disabled={busy} onClick={() => void saveChanges()}>
-              {busy ? "Saving…" : "Save changes"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        changes={matrix.changes}
+        busy={busy}
+        error={error}
+        onClose={() => setModal(null)}
+        onConfirm={() => void saveChanges()}
+      />
     </div>
   );
 }
