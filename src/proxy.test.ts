@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { proxy } from "./proxy";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { config, proxy } from "./proxy";
 
 describe("proxy", () => {
   afterEach(() => {
@@ -33,5 +34,13 @@ describe("proxy", () => {
     const response = proxy(new NextRequest("http://localhost/login"));
 
     expect(response.status).toBe(200);
+  });
+
+  it("exempts the two supplied public images while protecting portal routes", () => {
+    for (const url of ["/creaw-logo.png", "/login-wvl.png"]) {
+      expect(unstable_doesMiddlewareMatch({config, nextConfig:{}, url})).toBe(false);
+    }
+    expect(unstable_doesMiddlewareMatch({config, nextConfig:{}, url:"/dashboard"})).toBe(true);
+    expect(unstable_doesMiddlewareMatch({config, nextConfig:{}, url:"/participants"})).toBe(true);
   });
 });

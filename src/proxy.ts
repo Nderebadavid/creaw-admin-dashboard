@@ -42,7 +42,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets and Next.js internals.
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    // The optimizer fetches these public source images without a session cookie.
+    "/((?!api|_next/static|_next/image|favicon.ico|creaw-logo\\.png$|login-wvl\\.png$).*)",
   ],
 };
