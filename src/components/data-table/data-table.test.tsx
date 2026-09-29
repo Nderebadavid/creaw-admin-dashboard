@@ -97,3 +97,36 @@ it("opens row actions by keyboard with an accessible row-specific name", async (
   fireEvent.keyUp(item, { key: "Enter" });
   expect(onSelect).toHaveBeenCalledOnce();
 });
+
+it("opens a record from anywhere on its row, and by keyboard", () => {
+  const onOpen = vi.fn();
+  render(
+    <DataTable
+      columns={columns}
+      rows={[{ id: 1, name: "Faith" }]}
+      getRowId={(row) => row.id}
+      label="Participants"
+      onRowOpen={onOpen}
+      rowOpenLabel={(row) => `Open ${row.name}`}
+    />
+  );
+  fireEvent.click(screen.getByText("Faith"));
+  expect(onOpen).toHaveBeenCalledWith({ id: 1, name: "Faith" });
+  fireEvent.click(screen.getByRole("button", { name: "Open Faith" }));
+  expect(onOpen).toHaveBeenCalledTimes(2);
+});
+
+it("labels the visible range like the design", () => {
+  render(
+    <Pagination
+      page={2}
+      pageSize={10}
+      totalItems={32}
+      onPageChange={vi.fn()}
+      onPageSizeChange={vi.fn()}
+      hint="Click a row to open the record"
+    />
+  );
+  expect(screen.getByText("11–20 of 32")).toBeInTheDocument();
+  expect(screen.getByText("Click a row to open the record")).toBeInTheDocument();
+});
