@@ -12,7 +12,7 @@ type Score = z.infer<typeof scoreSchema>;
 type Check = z.infer<typeof checkSchema>;
 type Criterion = z.infer<typeof criterionSchema>;
 type Organisation = z.infer<typeof organisationSchema>;
-export interface AssessmentView { id: number; organisation: string; organisationId: number; dueDiligence: string; score: number; scores: { label: string; score: number; max: number }[]; documents: { id: number; name: string; status: string; documentId: number | null }[]; status: string; recommendation: string | null; proposedRecommendation: string | null; pillarId: number }
+export interface AssessmentView { id: number; organisation: string; organisationId: number; dueDiligence: string; score: number; maxScore: number | null; scores: { label: string; score: number; max: number | null }[]; documents: { id: number; name: string; status: string; documentId: number | null }[]; status: string; recommendation: string | null; proposedRecommendation: string | null; pillarId: number }
 export interface AssessmentPage { items: AssessmentView[]; page: number; pageSize: number; totalItems: number; totalPages: number }
 function required<T>(result: { success: boolean; data: T | null; message: string }): T { if (!result.success || !result.data) throw new Error(result.message); return result.data; }
 
@@ -26,8 +26,12 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
     ]);
     return rows.map(row => {
       const organisation = organisations.find(item => item.id === row.organisation_id);
-      const scoreRows = scores.filter(item => item.assessment_id === row.id).map(item => ({ label: criteria.find(c => c.id === item.criterion_id)?.label ?? `Criterion #${item.criterion_id}`, score: item.score ?? 0, max: criteria.find(c => c.id === item.criterion_id)?.max_score ?? 5 }));
-      return { id: row.id, organisation: organisation?.name ?? `Organisation #${row.organisation_id}`, organisationId: row.organisation_id, dueDiligence: organisation?.due_diligence_status ?? "unknown", score: scoreRows.length ? Math.round(scoreRows.reduce((sum, item) => sum + item.score, 0) / scoreRows.length * 10) / 10 : 0,
+      const scoreRows = scores.filter(item => item.assessment_id === row.id).map(item => {
+        const criterion = criteria.find(c => c.id === item.criterion_id);
+        if (!criterion) throw new Error("Assessment criterion unavailable");
+        return { label: criterion.label, score: item.score ?? 0, max: criterion.max_score };
+      });
+      return { id: row.id, organisation: organisation?.name ?? `Organisation #${row.organisation_id}`, organisationId: row.organisation_id, dueDiligence: organisation?.due_diligence_status ?? "unknown", score: scoreRows.length ? Math.round(scoreRows.reduce((sum, item) => sum + item.score, 0) / scoreRows.length * 10) / 10 : 0, maxScore: scoreRows.length && scoreRows.every(item => item.max !== null) ? Math.round(scoreRows.reduce((sum, item) => sum + item.max!, 0) / scoreRows.length * 10) / 10 : null,
         scores: scoreRows, documents: checks.filter(item => item.assessment_id === row.id).map(item => ({ id: item.id, name: item.document_name, status: item.document_check_status, documentId: item.document_id })),
         status: row.status, recommendation: row.overall_recommendation, proposedRecommendation: row.status_description, pillarId: 5 };
     });

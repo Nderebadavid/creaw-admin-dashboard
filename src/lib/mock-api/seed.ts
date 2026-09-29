@@ -96,6 +96,10 @@ export function createSeed(): MockStore {
   add("activity_session", { pillar_id: 3, activity_type_id: 4, session_date: "2026-09-24", venue: "Kilifi County Hospital", topic: "Facility referral day", facilitator_user_id: 9 });
   add("activity_attendance", { session_id: 1, participant_id: 5 });
   [[3,60000,"Retail shop, Kondele Market"],[2,45000,"Poultry farming"],[4,38000,"Tailoring workshop"],[9,42000,"Business training"]].forEach(([participantId, amount, notes], i) => add("grant_application", { project_id: 1, participant_id: Number(participantId), requested_amount: Number(amount), grant_type: "staggered_by_milestone", notes: String(notes), status: ["APPROVED","REVIEWED","PREPARED","PREPARED"][i] }));
+  // Historical seed statuses need the same accountable transition evidence as new approvals.
+  for (const [applicationId, stages] of [[2, [["ACTIVE", "PREPARED", 4], ["PREPARED", "REVIEWED", 3]]], [3, [["ACTIVE", "PREPARED", 4]]], [4, [["ACTIVE", "PREPARED", 3]]]] as const) {
+    for (const [before, after, actor] of stages) add("audit_logs", { entity_type: "grant_application", entity_id: applicationId, action: "UPDATE", source: "HTTP", performed_by: actor, performed_at: SEED_DATE, endpoint: "/grants/:id", previous_state: JSON.stringify({ status: before }), new_state: JSON.stringify({ status: after }) });
+  }
   add("grant_award", { application_id: 1, amount_awarded: 55000, sector_id: 3, contract_start: "2026-05-15", contract_end: "2027-05-14" });
   add("grant_disbursement", { grant_id: 1, amount: 27500, percentage_of_total: 50, disbursement_date: "2026-05-20", notes: "First tranche" });
   add("grant_report", { grant_award_id: 1, reporting_period_start: "2026-04-01", reporting_period_end: "2026-06-30", due_date: "2026-08-30", notes: "Peter Otieno grant report — Q2" });

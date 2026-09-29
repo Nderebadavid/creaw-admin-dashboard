@@ -52,4 +52,28 @@ describe("reporting workflows", () => {
     expect(catalog.owners).toContainEqual(expect.objectContaining({ id: 3, name: "Samuel Ndegwa" }));
     expect(JSON.stringify(catalog.owners)).not.toMatch(/phone|email|password/i);
   });
+  it("shows and submits scoped grant reports without grant-application or dashboard grants", async () => {
+    const store = getMockStore();
+    store.user[12].status = "ACTIVE";
+    const roleId = store.user_role.find(row => row.user_id === 13)!.role_id;
+    for (const code of ["GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE", "REPORT_EXPORT_CSV", "DOCUMENT_UPLOAD", "DOCUMENT_DOWNLOAD"]) {
+      const permission = store.permission.find(row => row.code === code)!;
+      store.role_permission.push({ ...store.role_permission[0], id: 1000 + permission.id, role_id: roleId, permission_id: permission.id });
+    }
+    const api = apiFor(13);
+    const view = (await api.list()).items.find(row => row.type === "grant");
+    expect(view).toMatchObject({ pillarId: 2, project: "Jasiri business grants" });
+    expect((await api.export({ pillarId: 2 })).data?.totalItems).toBe((await api.list({ pillarId: 2 })).totalItems);
+    expect((await api.submit("grant", view!.id, "2026-09-29", "mock://reports/1.pdf")).resultCode).toBe(200);
+  });
+  it("uses the same scoped WRO relationships for listing, filtering, and export", async () => {
+    const api = apiFor(8);
+    const rows = await api.list({ pillarId: 5 });
+    expect(rows.totalItems).toBeGreaterThan(0);
+    expect(rows.items.every(row => row.pillarId === 5 && row.pillar !== "Pillar" && row.project !== "Programme")).toBe(true);
+    const exported = await api.export({ pillarId: 5 });
+    expect(exported.data?.totalItems).toBe(rows.totalItems);
+    const report = rows.items.find(row => row.type === "narrative")!;
+    expect((await api.submit("narrative", report.id, "2026-09-29")).resultCode).toBe(200);
+  });
 });

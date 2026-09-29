@@ -70,6 +70,10 @@ function scopes(store: MockStore, table: TableName, row: Row, depth = 0): number
   return [];
 }
 function allowed(store: MockStore, grants: EffectiveGrant[], code: string, table: TableName, row: Row): boolean {
+  if (code === "ORG_ASSESSMENT_VIEW" && (table === "assessment_criterion" || table === "assessment_instrument")) {
+    const instrumentId = table === "assessment_instrument" ? row.id : row.instrument_id;
+    return store.organisation_assessment.some(assessment => !assessment.is_deleted && assessment.instrument_id === instrumentId && allowed(store, grants, code, "organisation_assessment", assessment as unknown as Row));
+  }
   if (table === "referral" && (code === "REFERRAL_CREATE" || code === "REFERRAL_ACCEPT")) {
     return hasPermission(grants, code, { pillarId: Number(code === "REFERRAL_CREATE" ? row.from_pillar_id : row.to_pillar_id) });
   }
@@ -107,6 +111,47 @@ function auditWrite(store: MockStore, request: ApiRequest<unknown>, userId: numb
     performed_at: now, endpoint: request.routeTemplate, input_payload: JSON.stringify(masked(table, (request.body ?? {}) as Row, true)),
     previous_state: before ? JSON.stringify(masked(table, before, true)) : null, new_state: JSON.stringify(masked(table, after, true)),
   }, Math.max(0, ...store.audit_logs.map((row) => row.id)) + 1, now));
+}
+function signoffActors(store: MockStore, applicationId: number) {
+  let preparedBy: number | null = null, reviewedBy: number | null = null, approvedBy: number | null = null;
+  for (const entry of store.audit_logs.filter(row => row.entity_type === "grant_application" && row.entity_id === applicationId && row.source === "HTTP" && (row.action === "UPDATE" && row.endpoint === "/grants/:id" || row.action === "CREATE" && ["/grants", "/pillars/:pillar"].includes(row.endpoint ?? ""))).sort((a, b) => a.id - b.id)) {
+    let before: string | undefined, after: string | undefined;
+    try { before = JSON.parse(entry.previous_state ?? "{}").status; after = JSON.parse(entry.new_state ?? "{}").status; } catch { continue; }
+    if (entry.action === "CREATE" && after === "PREPARED" && entry.performed_by || before === "ACTIVE" && after === "PREPARED" && entry.performed_by) { preparedBy = entry.performed_by; reviewedBy = null; approvedBy = null; }
+    if (before === "PREPARED" && after === "REVIEWED" && preparedBy && entry.performed_by && entry.performed_by !== preparedBy) { reviewedBy = entry.performed_by; approvedBy = null; }
+    if (before === "REVIEWED" && after === "APPROVED" && preparedBy && reviewedBy && entry.performed_by && ![preparedBy, reviewedBy].includes(entry.performed_by)) approvedBy = entry.performed_by;
+  }
+  return { preparedBy, reviewedBy, approvedBy };
+}
+function calendarRows(store: MockStore, grants: EffectiveGrant[]) {
+  const projects = new Map(store.project.filter(row => !row.is_deleted).map(row => [row.id, row]));
+  const pillars = new Map(store.pillar.filter(row => !row.is_deleted).map(row => [row.id, row]));
+  const projectForAward = (awardId: number) => {
+    const award = store.grant_award.find(row => row.id === awardId && !row.is_deleted);
+    const application = store.grant_application.find(row => row.id === award?.application_id && !row.is_deleted);
+    return application && projects.get(application.project_id);
+  };
+  const present = (type: "narrative" | "grant", row: typeof store.narrative_report[number] | typeof store.grant_report[number], project: typeof store.project[number] | undefined, dueDate: string, title: string, submittedDate: string | null, documentId: number | null, storedStatus?: string) => {
+    if (!project) return null;
+    const pillar = pillars.get(project.pillar_id);
+    if (!pillar) return null;
+    const owner = store.user.find(user => user.id === pillar.lead_user_id && !user.is_deleted);
+    const document = documentId && store.document.find(item => item.id === documentId && !item.is_deleted);
+    return { key: `${type}-${row.id}`, id: row.id, type, title, project: project.name, pillarId: project.pillar_id, pillar: pillar.name, ownerId: pillar.lead_user_id, ownerName: owner ? `${owner.first_name} ${owner.last_name}` : null, dueDate,
+      status: submittedDate || storedStatus === "submitted" ? "submitted" : storedStatus === "overdue" || dueDate < new Date().toISOString().slice(0, 10) ? "overdue" : "pending", submittedDate,
+      documentId: document && allowed(store, grants, "DOCUMENT_VIEW", "document", document as unknown as Row) ? document.id : null };
+  };
+  return [
+    ...store.narrative_report.filter(row => !row.is_deleted && allowed(store, grants, "NARRATIVE_REPORT_MANAGE", "narrative_report", row as unknown as Row)).map(row => present("narrative", row, projects.get(row.project_id), row.reporting_period_end, row.notes ?? `Narrative report #${row.id}`, row.submitted_date, store.document.find(document => !document.is_deleted && document.owner_type === "narrative_report" && document.owner_id === row.id)?.id ?? null, row.report_status)),
+    ...store.grant_report.filter(row => !row.is_deleted && allowed(store, grants, "GRANT_REPORT_VIEW", "grant_report", row as unknown as Row)).map(row => present("grant", row, projectForAward(row.grant_award_id), row.due_date, row.notes ?? `Grant report #${row.id}`, row.submitted_date, row.document_id)),
+  ].filter((row): row is NonNullable<typeof row> => row !== null).sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.key.localeCompare(b.key));
+}
+function filteredCalendarRows(store: MockStore, grants: EffectiveGrant[], query: URLSearchParams) {
+  const pillarId = query.has("pillarId") ? Number(query.get("pillarId")) : undefined;
+  const ownerId = query.has("ownerId") ? Number(query.get("ownerId")) : undefined;
+  if (pillarId !== undefined && (!Number.isSafeInteger(pillarId) || pillarId < 1) || ownerId !== undefined && (!Number.isSafeInteger(ownerId) || ownerId < 1)) return null;
+  const search = query.get("search")?.toLowerCase();
+  return calendarRows(store, grants).filter(row => (pillarId === undefined || row.pillarId === pillarId) && (ownerId === undefined || row.ownerId === ownerId) && (!query.get("status") || row.status === query.get("status")) && (!search || `${row.title} ${row.project} ${row.pillar}`.toLowerCase().includes(search)));
 }
 function validate(store: MockStore, table: TableName, row: Row): boolean {
   const definition = tableDefinitions[table];
@@ -170,32 +215,29 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   const grants = getEffectiveGrants(userId);
   if (!grants.length) return envelope(403);
   if (url.pathname === "/auth/me") return request.method === "GET" ? envelope(200, { user: masked("user", store.user.find((row) => row.id === userId)! as unknown as Row), grants }) : envelope(422);
-  if (url.pathname === "/reports" && query.get("owners") === "true") {
-    if (request.method !== "GET" || [...query.keys()].some(key => key !== "owners")) return envelope(422);
-    const owners = [...new Set(store.project.filter(project => !project.is_deleted && (hasPermission(grants, "NARRATIVE_REPORT_MANAGE", { pillarId: project.pillar_id }) || hasPermission(grants, "GRANT_REPORT_VIEW", { pillarId: project.pillar_id }))).map(project => store.pillar.find(pillar => pillar.id === project.pillar_id)?.lead_user_id).filter((id): id is number => typeof id === "number"))]
-      .map(id => store.user.find(user => user.id === id && !user.is_deleted))
-      .filter((user): user is NonNullable<typeof user> => Boolean(user))
-      .map(user => ({ id: user.id, name: `${user.first_name} ${user.last_name}` }));
-    return envelope(200, owners);
+  if (url.pathname === "/reports" && query.get("catalog") === "true") {
+    if (request.method !== "GET" || [...query.keys()].some(key => key !== "catalog")) return envelope(422);
+    if (!grants.some(grant => ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].includes(grant.permissionCode))) return envelope(403);
+    const projects = store.project.filter(project => !project.is_deleted && hasPermission(grants, "NARRATIVE_REPORT_MANAGE", { pillarId: project.pillar_id })).map(project => ({ id: project.id, pillar_id: project.pillar_id, name: project.name, donor_id: project.donor_id }));
+    const pillarIds = new Set([...calendarRows(store, grants).map(row => row.pillarId), ...projects.map(row => row.pillar_id), ...store.project.filter(project => !project.is_deleted && hasPermission(grants, "GRANT_REPORT_MANAGE", { pillarId: project.pillar_id })).map(row => row.pillar_id)]);
+    const pillars = store.pillar.filter(pillar => !pillar.is_deleted && pillarIds.has(pillar.id)).map(pillar => ({ id: pillar.id, name: pillar.name, lead_user_id: pillar.lead_user_id }));
+    const owners = [...new Set(pillars.map(pillar => pillar.lead_user_id).filter((id): id is number => id !== null))].map(id => store.user.find(user => user.id === id && !user.is_deleted)).filter((user): user is NonNullable<typeof user> => Boolean(user)).map(user => ({ id: user.id, name: `${user.first_name} ${user.last_name}` }));
+    const awards = store.grant_award.filter(award => !award.is_deleted).map(award => ({ award, application: store.grant_application.find(application => !application.is_deleted && application.id === award.application_id) })).filter(({ application }) => application?.status === "APPROVED" && store.project.some(project => !project.is_deleted && project.id === application.project_id && hasPermission(grants, "GRANT_REPORT_MANAGE", { pillarId: project.pillar_id }))).map(({ award, application }) => ({ id: award.id, applicationId: application!.id, projectId: application!.project_id, pillarId: store.project.find(project => project.id === application!.project_id)!.pillar_id }));
+    return envelope(200, { projects, pillars, owners, awards });
   }
   if (url.pathname === "/reports" && query.get("calendar") === "true") {
-    if (request.method !== "GET" || query.get("format") !== "csv" || [...query.keys()].some(key => !["calendar", "format", "pillarId", "ownerId", "status", "search"].includes(key))) return envelope(422);
-    if (!grants.some(grant => grant.permissionCode === "REPORT_EXPORT_CSV")) return envelope(403);
-    const pillarId = query.has("pillarId") ? Number(query.get("pillarId")) : undefined;
-    const ownerId = query.has("ownerId") ? Number(query.get("ownerId")) : undefined;
-    if (pillarId !== undefined && (!Number.isSafeInteger(pillarId) || pillarId < 1) || ownerId !== undefined && (!Number.isSafeInteger(ownerId) || ownerId < 1)) return envelope(422);
-    const projects = new Map(store.project.map(row => [row.id, row]));
-    const projectForGrant = (row: typeof store.grant_report[number]) => {
-      const award = store.grant_award.find(item => item.id === row.grant_award_id && !item.is_deleted);
-      const application = store.grant_application.find(item => item.id === award?.application_id && !item.is_deleted);
-      return application && projects.get(application.project_id);
-    };
-    const records = [
-      ...store.narrative_report.filter(row => !row.is_deleted).map(row => ({ table: "narrative_report" as const, id: row.id, title: row.notes ?? `Narrative report #${row.id}`, project: projects.get(row.project_id), due: row.reporting_period_end, status: row.report_status === "submitted" || row.report_status === "overdue" ? row.report_status : row.reporting_period_end < new Date().toISOString().slice(0, 10) ? "overdue" : "pending" })),
-      ...store.grant_report.filter(row => !row.is_deleted).map(row => ({ table: "grant_report" as const, id: row.id, title: row.notes ?? `Grant report #${row.id}`, project: projectForGrant(row), due: row.due_date, status: row.submitted_date ? "submitted" : row.due_date < new Date().toISOString().slice(0, 10) ? "overdue" : "pending" })),
-    ].filter(item => item.project && allowed(store, grants, item.table === "grant_report" ? "GRANT_REPORT_VIEW" : "NARRATIVE_REPORT_MANAGE", item.table, rowsFor(store, item.table).find(row => row.id === item.id)!) && hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: item.project.pillar_id }) && (pillarId === undefined || item.project.pillar_id === pillarId) && (ownerId === undefined || store.pillar.find(pillar => pillar.id === item.project!.pillar_id)?.lead_user_id === ownerId) && (!query.get("status") || item.status === query.get("status")) && (!query.get("search") || `${item.title} ${item.project.name} ${store.pillar.find(pillar => pillar.id === item.project!.pillar_id)?.name ?? ""}`.toLowerCase().includes(query.get("search")!.toLowerCase())));
+    if (request.method !== "GET" || [...query.keys()].some(key => !["calendar", "format", "pillarId", "ownerId", "status", "search", "page", "pageSize"].includes(key))) return envelope(422);
+    if (!grants.some(grant => ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW"].includes(grant.permissionCode))) return envelope(403);
+    const records = filteredCalendarRows(store, grants, query);
+    if (!records) return envelope(422);
+    if (!query.has("format")) {
+      const page = Number(query.get("page") ?? 1), pageSize = Number(query.get("pageSize") ?? 25);
+      if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) return envelope(422);
+      return envelope(200, { items: records.slice((page - 1) * pageSize, page * pageSize), page, pageSize, totalItems: records.length, totalPages: Math.ceil(records.length / pageSize) });
+    }
+    if (query.get("format") !== "csv" || !grants.some(grant => grant.permissionCode === "REPORT_EXPORT_CSV") || records.some(row => !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: row.pillarId }))) return envelope(403);
     const cell = (value: unknown) => '"' + (/^[=+\-@\t\r\n]/.test(String(value)) ? "'" : "") + String(value ?? "").replaceAll('"', '""') + '"';
-    const content = ["type,id,title,programme,pillar_id,owner_id,due_date,status", ...records.map(item => [item.table, item.id, item.title, item.project!.name, item.project!.pillar_id, store.pillar.find(pillar => pillar.id === item.project!.pillar_id)?.lead_user_id ?? "", item.due, item.status].map(cell).join(","))].join("\r\n");
+    const content = ["type,id,title,programme,pillar_id,owner_id,due_date,status", ...records.map(item => [item.type, item.id, item.title, item.project, item.pillarId, item.ownerId ?? "", item.dueDate, item.status].map(cell).join(","))].join("\r\n");
     const now = new Date().toISOString();
     store.audit_logs.push(makeRow("audit_logs", { entity_type: "narrative_report", action: "EXPORT", source: "HTTP", performed_by: userId, performed_at: now, endpoint: request.routeTemplate }, Math.max(0, ...store.audit_logs.map(row => row.id)) + 1, now));
     return envelope(200, { filename: "reporting-calendar.csv", content, totalItems: records.length });
@@ -234,10 +276,18 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const change = request.body as unknown as Row;
     const order = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"];
     if (Object.keys(change).some(key => key !== "status" && key !== "status_description") || order.indexOf(String(change.status)) !== order.indexOf(String(existing.status)) + 1) return envelope(422, null, "Grant sign-off must follow prepared, reviewed, approved order");
+    const actors = signoffActors(store, existing.id);
+    if (change.status === "REVIEWED" && !actors.preparedBy || change.status === "APPROVED" && (!actors.preparedBy || !actors.reviewedBy)) return envelope(422, null, "A complete audited sign-off history is required");
+    if (change.status === "REVIEWED" && actors.preparedBy === userId || change.status === "APPROVED" && [actors.preparedBy, actors.reviewedBy].includes(userId)) return envelope(403, null, "A different officer must complete this sign-off step");
     if (change.status === "APPROVED" && store.grant_award.some(award => !award.is_deleted && award.application_id === existing.id)) return envelope(422, null, "Application already has an award");
   }
+  if (table === "grant_application" && request.method === "POST" && request.body && typeof request.body === "object" && "status" in request.body && !["ACTIVE", "PREPARED"].includes(String(request.body.status))) return envelope(422, null, "New applications can only begin active or prepared");
   if (table === "grant_award" && request.method === "POST") permission = "GRANT_APPLICATION_APPROVE";
   if (table === "grant_award" && request.method === "POST") return envelope(422, null, "Awards are created by application approval");
+  if (table === "grant_award" && request.method === "PATCH" && request.body && typeof request.body === "object") {
+    if ("application_id" in request.body) return envelope(422, null, "An award cannot be moved to another application");
+    if ("amount_awarded" in request.body || "currency" in request.body) permission = "GRANT_APPLICATION_APPROVE";
+  }
   if (table === "organisation_assessment" && request.body && typeof request.body === "object" && "overall_recommendation" in request.body) {
     const recommendation = request.body.overall_recommendation;
     const requiresApproval = request.method === "POST" ? recommendation != null : request.method === "PATCH" && recommendation !== existing?.overall_recommendation;
@@ -258,6 +308,10 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!permission || !grants.some((grant) => grant.permissionCode === permission) && !(request.method === "GET" && ["pillar", "county", "sub_county", "ward"].includes(table) && grants.some((grant) => ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode)))) return envelope(403);
   if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   if (request.method === "GET") {
+    if (table === "grant_application" && existing && query.get("signoffs") === "true") {
+      if (!allowed(store, grants, "GRANT_APPLICATION_VIEW", table, existing)) return envelope(403);
+      return envelope(200, signoffActors(store, existing.id));
+    }
     if (table === "grant_application" && existing && query.get("pack") === "true") {
       if (!allowed(store, grants, "GRANT_APPLICATION_VIEW", table, existing) || !allowed(store, grants, "DOCUMENT_DOWNLOAD", table, existing)) return envelope(403);
       auditWrite(store, request, userId, table, existing, existing, "DOWNLOAD");
@@ -351,6 +405,16 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const application = award && store.grant_application.find(row => row.id === award.application_id && !row.is_deleted);
     const paid = store.grant_disbursement.filter(row => !row.is_deleted && row.grant_id === next.grant_id && row.id !== next.id).reduce((sum, row) => sum + row.amount, 0);
     if (!award || application?.status !== "APPROVED" || typeof next.amount !== "number" || next.amount <= 0 || paid + next.amount > award.amount_awarded) return envelope(422, null, "Payment exceeds the approved award or the application is not approved");
+  }
+  if (table === "grant_award") {
+    const application = store.grant_application.find(row => row.id === next.application_id && !row.is_deleted);
+    const paid = store.grant_disbursement.filter(row => !row.is_deleted && row.grant_id === next.id).reduce((sum, row) => sum + row.amount, 0);
+    if (!application || application.status !== "APPROVED" || typeof next.amount_awarded !== "number" || next.amount_awarded <= 0 || next.amount_awarded > application.requested_amount || next.amount_awarded < paid) return envelope(422, null, "Award must fit the approved application and recorded payments");
+  }
+  if (table === "grant_report") {
+    const award = store.grant_award.find(row => row.id === next.grant_award_id && !row.is_deleted);
+    const application = award && store.grant_application.find(row => row.id === award.application_id && !row.is_deleted);
+    if (!award || application?.status !== "APPROVED" || String(next.reporting_period_start) > String(next.reporting_period_end) || String(next.reporting_period_end) > String(next.due_date) || existing && next.grant_award_id !== existing.grant_award_id) return envelope(422, null, "A reporting period requires an approved award and valid dates");
   }
   if (table === "assessment_document_check" && next.document_id !== null) {
     const document = store.document.find(row => row.id === next.document_id && !row.is_deleted);

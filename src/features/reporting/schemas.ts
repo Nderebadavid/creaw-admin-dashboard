@@ -17,6 +17,9 @@ export const applicationListSchema = createEnvelopeSchema(z.union([createPaginat
 export const documentListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(documentSchema), z.null()]));
 export const documentDetailSchema = createEnvelopeSchema(z.union([documentSchema.extend({ simulated: z.boolean() }), z.null()]));
 export const ownersSchema = createEnvelopeSchema(z.union([z.array(z.object({ id, name: z.string() })), z.null()]));
+export const reportViewSchema = z.object({ key: z.string(), id, type: z.enum(["narrative", "grant"]), title: z.string(), project: z.string(), pillarId: id, pillar: z.string(), ownerId: id.nullable(), ownerName: z.string().nullable(), dueDate: z.string(), status: z.string(), submittedDate: z.string().nullable(), documentId: id.nullable() });
+export const reportPageSchema = createEnvelopeSchema(z.union([createPaginatedSchema(reportViewSchema), z.null()]));
+export const catalogSchema = createEnvelopeSchema(z.union([z.object({ projects: z.array(projectSchema), pillars: z.array(pillarSchema), owners: z.array(z.object({ id, name: z.string() })), awards: z.array(z.object({ id, applicationId: id, projectId: id, pillarId: id })) }), z.null()]));
 export const mutationSchema = createEnvelopeSchema(z.union([z.object({ id }), z.null()]));
 export const exportSchema = createEnvelopeSchema(z.union([z.object({ filename: z.string(), content: z.string(), totalItems: z.number() }), z.null()]));
 export const deadlineInputSchema = z.object({ projectId: id, title: z.string().trim().min(1).max(255), periodStart: z.iso.date(), periodEnd: z.iso.date() }).refine(value => value.periodEnd >= value.periodStart, "Period end must follow start");

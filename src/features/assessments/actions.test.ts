@@ -38,6 +38,11 @@ describe("assessment workflows", () => {
     for (let i = 0; i < 101; i++) store.assessment_document_check.push({ ...store.assessment_document_check[0], id: 1000 + i, assessment_id: 1, document_name: `Extra ${i}` });
     expect((await apiFor(1).get(1))?.documents).toHaveLength(107);
   });
+  it("shows real shared criterion labels and maxima to a WRO-scoped assessor", async () => {
+    getMockStore().assessment_criterion[0].max_score = 7;
+    const view = await apiFor(8).get(1);
+    expect(view?.scores[0]).toEqual({ label: "Governance", score: expect.any(Number), max: 7 });
+  });
   it("allows the WRO pillar lead to view scoped assessment names and checks", async () => {
     const page = await apiFor(8).list();
     expect(page.items[0].organisation).not.toMatch(/^Organisation #/);
