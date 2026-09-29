@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { formatDate } from "@/lib/format";
+import { hasPermission } from "@/lib/auth/grants";
 import { Search, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -18,13 +20,6 @@ import {
   revealParticipantAction,
   updateParticipantAction,
 } from "./actions";
-
-const date = (value: string) =>
-  new Date(value).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
-const can = (grants: EffectiveGrant[], code: string, pillarId: number) =>
-  grants.some(
-    (item) => item.permissionCode === code && (item.pillarId === null || item.pillarId === pillarId)
-  );
 
 export function ParticipantsContent({
   initial,
@@ -46,7 +41,7 @@ export function ParticipantsContent({
   const [busy, setBusy] = useState(false);
   const firstRender = useRef(true);
   const availablePillars = catalog.pillars.filter((item) =>
-    can(grants, "PARTICIPANT_EDIT", item.id)
+    hasPermission(grants, "PARTICIPANT_EDIT", { pillarId: item.id })
   );
   const pillarName = (id: number) =>
     catalog.pillars.find((item) => item.id === id)?.name ?? `Pillar #${id}`;
@@ -177,7 +172,7 @@ export function ParticipantsContent({
         </div>
       ),
     },
-    { id: "registered", header: "Registered", cell: (row) => date(row.registered) },
+    { id: "registered", header: "Registered", cell: (row) => formatDate(row.registered) },
     {
       id: "status",
       header: "Status",
@@ -334,7 +329,7 @@ export function ParticipantsContent({
                 <p>
                   <span className="text-creaw-muted">Registered</span>
                   <br />
-                  {date(selected.registered)}
+                  {formatDate(selected.registered)}
                 </p>
                 <p>
                   <span className="text-creaw-muted">ID number</span>
@@ -343,7 +338,9 @@ export function ParticipantsContent({
                     label="ID number"
                     maskedValue={selected.idNumber ?? "—"}
                     revealAction={
-                      selected.pillarIds.some((id) => can(grants, "SENSITIVE_REVEAL", id))
+                      selected.pillarIds.some((id) =>
+                        hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: id })
+                      )
                         ? () => revealParticipantAction(selected.id, "id_number")
                         : undefined
                     }
@@ -356,7 +353,9 @@ export function ParticipantsContent({
                     label="Phone number"
                     maskedValue={selected.phoneNumber ?? "—"}
                     revealAction={
-                      selected.pillarIds.some((id) => can(grants, "SENSITIVE_REVEAL", id))
+                      selected.pillarIds.some((id) =>
+                        hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: id })
+                      )
                         ? () => revealParticipantAction(selected.id, "phone_number")
                         : undefined
                     }
@@ -371,8 +370,8 @@ export function ParticipantsContent({
                       <span className="font-semibold">{pillarName(item.pillarId)}</span> ·{" "}
                       {item.category}
                       <span className="block text-xs text-creaw-muted">
-                        Stage: {item.currentStage ?? "Not started"} · Since {date(item.date)} ·{" "}
-                        {item.status}
+                        Stage: {item.currentStage ?? "Not started"} · Since {formatDate(item.date)}{" "}
+                        · {item.status}
                       </span>
                     </li>
                   ))}
@@ -381,11 +380,14 @@ export function ParticipantsContent({
               <div>
                 <h3 className="font-heading text-lg font-bold">History</h3>
                 <p className="mt-2 text-creaw-muted">
-                  Registered {date(selected.registered)}; {selected.enrollments.length} enrollment
+                  Registered {formatDate(selected.registered)}; {selected.enrollments.length}{" "}
+                  enrollment
                   {selected.enrollments.length === 1 ? "" : "s"} recorded.
                 </p>
               </div>
-              {selected.pillarIds.some((id) => can(grants, "PARTICIPANT_EDIT", id)) && (
+              {selected.pillarIds.some((id) =>
+                hasPermission(grants, "PARTICIPANT_EDIT", { pillarId: id })
+              ) && (
                 <Button
                   variant="outline"
                   onClick={() => {

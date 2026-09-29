@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { formatDate } from "@/lib/format";
 import Link from "next/link";
 import { ArrowLeft, FileDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,6 @@ import {
   viewGrantDocumentAction,
 } from "./actions";
 
-const date = (value: string) =>
-  new Date(value).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
 const tone = (status: string) =>
   status === "APPROVED"
     ? ("success" as const)
@@ -79,7 +78,7 @@ export function GrantsContent({
     { id: "project", header: "Programme", cell: (row) => row.project },
     { id: "requested", header: "Requested", cell: (row) => row.requestedAmount },
     { id: "type", header: "Grant type", cell: (row) => row.grantType.replaceAll("_", " ") },
-    { id: "date", header: "Applied", cell: (row) => date(row.createdAt) },
+    { id: "date", header: "Applied", cell: (row) => formatDate(row.createdAt) },
     {
       id: "stage",
       header: "Stage",
@@ -380,7 +379,7 @@ export function GrantDetailContent({
                 {detail.disbursements.map((item) => (
                   <li key={item.id} className="rounded-xl border bg-creaw-surface p-3 text-sm">
                     <span className="font-semibold">{item.amount}</span> ·{" "}
-                    {item.date ? date(item.date) : "Date pending"}
+                    {item.date ? formatDate(item.date) : "Date pending"}
                     {item.notes && <p className="text-xs text-creaw-muted">{item.notes}</p>}
                   </li>
                 ))}
@@ -418,7 +417,8 @@ export function GrantDetailContent({
           <ul className="mt-3 space-y-2">
             {detail.reports.map((report) => (
               <li key={report.id} className="rounded-xl border bg-creaw-surface p-3 text-sm">
-                {date(report.periodStart)} – {date(report.periodEnd)} · due {date(report.dueDate)}{" "}
+                {formatDate(report.periodStart)} – {formatDate(report.periodEnd)} · due{" "}
+                {formatDate(report.dueDate)}{" "}
                 <StatusBadge tone={report.submittedDate ? "success" : "warning"}>
                   {report.submittedDate ? "Submitted" : "Pending"}
                 </StatusBadge>

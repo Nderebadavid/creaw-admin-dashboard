@@ -1,10 +1,9 @@
 import type { MockStore, StandardColumns } from "@/types/db";
 import { getMockStore } from "../mock-api/store";
+import { hasModulePermission, hasPermission, type EffectiveGrant } from "./grants";
 
-export interface EffectiveGrant {
-  permissionCode: string;
-  pillarId: number | null;
-}
+export { hasModulePermission, hasPermission, type EffectiveGrant };
+
 const active = (row: StandardColumns) => !row.is_deleted && row.status === "ACTIVE";
 
 export function getEffectiveGrants(
@@ -42,20 +41,4 @@ export function getEffectiveGrants(
     }
   }
   return [...grants.values()];
-}
-
-export function hasPermission(
-  grants: readonly EffectiveGrant[],
-  code: string,
-  options: { pillarId?: number | null } = {}
-): boolean {
-  return grants.some(
-    (grant) =>
-      grant.permissionCode === code &&
-      (grant.pillarId === null || (options.pillarId != null && grant.pillarId === options.pillarId))
-  );
-}
-
-export function hasModulePermission(grants: readonly EffectiveGrant[], code: string): boolean {
-  return grants.some((grant) => grant.permissionCode === code);
 }

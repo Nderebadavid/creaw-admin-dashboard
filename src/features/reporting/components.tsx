@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { formatDate } from "@/lib/format";
 import { CalendarDays, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertBanner } from "@/components/ui/alert-banner";
@@ -22,12 +23,6 @@ type Catalog = {
   pillars: { id: number; name: string; lead_user_id: number | null }[];
   owners?: { id: number; name: string }[];
 };
-const date = (value: string) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString("en-KE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 export function ReportingContent({
   initial,
   catalog,
@@ -151,7 +146,7 @@ export function ReportingContent({
       header: "Due",
       cell: (row) => (
         <span className={row.status === "overdue" ? "font-semibold text-creaw-danger" : ""}>
-          {date(row.dueDate)}
+          {formatDate(row.dueDate)}
         </span>
       ),
     },
@@ -411,7 +406,7 @@ export function ReportingContent({
         <DialogContent>
           <DialogTitle>Upload report submission</DialogTitle>
           <DialogDescription>
-            {selected?.title} · due {selected && date(selected.dueDate)}
+            {selected?.title} · due {selected && formatDate(selected.dueDate)}
           </DialogDescription>
           {error && (
             <p role="alert" className="text-sm text-destructive">

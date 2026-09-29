@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { formatDate } from "@/lib/format";
+import { hasPermission } from "@/lib/auth/grants";
 import { ArrowLeftRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -28,12 +30,6 @@ export interface ReferralOriginOption {
 }
 const tone = (status: string): StatusTone =>
   status === "NEW" ? "warning" : status === "ACCEPTED" ? "success" : "neutral";
-const date = (value: string) =>
-  new Date(value).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
-const can = (grants: EffectiveGrant[], code: string, pillarId: number) =>
-  grants.some(
-    (item) => item.permissionCode === code && (item.pillarId === null || item.pillarId === pillarId)
-  );
 
 export function ReferralsContent({
   initial,
@@ -58,7 +54,9 @@ export function ReferralsContent({
   const [modal, setModal] = useState<"create" | "decide" | "edit" | "withdraw" | null>(null);
   const [busy, setBusy] = useState(false);
   const firstRender = useRef(true);
-  const allowedOrigins = origins.filter((item) => can(grants, "REFERRAL_CREATE", item.pillarId));
+  const allowedOrigins = origins.filter((item) =>
+    hasPermission(grants, "REFERRAL_CREATE", { pillarId: item.pillarId })
+  );
   const [originEnrollment, setOriginEnrollment] = useState(allowedOrigins[0]?.enrollmentId ?? 0);
   const [destinationKind, setDestinationKind] = useState<"internal" | "external">("internal");
   const selectedOrigin = allowedOrigins.find((item) => item.enrollmentId === originEnrollment);
@@ -204,7 +202,7 @@ export function ReferralsContent({
       header: "Date",
       cell: (row) => (
         <div>
-          {date(row.date)}
+          {formatDate(row.date)}
           <p className="text-xs text-creaw-muted">{row.ageDays} days ago</p>
         </div>
       ),
