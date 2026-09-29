@@ -1,26 +1,118 @@
 import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 const id = z.number().int().positive();
-export const narrativeSchema = z.object({ id, project_id: id, reporting_period_start: z.string(), reporting_period_end: z.string(), submitted_date: z.string().nullable(), report_status: z.string(), notes: z.string().nullable() });
-export const grantReportSchema = z.object({ id, grant_award_id: id, reporting_period_start: z.string(), reporting_period_end: z.string(), due_date: z.string(), submitted_date: z.string().nullable(), document_id: id.nullable(), notes: z.string().nullable() });
-export const projectSchema = z.object({ id, pillar_id: id, name: z.string(), donor_id: id.nullable() });
+export const narrativeSchema = z.object({
+  id,
+  project_id: id,
+  reporting_period_start: z.string(),
+  reporting_period_end: z.string(),
+  submitted_date: z.string().nullable(),
+  report_status: z.string(),
+  notes: z.string().nullable(),
+});
+export const grantReportSchema = z.object({
+  id,
+  grant_award_id: id,
+  reporting_period_start: z.string(),
+  reporting_period_end: z.string(),
+  due_date: z.string(),
+  submitted_date: z.string().nullable(),
+  document_id: id.nullable(),
+  notes: z.string().nullable(),
+});
+export const projectSchema = z.object({
+  id,
+  pillar_id: id,
+  name: z.string(),
+  donor_id: id.nullable(),
+});
 export const pillarSchema = z.object({ id, name: z.string(), lead_user_id: id.nullable() });
 export const awardSchema = z.object({ id, application_id: id });
 export const applicationSchema = z.object({ id, project_id: id });
-export const documentSchema = z.object({ id, owner_type: z.string(), owner_id: id, document_type: z.string(), file_url: z.string() });
-export const narrativeListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(narrativeSchema), z.null()]));
-export const grantReportListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(grantReportSchema), z.null()]));
-export const projectListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(projectSchema), z.null()]));
-export const pillarListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(pillarSchema), z.null()]));
-export const awardListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(awardSchema), z.null()]));
-export const applicationListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(applicationSchema), z.null()]));
-export const documentListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(documentSchema), z.null()]));
-export const documentDetailSchema = createEnvelopeSchema(z.union([documentSchema.extend({ simulated: z.boolean() }), z.null()]));
-export const ownersSchema = createEnvelopeSchema(z.union([z.array(z.object({ id, name: z.string() })), z.null()]));
-export const reportViewSchema = z.object({ key: z.string(), id, type: z.enum(["narrative", "grant"]), applicationId: id.nullable(), title: z.string(), project: z.string(), pillarId: id, pillar: z.string(), ownerId: id.nullable(), ownerName: z.string().nullable(), periodStart: z.string(), periodEnd: z.string(), dueDate: z.string(), status: z.string(), submittedDate: z.string().nullable(), documentId: id.nullable() });
-export const reportPageSchema = createEnvelopeSchema(z.union([createPaginatedSchema(reportViewSchema), z.null()]));
-export const catalogSchema = createEnvelopeSchema(z.union([z.object({ projects: z.array(projectSchema), pillars: z.array(pillarSchema), owners: z.array(z.object({ id, name: z.string() })), awards: z.array(z.object({ id, applicationId: id, projectId: id, pillarId: id })) }), z.null()]));
+export const documentSchema = z.object({
+  id,
+  owner_type: z.string(),
+  owner_id: id,
+  document_type: z.string(),
+  file_url: z.string(),
+});
+export const narrativeListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(narrativeSchema), z.null()])
+);
+export const grantReportListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(grantReportSchema), z.null()])
+);
+export const projectListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(projectSchema), z.null()])
+);
+export const pillarListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(pillarSchema), z.null()])
+);
+export const awardListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(awardSchema), z.null()])
+);
+export const applicationListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(applicationSchema), z.null()])
+);
+export const documentListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(documentSchema), z.null()])
+);
+export const documentDetailSchema = createEnvelopeSchema(
+  z.union([documentSchema.extend({ simulated: z.boolean() }), z.null()])
+);
+export const ownersSchema = createEnvelopeSchema(
+  z.union([z.array(z.object({ id, name: z.string() })), z.null()])
+);
+export const reportViewSchema = z.object({
+  key: z.string(),
+  id,
+  type: z.enum(["narrative", "grant"]),
+  applicationId: id.nullable(),
+  title: z.string(),
+  project: z.string(),
+  pillarId: id,
+  pillar: z.string(),
+  ownerId: id.nullable(),
+  ownerName: z.string().nullable(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  dueDate: z.string(),
+  status: z.string(),
+  submittedDate: z.string().nullable(),
+  documentId: id.nullable(),
+});
+export const reportPageSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(reportViewSchema), z.null()])
+);
+export const catalogSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      projects: z.array(projectSchema),
+      pillars: z.array(pillarSchema),
+      owners: z.array(z.object({ id, name: z.string() })),
+      awards: z.array(z.object({ id, applicationId: id, projectId: id, pillarId: id })),
+    }),
+    z.null(),
+  ])
+);
 export const mutationSchema = createEnvelopeSchema(z.union([z.object({ id }), z.null()]));
-export const exportSchema = createEnvelopeSchema(z.union([z.object({ filename: z.string(), content: z.string(), totalItems: z.number() }), z.null()]));
-export const deadlineInputSchema = z.object({ projectId: id, title: z.string().trim().min(1).max(255), periodStart: z.iso.date(), periodEnd: z.iso.date() }).refine(value => value.periodEnd >= value.periodStart, "Period end must follow start");
-export const submitInputSchema = z.object({ type: z.enum(["narrative", "grant"]), id, date: z.iso.date(), fileUrl: z.string().url().or(z.string().startsWith("mock://")).optional() });
+export const exportSchema = createEnvelopeSchema(
+  z.union([
+    z.object({ filename: z.string(), content: z.string(), totalItems: z.number() }),
+    z.null(),
+  ])
+);
+export const deadlineInputSchema = z
+  .object({
+    projectId: id,
+    title: z.string().trim().min(1).max(255),
+    periodStart: z.iso.date(),
+    periodEnd: z.iso.date(),
+  })
+  .refine((value) => value.periodEnd >= value.periodStart, "Period end must follow start");
+export const submitInputSchema = z.object({
+  type: z.enum(["narrative", "grant"]),
+  id,
+  date: z.iso.date(),
+  fileUrl: z.string().url().or(z.string().startsWith("mock://")).optional(),
+});

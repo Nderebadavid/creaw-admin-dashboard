@@ -1,0 +1,8 @@
+.next
+node_modules
+.superpowers
+docs
+yarn.lock
+tsconfig.tsbuildinfo
+AGENTS.md
+CLAUDE.md

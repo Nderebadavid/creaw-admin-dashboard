@@ -17,8 +17,8 @@ export function revokeMockToken(token: string): boolean {
   return getMockStore().sessions.delete(token);
 }
 export function getMockStore(): MockStore {
-  return globalStore.__creawMockStoreV2 ??= createSeed();
+  return (globalStore.__creawMockStoreV2 ??= createSeed());
 }
 export function resetMockStore(): MockStore {
-  return globalStore.__creawMockStoreV2 = createSeed();
+  return (globalStore.__creawMockStoreV2 = createSeed());
 }

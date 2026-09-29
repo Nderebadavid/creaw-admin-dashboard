@@ -53,20 +53,37 @@ export class LiveApiTransport implements ApiTransport {
       try {
         payload = await response.json();
       } catch (error) {
-        throw new ApiTransportError(response.ok ? "invalid-response" : "http", response.ok ? "API response is not valid JSON" : `API request failed with status ${response.status}`, response.status, {
-          cause: error,
-        });
+        throw new ApiTransportError(
+          response.ok ? "invalid-response" : "http",
+          response.ok
+            ? "API response is not valid JSON"
+            : `API request failed with status ${response.status}`,
+          response.status,
+          {
+            cause: error,
+          }
+        );
       }
 
       try {
         const parsed = schema.parse(payload);
-        logApiOperation({ ...trace, status: response.status, outcome: response.ok ? "success" : "http", durationMs: performance.now() - startedAt });
+        logApiOperation({
+          ...trace,
+          status: response.status,
+          outcome: response.ok ? "success" : "http",
+          durationMs: performance.now() - startedAt,
+        });
         return parsed;
       } catch (error) {
         if (!(error instanceof ZodError)) throw error;
-        throw new ApiTransportError("invalid-response", "API response does not match its schema", response.status, {
-          cause: error,
-        });
+        throw new ApiTransportError(
+          "invalid-response",
+          "API response does not match its schema",
+          response.status,
+          {
+            cause: error,
+          }
+        );
       }
     } catch (error) {
       const errorName =
@@ -79,7 +96,12 @@ export class LiveApiTransport implements ApiTransport {
             : new ApiTransportError("network", "API request could not be completed", undefined, {
                 cause: error,
               });
-      logApiOperation({ ...trace, status: normalized.status, outcome: normalized.kind, durationMs: performance.now() - startedAt });
+      logApiOperation({
+        ...trace,
+        status: normalized.status,
+        outcome: normalized.kind,
+        durationMs: performance.now() - startedAt,
+      });
       throw normalized;
     }
   }

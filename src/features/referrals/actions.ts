@@ -10,7 +10,12 @@ import { auditedExportAction } from "@/components/portal/data-actions";
 import { createReferralsApi, type ReferralQuery } from "./api";
 import { referralCreateSchema, referralDecisionSchema, referralEditSchema } from "./schemas";
 
-const result = (resultCode: number, message: string) => ({ resultCode, success: resultCode < 400, message, data: null });
+const result = (resultCode: number, message: string) => ({
+  resultCode,
+  success: resultCode < 400,
+  message,
+  data: null,
+});
 async function api() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (!token) throw new Error("Sign in required");
@@ -19,24 +24,32 @@ async function api() {
 
 export async function listReferralsAction(query: ReferralQuery) {
   const session = await requireSession();
-  if (!hasModulePermission(session.grants, "REFERRAL_VIEW")) return { ...result(403, "Permission denied"), data: null };
-  try { return { ...result(200, "OK"), data: await (await api()).list(query) }; }
-  catch { return { ...result(422, "Could not load referrals"), data: null }; }
+  if (!hasModulePermission(session.grants, "REFERRAL_VIEW"))
+    return { ...result(403, "Permission denied"), data: null };
+  try {
+    return { ...result(200, "OK"), data: await (await api()).list(query) };
+  } catch {
+    return { ...result(422, "Could not load referrals"), data: null };
+  }
 }
 
 export async function createReferralAction(input: unknown) {
   const session = await requireSession();
   const parsed = referralCreateSchema.safeParse(input);
   if (!parsed.success) return result(422, "Check the referral details and try again");
-  if (!hasPermission(session.grants, "REFERRAL_CREATE", { pillarId: parsed.data.fromPillarId })) return result(403, "You cannot refer from this pillar");
+  if (!hasPermission(session.grants, "REFERRAL_CREATE", { pillarId: parsed.data.fromPillarId }))
+    return result(403, "You cannot refer from this pillar");
   try {
     const client = await api();
     const origin = await client.getOrigin(parsed.data.enrollmentId);
-    if (!origin || origin.pillar_id !== parsed.data.fromPillarId || origin.participant_id === null) return result(422, "Select a participant enrollment in the referring pillar");
+    if (!origin || origin.pillar_id !== parsed.data.fromPillarId || origin.participant_id === null)
+      return result(422, "Select a participant enrollment in the referring pillar");
     const response = await client.create(parsed.data);
     if (response.success) revalidatePath("/referrals");
     return result(response.resultCode, response.message);
-  } catch { return result(500, "Could not create referral"); }
+  } catch {
+    return result(500, "Could not create referral");
+  }
 }
 
 export async function respondReferralAction(input: unknown) {
@@ -47,12 +60,18 @@ export async function respondReferralAction(input: unknown) {
     const client = await api();
     const referral = await client.getRaw(parsed.data.id);
     if (!referral) return result(404, "Referral not found");
-    if (!hasPermission(session.grants, "REFERRAL_ACCEPT", { pillarId: referral.to_pillar_id })) return result(403, "Only the receiving pillar can decide this referral");
+    if (!hasPermission(session.grants, "REFERRAL_ACCEPT", { pillarId: referral.to_pillar_id }))
+      return result(403, "Only the receiving pillar can decide this referral");
     if (referral.status !== "NEW") return result(422, "Referral already decided");
     const response = await client.respond(parsed.data.id, parsed.data.decision, parsed.data.note);
-    if (response.success) { revalidatePath("/referrals"); revalidatePath("/participants"); }
+    if (response.success) {
+      revalidatePath("/referrals");
+      revalidatePath("/participants");
+    }
     return result(response.resultCode, response.message);
-  } catch { return result(500, "Could not save the decision"); }
+  } catch {
+    return result(500, "Could not save the decision");
+  }
 }
 
 export async function editReferralAction(input: unknown) {
@@ -63,11 +82,14 @@ export async function editReferralAction(input: unknown) {
     const client = await api();
     const referral = await client.getRaw(parsed.data.id);
     if (!referral) return result(404, "Referral not found");
-    if (!hasPermission(session.grants, "REFERRAL_CREATE", { pillarId: referral.from_pillar_id })) return result(403, "Only the referring pillar can edit this referral");
+    if (!hasPermission(session.grants, "REFERRAL_CREATE", { pillarId: referral.from_pillar_id }))
+      return result(403, "Only the referring pillar can edit this referral");
     const response = await client.edit(parsed.data.id, parsed.data.reason);
     if (response.success) revalidatePath("/referrals");
     return result(response.resultCode, response.message);
-  } catch { return result(500, "Could not edit referral"); }
+  } catch {
+    return result(500, "Could not edit referral");
+  }
 }
 
 export async function withdrawReferralAction(id: number) {
@@ -77,15 +99,26 @@ export async function withdrawReferralAction(id: number) {
     const client = await api();
     const referral = await client.getRaw(id);
     if (!referral) return result(404, "Referral not found");
-    if (!hasPermission(session.grants, "REFERRAL_CREATE", { pillarId: referral.from_pillar_id })) return result(403, "Only the referring pillar can withdraw this referral");
+    if (!hasPermission(session.grants, "REFERRAL_CREATE", { pillarId: referral.from_pillar_id }))
+      return result(403, "Only the referring pillar can withdraw this referral");
     const response = await client.withdraw(id);
     if (response.success) revalidatePath("/referrals");
     return result(response.resultCode, response.message);
-  } catch { return result(500, "Could not withdraw referral"); }
+  } catch {
+    return result(500, "Could not withdraw referral");
+  }
 }
 
 export async function exportReferralsAction(query: ReferralQuery) {
   const session = await requireSession();
-  if (!hasModulePermission(session.grants, "REFERRAL_VIEW") || !hasModulePermission(session.grants, "REPORT_EXPORT_CSV")) return { success: false as const, error: "Permission denied" };
-  return auditedExportAction({ path: "/referrals", routeTemplate: "/referrals", query: { pillarId: query.pillarId, status: query.status, search: query.search } });
+  if (
+    !hasModulePermission(session.grants, "REFERRAL_VIEW") ||
+    !hasModulePermission(session.grants, "REPORT_EXPORT_CSV")
+  )
+    return { success: false as const, error: "Permission denied" };
+  return auditedExportAction({
+    path: "/referrals",
+    routeTemplate: "/referrals",
+    query: { pillarId: query.pillarId, status: query.status, search: query.search },
+  });
 }

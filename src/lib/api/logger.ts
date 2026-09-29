@@ -10,7 +10,8 @@ export interface ApiOperationEvent {
   details?: unknown;
 }
 
-const sensitiveKey = /password|token|id_number|phone|salary|amount|notes|authorization|secret|cookie/i;
+const sensitiveKey =
+  /password|token|id_number|phone|salary|amount|notes|authorization|secret|cookie/i;
 const approvedTemplates: ReadonlySet<string> = new Set(API_ROUTE_TEMPLATES);
 
 function safeRouteTemplate(value: unknown): ApiRouteTemplate | "[invalid-route-template]" {
@@ -34,7 +35,8 @@ function redact(value: unknown): unknown {
 
 export function logApiOperation(event: ApiOperationEvent): void {
   const routeTemplate = safeRouteTemplate(event.routeTemplate);
-  const feature = routeTemplate === "[invalid-route-template]" ? routeTemplate : routeTemplate.split("/")[1];
+  const feature =
+    routeTemplate === "[invalid-route-template]" ? routeTemplate : routeTemplate.split("/")[1];
   console.info(
     "[api]",
     redact({

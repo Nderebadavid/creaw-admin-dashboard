@@ -39,10 +39,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
     return (
       <div className={cn("space-y-2", containerClassName)}>
         {showLabel && (
-          <Label
-            htmlFor={id}
-            className={cn(error && "text-destructive", labelClassName)}
-          >
+          <Label htmlFor={id} className={cn(error && "text-destructive", labelClassName)}>
             {icon && <span className="inline-flex items-center mr-2">{icon}</span>}
             {label}
           </Label>
@@ -50,7 +47,12 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
 
         <div className="relative">
           {icon && !showLabel && (
-            <div className={cn("absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none", iconClassName)}>
+            <div
+              className={cn(
+                "absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none",
+                iconClassName
+              )}
+            >
               {icon}
             </div>
           )}
@@ -69,7 +71,9 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             {...props}
           />
           {suffix && (
-            <div className={cn("absolute inset-y-0 right-0 flex items-center pr-3", suffixClassName)}>
+            <div
+              className={cn("absolute inset-y-0 right-0 flex items-center pr-3", suffixClassName)}
+            >
               {suffix}
             </div>
           )}

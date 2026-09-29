@@ -2,48 +2,204 @@ import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 const id = z.number().int().positive();
 const standard = { id, status: z.string(), is_deleted: z.boolean() };
-export const userSchema = z.object({ ...standard, first_name: z.string(), middle_name: z.string().nullable(), last_name: z.string(), username: z.string(), email: z.string().nullable(), phone_number: z.string().nullable() });
-export const roleSchema = z.object({ ...standard, code: z.string(), name: z.string(), description: z.string().nullable(), is_system_role: z.boolean() });
-export const permissionSchema = z.object({ ...standard, code: z.string(), module: z.string(), name: z.string(), description: z.string().nullable() });
-export const userRoleSchema = z.object({ ...standard, user_id: id, role_id: id, pillar_id: id.nullable() });
+export const userSchema = z.object({
+  ...standard,
+  first_name: z.string(),
+  middle_name: z.string().nullable(),
+  last_name: z.string(),
+  username: z.string(),
+  email: z.string().nullable(),
+  phone_number: z.string().nullable(),
+});
+export const roleSchema = z.object({
+  ...standard,
+  code: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  is_system_role: z.boolean(),
+});
+export const permissionSchema = z.object({
+  ...standard,
+  code: z.string(),
+  module: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+});
+export const userRoleSchema = z.object({
+  ...standard,
+  user_id: id,
+  role_id: id,
+  pillar_id: id.nullable(),
+});
 export const rolePermissionSchema = z.object({ ...standard, role_id: id, permission_id: id });
 export const pillarSchema = z.object({ id, name: z.string(), code: z.string() });
 export const pillarCatalogSchema = createEnvelopeSchema(z.array(pillarSchema).nullable());
 export const userListSchema = createEnvelopeSchema(createPaginatedSchema(userSchema).nullable());
 export const roleListSchema = createEnvelopeSchema(createPaginatedSchema(roleSchema).nullable());
-export const permissionListSchema = createEnvelopeSchema(createPaginatedSchema(permissionSchema).nullable());
-export const userRoleListSchema = createEnvelopeSchema(createPaginatedSchema(userRoleSchema).nullable());
-export const rolePermissionListSchema = createEnvelopeSchema(createPaginatedSchema(rolePermissionSchema).nullable());
+export const permissionListSchema = createEnvelopeSchema(
+  createPaginatedSchema(permissionSchema).nullable()
+);
+export const userRoleListSchema = createEnvelopeSchema(
+  createPaginatedSchema(userRoleSchema).nullable()
+);
+export const rolePermissionListSchema = createEnvelopeSchema(
+  createPaginatedSchema(rolePermissionSchema).nullable()
+);
 export const userMutationSchema = createEnvelopeSchema(userSchema.nullable());
 export const roleMutationSchema = createEnvelopeSchema(roleSchema.nullable());
 export const permissionMutationSchema = createEnvelopeSchema(permissionSchema.nullable());
 export const userRoleMutationSchema = createEnvelopeSchema(userRoleSchema.nullable());
 export const rolePermissionMutationSchema = createEnvelopeSchema(rolePermissionSchema.nullable());
-export const userInputSchema = z.object({ firstName: z.string().trim().min(1).max(80), lastName: z.string().trim().min(1).max(80), username: z.string().trim().min(3).max(60).regex(/^[a-zA-Z0-9._-]+$/), email: z.email().max(160).optional(), phoneNumber: z.string().trim().max(12).optional() });
-export const userUpdateSchema = z.object({ id, firstName: z.string().trim().min(1).max(80), lastName: z.string().trim().min(1).max(80), email: z.email().max(160).nullable().optional(), phoneNumber: z.string().trim().max(12).nullable().optional(), status: z.enum(["ACTIVE", "DISABLED", "INACTIVE"]).optional() });
-export const roleInputSchema = z.object({ code: z.string().trim().min(2).max(40).regex(/^[A-Z][A-Z0-9_]+$/), name: z.string().trim().min(2).max(120), description: z.string().trim().max(500).optional() });
-export const roleUpdateSchema = z.object({ id, name: z.string().trim().min(2).max(120), description: z.string().trim().max(500).nullable().optional() });
-export const permissionInputSchema = z.object({ code: z.string().trim().min(2).max(60).regex(/^[A-Z][A-Z0-9_]+$/), module: z.string().trim().min(2).max(40).regex(/^[A-Z][A-Z0-9_]+$/), name: z.string().trim().min(2).max(160), description: z.string().trim().max(500).optional() });
-export const userRoleInputSchema = z.object({ userId: id, roleId: id, pillarId: id.nullable(), enabled: z.boolean() });
-export const rolePermissionInputSchema = z.object({ roleId: id, permissionId: id, enabled: z.boolean() });
-export const pipelineSchema = z.object({ ...standard, pillar_id: id, name: z.string(), version: id });
-export const stageSchema = z.object({ ...standard, pipeline_id: id, step_no: z.number().int(), name: z.string(), description: z.string().nullable() });
-export const pipelineListSchema = createEnvelopeSchema(createPaginatedSchema(pipelineSchema).nullable());
+export const userInputSchema = z.object({
+  firstName: z.string().trim().min(1).max(80),
+  lastName: z.string().trim().min(1).max(80),
+  username: z
+    .string()
+    .trim()
+    .min(3)
+    .max(60)
+    .regex(/^[a-zA-Z0-9._-]+$/),
+  email: z.email().max(160).optional(),
+  phoneNumber: z.string().trim().max(12).optional(),
+});
+export const userUpdateSchema = z.object({
+  id,
+  firstName: z.string().trim().min(1).max(80),
+  lastName: z.string().trim().min(1).max(80),
+  email: z.email().max(160).nullable().optional(),
+  phoneNumber: z.string().trim().max(12).nullable().optional(),
+  status: z.enum(["ACTIVE", "DISABLED", "INACTIVE"]).optional(),
+});
+export const roleInputSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(40)
+    .regex(/^[A-Z][A-Z0-9_]+$/),
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(500).optional(),
+});
+export const roleUpdateSchema = z.object({
+  id,
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(500).nullable().optional(),
+});
+export const permissionInputSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(60)
+    .regex(/^[A-Z][A-Z0-9_]+$/),
+  module: z
+    .string()
+    .trim()
+    .min(2)
+    .max(40)
+    .regex(/^[A-Z][A-Z0-9_]+$/),
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(500).optional(),
+});
+export const userRoleInputSchema = z.object({
+  userId: id,
+  roleId: id,
+  pillarId: id.nullable(),
+  enabled: z.boolean(),
+});
+export const rolePermissionInputSchema = z.object({
+  roleId: id,
+  permissionId: id,
+  enabled: z.boolean(),
+});
+export const pipelineSchema = z.object({
+  ...standard,
+  pillar_id: id,
+  name: z.string(),
+  version: id,
+});
+export const stageSchema = z.object({
+  ...standard,
+  pipeline_id: id,
+  step_no: z.number().int(),
+  name: z.string(),
+  description: z.string().nullable(),
+});
+export const pipelineListSchema = createEnvelopeSchema(
+  createPaginatedSchema(pipelineSchema).nullable()
+);
 export const stageListSchema = createEnvelopeSchema(createPaginatedSchema(stageSchema).nullable());
 export const pipelineMutationSchema = createEnvelopeSchema(pipelineSchema.nullable());
 export const stageMutationSchema = createEnvelopeSchema(stageSchema.nullable());
-export const pipelineInputSchema = z.object({ pillarId: id, name: z.string().trim().min(2).max(160), firstStage: z.string().trim().min(2).max(160), lastStage: z.string().trim().min(2).max(160) }).refine(value => value.firstStage.toLowerCase() !== value.lastStage.toLowerCase());
-export const stageAddSchema = z.object({ pipelineId: id, name: z.string().trim().min(2).max(160), position: id });
+export const pipelineInputSchema = z
+  .object({
+    pillarId: id,
+    name: z.string().trim().min(2).max(160),
+    firstStage: z.string().trim().min(2).max(160),
+    lastStage: z.string().trim().min(2).max(160),
+  })
+  .refine((value) => value.firstStage.toLowerCase() !== value.lastStage.toLowerCase());
+export const stageAddSchema = z.object({
+  pipelineId: id,
+  name: z.string().trim().min(2).max(160),
+  position: id,
+});
 export const stageRenameSchema = z.object({ stageId: id, name: z.string().trim().min(2).max(160) });
 export const stageMoveSchema = z.object({ stageId: id, direction: z.enum(["up", "down"]) });
 export const stageRemoveSchema = z.object({ stageId: id });
-export const lookupTableSchema = z.enum(["pillar", "county", "sub_county", "ward", "donor", "business_sector", "case_type", "partner_institution", "activity_type_definition"]);
+export const lookupTableSchema = z.enum([
+  "pillar",
+  "county",
+  "sub_county",
+  "ward",
+  "donor",
+  "business_sector",
+  "case_type",
+  "partner_institution",
+  "activity_type_definition",
+]);
 export type LookupTable = z.infer<typeof lookupTableSchema>;
-export const lookupSchema = z.object({ ...standard, name: z.string(), code: z.string().optional(), notes: z.string().nullable().optional(), description: z.string().nullable().optional(), focus_description: z.string().nullable().optional(), lead_user_id: id.nullable().optional(), county_id: id.nullable().optional(), sub_county_id: id.optional(), pillar_id: id.nullable().optional(), requires_p3_prc_forms: z.boolean().optional(), default_route: z.string().optional(), institution_type: z.string().optional(), contact_details: z.string().nullable().optional() });
-export const lookupListSchema = createEnvelopeSchema(createPaginatedSchema(lookupSchema).nullable());
+export const lookupSchema = z.object({
+  ...standard,
+  name: z.string(),
+  code: z.string().optional(),
+  notes: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  focus_description: z.string().nullable().optional(),
+  lead_user_id: id.nullable().optional(),
+  county_id: id.nullable().optional(),
+  sub_county_id: id.optional(),
+  pillar_id: id.nullable().optional(),
+  requires_p3_prc_forms: z.boolean().optional(),
+  default_route: z.string().optional(),
+  institution_type: z.string().optional(),
+  contact_details: z.string().nullable().optional(),
+});
+export const lookupListSchema = createEnvelopeSchema(
+  createPaginatedSchema(lookupSchema).nullable()
+);
 export const lookupMutationSchema = createEnvelopeSchema(lookupSchema.nullable());
-export const lookupExportSchema = createEnvelopeSchema(z.object({ filename: z.string(), content: z.string(), totalItems: z.number().int().nonnegative() }).nullable());
-export const lookupActionSchema = z.object({ table: lookupTableSchema, values: z.record(z.string(), z.unknown()) });
+export const lookupExportSchema = createEnvelopeSchema(
+  z
+    .object({
+      filename: z.string(),
+      content: z.string(),
+      totalItems: z.number().int().nonnegative(),
+    })
+    .nullable()
+);
+export const lookupActionSchema = z.object({
+  table: lookupTableSchema,
+  values: z.record(z.string(), z.unknown()),
+});
 export const lookupUpdateActionSchema = lookupActionSchema.extend({ id });
-export const lookupActiveActionSchema = z.object({ table: lookupTableSchema, id, active: z.boolean() });
-export const lookupExportActionSchema = z.object({ table: lookupTableSchema, parentId: id.optional(), ids: z.array(id).max(5000) });
+export const lookupActiveActionSchema = z.object({
+  table: lookupTableSchema,
+  id,
+  active: z.boolean(),
+});
+export const lookupExportActionSchema = z.object({
+  table: lookupTableSchema,
+  parentId: id.optional(),
+  ids: z.array(id).max(5000),
+});

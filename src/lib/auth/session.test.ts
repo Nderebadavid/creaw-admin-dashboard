@@ -3,12 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const cookieStore = { get: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn((path: string) => { throw new Error(`REDIRECT:${path}`); }) }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((path: string) => {
+    throw new Error(`REDIRECT:${path}`);
+  }),
+}));
 
 import { getSession, requireSession } from "./session-server";
 import { issueMockToken, resetMockStore } from "../mock-api/store";
 
-beforeEach(() => { resetMockStore(); cookieStore.get.mockReset(); });
+beforeEach(() => {
+  resetMockStore();
+  cookieStore.get.mockReset();
+});
 
 describe("session resolution", () => {
   it("returns null without a cookie", async () => {

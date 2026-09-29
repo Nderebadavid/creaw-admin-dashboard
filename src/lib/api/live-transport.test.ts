@@ -12,9 +12,12 @@ afterEach(() => {
 describe("LiveApiTransport", () => {
   it("serializes query values and forwards auth and correlation headers", async () => {
     const fetchSpy = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ resultCode: 200, success: true, message: "OK", data: { id: 7 } }), {
-        status: 200,
-      })
+      new Response(
+        JSON.stringify({ resultCode: 200, success: true, message: "OK", data: { id: 7 } }),
+        {
+          status: 200,
+        }
+      )
     );
     vi.stubGlobal("fetch", fetchSpy);
     const schema = z.object({
@@ -53,30 +56,65 @@ describe("LiveApiTransport", () => {
 
     await expect(
       new LiveApiTransport("https://example.test").request(
-        { method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-http" },
+        {
+          method: "GET",
+          path: "/participants",
+          routeTemplate: "/participants",
+          correlationId: "req-http",
+        },
         z.unknown()
       )
     ).rejects.toMatchObject({ kind: "http", status: 503 });
   });
 
   it("returns a validated API error envelope from an HTTP 403 response", async () => {
-    const envelope = { resultCode: 403, success: false, message: "Invalid credentials", data: null };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(envelope), { status: 403 })));
+    const envelope = {
+      resultCode: 403,
+      success: false,
+      message: "Invalid credentials",
+      data: null,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(envelope), { status: 403 }))
+    );
     const schema = z.object({
-      resultCode: z.number(), success: z.boolean(), message: z.string(), data: z.null(),
+      resultCode: z.number(),
+      success: z.boolean(),
+      message: z.string(),
+      data: z.null(),
     });
-    await expect(new LiveApiTransport("https://example.test").request(
-      { method: "POST", path: "/auth/login", routeTemplate: "/auth/login", correlationId: "req-credential" },
-      schema
-    )).resolves.toEqual(envelope);
+    await expect(
+      new LiveApiTransport("https://example.test").request(
+        {
+          method: "POST",
+          path: "/auth/login",
+          routeTemplate: "/auth/login",
+          correlationId: "req-credential",
+        },
+        schema
+      )
+    ).resolves.toEqual(envelope);
   });
 
   it("rejects an HTTP error body that does not match the response schema", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "wrong shape" }), { status: 422 })));
-    await expect(new LiveApiTransport("https://example.test").request(
-      { method: "POST", path: "/auth/login", routeTemplate: "/auth/login", correlationId: "req-shape" },
-      z.object({ resultCode: z.number(), success: z.boolean(), message: z.string() })
-    )).rejects.toMatchObject({ kind: "invalid-response", status: 422 });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ detail: "wrong shape" }), { status: 422 }))
+    );
+    await expect(
+      new LiveApiTransport("https://example.test").request(
+        {
+          method: "POST",
+          path: "/auth/login",
+          routeTemplate: "/auth/login",
+          correlationId: "req-shape",
+        },
+        z.object({ resultCode: z.number(), success: z.boolean(), message: z.string() })
+      )
+    ).rejects.toMatchObject({ kind: "invalid-response", status: 422 });
   });
 
   it("uses the concrete path for fetch but only the route template for logs", async () => {
@@ -101,33 +139,59 @@ describe("LiveApiTransport", () => {
 
   it("logs the duration of a live call", async () => {
     const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    );
 
     await new LiveApiTransport("https://api.example.test").request(
       { method: "GET", path: "/dashboard", routeTemplate: "/dashboard", correlationId: "req-live" },
       z.object({ ok: z.boolean() })
     );
 
-    expect(logSpy).toHaveBeenCalledWith("[api]", expect.objectContaining({ feature: "dashboard", outcome: "success", durationMs: expect.any(Number) }));
+    expect(logSpy).toHaveBeenCalledWith(
+      "[api]",
+      expect.objectContaining({
+        feature: "dashboard",
+        outcome: "success",
+        durationMs: expect.any(Number),
+      })
+    );
   });
 
   it("normalizes timeouts", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError"))
+    );
 
     await expect(
       new LiveApiTransport("https://example.test").request(
-        { method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-timeout" },
+        {
+          method: "GET",
+          path: "/participants",
+          routeTemplate: "/participants",
+          correlationId: "req-timeout",
+        },
         z.unknown()
       )
     ).rejects.toMatchObject({ kind: "timeout" } satisfies Partial<ApiTransportError>);
   });
 
   it("rejects response data that violates its schema", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "wrong" }))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "wrong" })))
+    );
 
     await expect(
       new LiveApiTransport("https://example.test").request(
-        { method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-invalid" },
+        {
+          method: "GET",
+          path: "/participants",
+          routeTemplate: "/participants",
+          correlationId: "req-invalid",
+        },
         z.object({ id: z.number() })
       )
     ).rejects.toMatchObject({ kind: "invalid-response" });
@@ -143,7 +207,12 @@ describe("injected API boundary", () => {
     );
 
     const result = await client.request(
-      { method: "POST", path: "/participants", routeTemplate: "/participants", body: { firstName: "Faith" } },
+      {
+        method: "POST",
+        path: "/participants",
+        routeTemplate: "/participants",
+        body: { firstName: "Faith" },
+      },
       z.object({ id: z.string(), count: z.number() })
     );
 
@@ -155,7 +224,15 @@ describe("injected API boundary", () => {
     const transport = new MockApiTransport(() => ({ id: "wrong" }));
 
     await expect(
-      transport.request({ method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-invalid-mock" }, z.object({ id: z.number() }))
+      transport.request(
+        {
+          method: "GET",
+          path: "/participants",
+          routeTemplate: "/participants",
+          correlationId: "req-invalid-mock",
+        },
+        z.object({ id: z.number() })
+      )
     ).rejects.toThrow();
   });
 
@@ -167,23 +244,35 @@ describe("injected API boundary", () => {
 
     await expect(
       transport.request(
-        { method: "PATCH", path: "/participants/1", routeTemplate: "/participants/:id", correlationId: "req-456" },
+        {
+          method: "PATCH",
+          path: "/participants/1",
+          routeTemplate: "/participants/:id",
+          correlationId: "req-456",
+        },
         z.unknown()
       )
     ).rejects.toThrow("handler failed");
     expect(logSpy).toHaveBeenCalledWith(
       "[api]",
-      expect.objectContaining({ correlationId: "req-456", routeTemplate: "/participants/:id", outcome: "error", durationMs: expect.any(Number) })
+      expect.objectContaining({
+        correlationId: "req-456",
+        routeTemplate: "/participants/:id",
+        outcome: "error",
+        durationMs: expect.any(Number),
+      })
     );
     expect(JSON.stringify(logSpy.mock.calls)).not.toContain("/participants/1");
   });
 
   it("generates a correlation ID before handing a request to a transport", async () => {
     let seenCorrelationId: string | undefined;
-    const client = createApiClient(new MockApiTransport((request) => {
-      seenCorrelationId = request.correlationId;
-      return { ok: true };
-    }));
+    const client = createApiClient(
+      new MockApiTransport((request) => {
+        seenCorrelationId = request.correlationId;
+        return { ok: true };
+      })
+    );
 
     await client.request(
       { method: "GET", path: "/participants/1", routeTemplate: "/participants/:id" },
@@ -196,13 +285,20 @@ describe("injected API boundary", () => {
 
   it("preserves a caller-supplied correlation ID", async () => {
     let seenCorrelationId: string | undefined;
-    const client = createApiClient(new MockApiTransport((request) => {
-      seenCorrelationId = request.correlationId;
-      return { ok: true };
-    }));
+    const client = createApiClient(
+      new MockApiTransport((request) => {
+        seenCorrelationId = request.correlationId;
+        return { ok: true };
+      })
+    );
 
     await client.request(
-      { method: "GET", path: "/participants/1", routeTemplate: "/participants/:id", correlationId: "upstream-123" },
+      {
+        method: "GET",
+        path: "/participants/1",
+        routeTemplate: "/participants/:id",
+        correlationId: "upstream-123",
+      },
       z.object({ ok: z.boolean() })
     );
 

@@ -63,11 +63,24 @@ describe("logApiOperation", () => {
   it("names the feature, operation, result and duration of each call", () => {
     const spy = vi.spyOn(console, "info").mockImplementation(() => {});
 
-    logApiOperation({ method: "PATCH", routeTemplate: "/admin/users/:id", correlationId: "req-9", outcome: "success", durationMs: 12.6 });
+    logApiOperation({
+      method: "PATCH",
+      routeTemplate: "/admin/users/:id",
+      correlationId: "req-9",
+      outcome: "success",
+      durationMs: 12.6,
+    });
 
-    expect(spy).toHaveBeenCalledWith("[api]", expect.objectContaining({
-      feature: "admin", operation: "PATCH /admin/users/:id", correlationId: "req-9", outcome: "success", durationMs: 13,
-    }));
+    expect(spy).toHaveBeenCalledWith(
+      "[api]",
+      expect.objectContaining({
+        feature: "admin",
+        operation: "PATCH /admin/users/:id",
+        correlationId: "req-9",
+        outcome: "success",
+        durationMs: 13,
+      })
+    );
   });
 
   it("does not derive a feature from an unknown route template", () => {
@@ -75,7 +88,10 @@ describe("logApiOperation", () => {
 
     logApiOperation({ method: "GET", routeTemplate: "/secret-feature/1" as never });
 
-    expect(spy).toHaveBeenCalledWith("[api]", expect.objectContaining({ feature: "[invalid-route-template]" }));
+    expect(spy).toHaveBeenCalledWith(
+      "[api]",
+      expect.objectContaining({ feature: "[invalid-route-template]" })
+    );
     expect(JSON.stringify(spy.mock.calls)).not.toContain("secret-feature");
   });
 });

@@ -10,8 +10,28 @@ import type { SubmissionRow } from "./api";
 afterEach(cleanup);
 
 const rows: SubmissionRow[] = [
-  { id: 1, title: "Facility referral day", type: "Outreach", pillarId: 3, pillar: "SRHR", captured: "2026-09-27", source: "mobile", status: "Pending review", flag: null },
-  { id: 2, title: "Court attendance", type: "Case update", pillarId: 1, pillar: "VAWG", captured: "2026-09-26", source: "mobile", status: "Flagged", flag: "Check photo" },
+  {
+    id: 1,
+    title: "Facility referral day",
+    type: "Outreach",
+    pillarId: 3,
+    pillar: "SRHR",
+    captured: "2026-09-27",
+    source: "mobile",
+    status: "Pending review",
+    flag: null,
+  },
+  {
+    id: 2,
+    title: "Court attendance",
+    type: "Case update",
+    pillarId: 1,
+    pillar: "VAWG",
+    captured: "2026-09-26",
+    source: "mobile",
+    status: "Flagged",
+    flag: "Check photo",
+  },
 ];
 
 describe("field submissions screen", () => {

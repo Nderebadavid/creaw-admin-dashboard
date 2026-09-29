@@ -1,6 +1,51 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-export function PillarCard({name,description,value,target,color,href,children}:{name:string;description:string;value:number;target:number;color:string;href?:string;children?:ReactNode}) {
-  const percent = target > 0 ? Math.min(100,Math.max(0,value / target * 100)) : 0;
-  return <article className="rounded-2xl border border-t-4 bg-white p-5" style={{borderTopColor:color}}><h3 className="font-heading text-xl font-bold">{name}</h3><p className="text-xs text-[#81766d]">{description}</p><div className="mt-5 flex items-end justify-between gap-2"><strong className="font-heading text-3xl">{value.toLocaleString()}</strong><span className="text-xs text-[#81766d]">of {target.toLocaleString()} target</span></div><div role="progressbar" aria-label={`${name} target progress`} aria-valuenow={value} aria-valuemin={0} aria-valuemax={Math.max(value,target,1)} aria-valuetext={`${value} of ${target}`} className="my-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full" style={{width:`${percent}%`,background:color}} /></div>{children}{href && <Link href={href} className="mt-4 inline-flex text-sm font-semibold text-primary">Open {name} →</Link>}</article>;
+export function PillarCard({
+  name,
+  description,
+  value,
+  target,
+  color,
+  href,
+  children,
+}: {
+  name: string;
+  description: string;
+  value: number;
+  target: number;
+  color: string;
+  href?: string;
+  children?: ReactNode;
+}) {
+  const percent = target > 0 ? Math.min(100, Math.max(0, (value / target) * 100)) : 0;
+  return (
+    <article
+      className="rounded-2xl border border-t-4 bg-white p-5"
+      style={{ borderTopColor: color }}
+    >
+      <h3 className="font-heading text-xl font-bold">{name}</h3>
+      <p className="text-xs text-[#81766d]">{description}</p>
+      <div className="mt-5 flex items-end justify-between gap-2">
+        <strong className="font-heading text-3xl">{value.toLocaleString()}</strong>
+        <span className="text-xs text-[#81766d]">of {target.toLocaleString()} target</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={`${name} target progress`}
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(value, target, 1)}
+        aria-valuetext={`${value} of ${target}`}
+        className="my-3 h-2 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full rounded-full" style={{ width: `${percent}%`, background: color }} />
+      </div>
+      {children}
+      {href && (
+        <Link href={href} className="mt-4 inline-flex text-sm font-semibold text-primary">
+          Open {name} →
+        </Link>
+      )}
+    </article>
+  );
 }

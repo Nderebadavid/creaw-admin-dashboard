@@ -7,7 +7,13 @@ describe("collectPages", () => {
     const seen: number[] = [];
     const result = await collectPages(async (page, pageSize) => {
       seen.push(page);
-      return { items: records.slice((page - 1) * pageSize, page * pageSize), page, pageSize, totalItems: records.length, totalPages: Math.ceil(records.length / pageSize) };
+      return {
+        items: records.slice((page - 1) * pageSize, page * pageSize),
+        page,
+        pageSize,
+        totalItems: records.length,
+        totalPages: Math.ceil(records.length / pageSize),
+      };
     });
     expect(seen).toEqual([1, 2, 3]);
     expect(result).toHaveLength(215);

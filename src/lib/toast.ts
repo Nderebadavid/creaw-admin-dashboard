@@ -58,8 +58,7 @@ export const showToast = {
       loading: messages.loading,
       success: () => messages.success,
       error: (err: unknown) =>
-        messages.errorDescription ||
-        (err instanceof Error ? err.message : messages.error),
+        messages.errorDescription || (err instanceof Error ? err.message : messages.error),
     });
   },
 };

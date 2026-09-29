@@ -1,5 +1,6 @@
 // Mirrors CREATE TABLE declarations in merl-database-schema-mysql.sql. Dates use ISO strings.
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface StandardColumns {
   id: number;

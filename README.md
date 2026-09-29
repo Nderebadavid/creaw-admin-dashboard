@@ -18,25 +18,25 @@ Open <http://localhost:3000>. `/` sends you to `/dashboard` if you have a valid 
 
 Every active seeded user signs in with the password **`creaw-demo`**. The accounts are useful for checking permission gating:
 
-| Username | Roles | Scope |
-|---|---|---|
-| `judy.mwangi` | System Administrator | System-wide |
-| `grace.wanjiru` | Head of MERL | All pillars |
-| `lilian.otieno` | Pillar Lead | VAWG |
-| `samuel.ndegwa` | Pillar Lead (acting), Grants & Finance Officer | WEE |
-| `otieno.were` | Pillar Lead, Grants & Finance Officer | WROs |
-| `cynthia.chelimo` | Case Officer, Counsellor | VAWG |
-| `faith.kamau` | Data Entry | VAWG |
+| Username          | Roles                                          | Scope       |
+| ----------------- | ---------------------------------------------- | ----------- |
+| `judy.mwangi`     | System Administrator                           | System-wide |
+| `grace.wanjiru`   | Head of MERL                                   | All pillars |
+| `lilian.otieno`   | Pillar Lead                                    | VAWG        |
+| `samuel.ndegwa`   | Pillar Lead (acting), Grants & Finance Officer | WEE         |
+| `otieno.were`     | Pillar Lead, Grants & Finance Officer          | WROs        |
+| `cynthia.chelimo` | Case Officer, Counsellor                       | VAWG        |
+| `faith.kamau`     | Data Entry                                     | VAWG        |
 
 `mary.njoroge` (invited) and `peter.mbugua` (inactive) cannot sign in because they are not active.
 
 ## Environment
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `PORTAL_API_MODE` | `mock` | `mock` serves every request from an in-process repository and makes no network calls. `live` sends the same requests to the backend with `fetch`. |
-| `PORTAL_API_BASE_URL` | none | Backend base URL. Required when `PORTAL_API_MODE=live`. |
-| `PORTAL_API_TIMEOUT_MS` | `10000` | Per-request timeout for live mode. |
+| Variable                | Default | Purpose                                                                                                                                           |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORTAL_API_MODE`       | `mock`  | `mock` serves every request from an in-process repository and makes no network calls. `live` sends the same requests to the backend with `fetch`. |
+| `PORTAL_API_BASE_URL`   | none    | Backend base URL. Required when `PORTAL_API_MODE=live`.                                                                                           |
+| `PORTAL_API_TIMEOUT_MS` | `10000` | Per-request timeout for live mode.                                                                                                                |
 
 All three are server-only. Switching modes changes the transport only; pages, components and Server Actions stay the same.
 
@@ -67,13 +67,14 @@ A few rules follow from the schema in `merl-database-schema-mysql.sql`:
 
 ## Commands
 
-| Command | Purpose |
-|---|---|
-| `yarn dev` | Start the development server |
-| `yarn test:run` | Run the Vitest suite once (`yarn test` watches) |
-| `yarn lint` | Run ESLint |
-| `yarn typecheck` | Run the TypeScript compiler without emitting |
-| `yarn build` | Create the production build |
+| Command          | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `yarn dev`       | Start the development server                                        |
+| `yarn test:run`  | Run the Vitest suite once (`yarn test` watches)                     |
+| `yarn lint`      | Run ESLint                                                          |
+| `yarn format`    | Format the codebase with Prettier (`yarn format:check` only checks) |
+| `yarn typecheck` | Run the TypeScript compiler without emitting                        |
+| `yarn build`     | Create the production build                                         |
 
 ## Project layout
 

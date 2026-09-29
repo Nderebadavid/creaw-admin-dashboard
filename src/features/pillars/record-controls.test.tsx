@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-vi.mock("./actions", () => ({ createPillarRecordAction: vi.fn(), updatePillarRecordAction: vi.fn(), createPillarDomainAction: vi.fn() }));
+vi.mock("./actions", () => ({
+  createPillarRecordAction: vi.fn(),
+  updatePillarRecordAction: vi.fn(),
+  createPillarDomainAction: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { PillarCreateButton, PillarDomainCreateButton } from "./record-controls";
 

@@ -25,9 +25,7 @@ describe("proxy", () => {
     const response = proxy(new NextRequest("http://localhost/referrals"));
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost/login?redirect=%2Freferrals",
-    );
+    expect(response.headers.get("location")).toBe("http://localhost/login?redirect=%2Freferrals");
   });
 
   it("keeps login public", () => {
@@ -38,9 +36,11 @@ describe("proxy", () => {
 
   it("exempts the two supplied public images while protecting portal routes", () => {
     for (const url of ["/creaw-logo.png", "/login-wvl.png"]) {
-      expect(unstable_doesMiddlewareMatch({config, nextConfig:{}, url})).toBe(false);
+      expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url })).toBe(false);
     }
-    expect(unstable_doesMiddlewareMatch({config, nextConfig:{}, url:"/dashboard"})).toBe(true);
-    expect(unstable_doesMiddlewareMatch({config, nextConfig:{}, url:"/participants"})).toBe(true);
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: "/dashboard" })).toBe(true);
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: "/participants" })).toBe(
+      true
+    );
   });
 });

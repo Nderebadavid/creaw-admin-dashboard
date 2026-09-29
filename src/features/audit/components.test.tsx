@@ -5,7 +5,34 @@ import { AuditContent } from "./components";
 
 describe("audit screen", () => {
   it("shows source, module, action and date filters and a masked record viewer", () => {
-    render(<AuditContent initial={{ page: 1, pageSize: 25, totalItems: 1, totalPages: 1, items: [{ id: 1, entity_type: "user", entity_id: 2, action: "UPDATE", source: "HTTP", performed_by: 1, performed_by_name: "Judy Mwangi", performed_at: "2026-09-29T10:00:00Z", endpoint: "/admin/users/:id", event_name: null, input_payload: "{\"email\":\"[REDACTED]\"}", previous_state: null, new_state: null }] }} canExport />);
+    render(
+      <AuditContent
+        initial={{
+          page: 1,
+          pageSize: 25,
+          totalItems: 1,
+          totalPages: 1,
+          items: [
+            {
+              id: 1,
+              entity_type: "user",
+              entity_id: 2,
+              action: "UPDATE",
+              source: "HTTP",
+              performed_by: 1,
+              performed_by_name: "Judy Mwangi",
+              performed_at: "2026-09-29T10:00:00Z",
+              endpoint: "/admin/users/:id",
+              event_name: null,
+              input_payload: '{"email":"[REDACTED]"}',
+              previous_state: null,
+              new_state: null,
+            },
+          ],
+        }}
+        canExport
+      />
+    );
     expect(screen.getByLabelText("Source")).toBeInTheDocument();
     expect(screen.getByLabelText("Module")).toBeInTheDocument();
     expect(screen.getByLabelText("Action")).toBeInTheDocument();

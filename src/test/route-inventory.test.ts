@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const getSession = vi.fn();
 vi.mock("@/lib/auth/session-server", () => ({ getSession }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn((path: string) => { throw new Error(`REDIRECT:${path}`); }) }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((path: string) => {
+    throw new Error(`REDIRECT:${path}`);
+  }),
+}));
 
 const root = join(process.cwd(), "src");
 const app = join(root, "app");
@@ -35,12 +39,18 @@ function pageFiles(dir: string): string[] {
   });
 }
 
-beforeEach(() => { getSession.mockReset(); });
+beforeEach(() => {
+  getSession.mockReset();
+});
 
 describe("route inventory", () => {
   it("implements exactly the 13 authenticated screen types plus login and root", () => {
     expect(Object.keys(screenRoutes)).toHaveLength(13);
-    const expected = [...Object.values(screenRoutes).flat(), "(auth)/login/page.tsx", "page.tsx"].sort();
+    const expected = [
+      ...Object.values(screenRoutes).flat(),
+      "(auth)/login/page.tsx",
+      "page.tsx",
+    ].sort();
     expect(pageFiles(app).sort()).toEqual(expected);
   });
 
@@ -53,7 +63,8 @@ describe("route inventory", () => {
       "lib/auth/current-user.ts",
       "lib/auth/current-role.tsx",
       "types/navigation.ts",
-    ]) expect(existsSync(join(root, path)), path).toBe(false);
+    ])
+      expect(existsSync(join(root, path)), path).toBe(false);
   });
 });
 

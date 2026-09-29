@@ -4,11 +4,26 @@ vi.mock("server-only", () => ({}));
 import { handleMockRequest } from "./handlers";
 import { resetMockStore } from "./store";
 
-const call = (method: "GET" | "POST", path: "/auth/login" | "/auth/me" | "/auth/logout", token?: string, body?: unknown) =>
-  handleMockRequest({ method, path, routeTemplate: path, correlationId: "session-security", token, body });
+const call = (
+  method: "GET" | "POST",
+  path: "/auth/login" | "/auth/me" | "/auth/logout",
+  token?: string,
+  body?: unknown
+) =>
+  handleMockRequest({
+    method,
+    path,
+    routeTemplate: path,
+    correlationId: "session-security",
+    token,
+    body,
+  });
 
 async function login(): Promise<string> {
-  const response = await call("POST", "/auth/login", undefined, { username: "judy.mwangi", password: "creaw-demo" });
+  const response = await call("POST", "/auth/login", undefined, {
+    username: "judy.mwangi",
+    password: "creaw-demo",
+  });
   expect(response.resultCode).toBe(200);
   return (response.data as { token: string }).token;
 }

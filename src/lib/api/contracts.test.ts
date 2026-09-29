@@ -44,8 +44,6 @@ describe("API response contracts", () => {
   it("rejects missing pagination metadata", () => {
     const schema = createPaginatedSchema(z.string());
 
-    expect(() =>
-      schema.parse({ items: [], page: 1, pageSize: 25, totalItems: 142 })
-    ).toThrow();
+    expect(() => schema.parse({ items: [], page: 1, pageSize: 25, totalItems: 142 })).toThrow();
   });
 });

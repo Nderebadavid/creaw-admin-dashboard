@@ -10,7 +10,11 @@ describe("effective grants", () => {
     expect(hasPermission(grants, "REFERRAL_ACCEPT", { pillarId: 2 })).toBe(true);
     expect(hasPermission(grants, "REFERRAL_ACCEPT", { pillarId: 3 })).toBe(false);
     expect(hasPermission(grants, "REFERRAL_ACCEPT")).toBe(false);
-    expect(hasPermission([{ permissionCode: "REFERRAL_ACCEPT", pillarId: null }], "REFERRAL_ACCEPT", { pillarId: 3 })).toBe(true);
+    expect(
+      hasPermission([{ permissionCode: "REFERRAL_ACCEPT", pillarId: null }], "REFERRAL_ACCEPT", {
+        pillarId: 3,
+      })
+    ).toBe(true);
   });
   it("opens a module for a scoped grant without broadening record access", () => {
     const grants = [{ permissionCode: "FIELD_SUBMISSION_VIEW", pillarId: 2 }];
@@ -29,7 +33,11 @@ describe("effective grants", () => {
     getMockStore().user[0].status = "INACTIVE";
     expect(getEffectiveGrants(1)).toEqual([]);
     resetMockStore();
-    getMockStore().user_role.filter((row) => row.user_id === 1).forEach((row) => { row.is_deleted = true; });
+    getMockStore()
+      .user_role.filter((row) => row.user_id === 1)
+      .forEach((row) => {
+        row.is_deleted = true;
+      });
     expect(getEffectiveGrants(1)).toEqual([]);
   });
 });

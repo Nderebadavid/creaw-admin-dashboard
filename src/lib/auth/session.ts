@@ -14,9 +14,12 @@ export interface Session {
   grants: Array<{ permissionCode: string; pillarId: number | null }>;
 }
 
-export function toPortalSessionUser(
-  user: { id: number; first_name: string; last_name: string; email: string | null }
-): SessionUser {
+export function toPortalSessionUser(user: {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+}): SessionUser {
   const firstName = user.first_name;
   const lastName = user.last_name;
   return {

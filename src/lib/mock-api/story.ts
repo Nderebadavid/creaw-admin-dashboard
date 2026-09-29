@@ -1,508 +1,475 @@
 // Designer seed story; presentation-only labels stay outside persisted rows.
 export const story = {
-  "permissions": [
+  permissions: [
     {
-      "id": 1,
-      "code": "DASHBOARD_VIEW",
-      "module": "GLOBAL",
-      "name": "View dashboard",
-      "description": "See the pillar/role-appropriate landing dashboard."
+      id: 1,
+      code: "DASHBOARD_VIEW",
+      module: "GLOBAL",
+      name: "View dashboard",
+      description: "See the pillar/role-appropriate landing dashboard.",
     },
     {
-      "id": 2,
-      "code": "AUDIT_LOG_VIEW",
-      "module": "ADMIN",
-      "name": "View audit log",
-      "description": "See the shared audit_logs history."
+      id: 2,
+      code: "AUDIT_LOG_VIEW",
+      module: "ADMIN",
+      name: "View audit log",
+      description: "See the shared audit_logs history.",
     },
     {
-      "id": 3,
-      "code": "USER_MANAGE",
-      "module": "ADMIN",
-      "name": "Manage staff users",
-      "description": "Create/deactivate user rows and edit their details."
+      id: 3,
+      code: "USER_MANAGE",
+      module: "ADMIN",
+      name: "Manage staff users",
+      description: "Create/deactivate user rows and edit their details.",
     },
     {
-      "id": 4,
-      "code": "ROLE_MANAGE",
-      "module": "ADMIN",
-      "name": "Manage roles",
-      "description": "Create/edit role rows and assign user_role grants."
+      id: 4,
+      code: "ROLE_MANAGE",
+      module: "ADMIN",
+      name: "Manage roles",
+      description: "Create/edit role rows and assign user_role grants.",
     },
     {
-      "id": 5,
-      "code": "PERMISSION_MANAGE",
-      "module": "ADMIN",
-      "name": "Manage role permissions",
-      "description": "Edit which permissions a role holds, via role_permission."
+      id: 5,
+      code: "PERMISSION_MANAGE",
+      module: "ADMIN",
+      name: "Manage role permissions",
+      description: "Edit which permissions a role holds, via role_permission.",
     },
     {
-      "id": 6,
-      "code": "PILLAR_CONFIG_MANAGE",
-      "module": "ADMIN",
-      "name": "Manage pipeline & stage definitions",
-      "description": "Edit pipeline_definition/stage_definition rows for a pillar."
+      id: 6,
+      code: "PILLAR_CONFIG_MANAGE",
+      module: "ADMIN",
+      name: "Manage pipeline & stage definitions",
+      description: "Edit pipeline_definition/stage_definition rows for a pillar.",
     },
     {
-      "id": 7,
-      "code": "PARTICIPANT_VIEW",
-      "module": "PARTICIPANT",
-      "name": "View participant",
-      "description": "View a participant's profile and history."
+      id: 7,
+      code: "PARTICIPANT_VIEW",
+      module: "PARTICIPANT",
+      name: "View participant",
+      description: "View a participant's profile and history.",
     },
     {
-      "id": 8,
-      "code": "PARTICIPANT_EDIT",
-      "module": "PARTICIPANT",
-      "name": "Edit participant",
-      "description": "Edit a participant's registration details."
+      id: 8,
+      code: "PARTICIPANT_EDIT",
+      module: "PARTICIPANT",
+      name: "Edit participant",
+      description: "Edit a participant's registration details.",
     },
     {
-      "id": 9,
-      "code": "ORGANISATION_VIEW",
-      "module": "ORGANISATION",
-      "name": "View organisation",
-      "description": "View an organisation's profile and history."
+      id: 9,
+      code: "ORGANISATION_VIEW",
+      module: "ORGANISATION",
+      name: "View organisation",
+      description: "View an organisation's profile and history.",
     },
     {
-      "id": 10,
-      "code": "ORGANISATION_EDIT",
-      "module": "ORGANISATION",
-      "name": "Edit organisation",
-      "description": "Edit an organisation's registration/governance details."
+      id: 10,
+      code: "ORGANISATION_EDIT",
+      module: "ORGANISATION",
+      name: "Edit organisation",
+      description: "Edit an organisation's registration/governance details.",
     },
     {
-      "id": 11,
-      "code": "CASE_VIEW",
-      "module": "VAWG",
-      "name": "View legal case",
-      "description": "View a VAWG legal_case record."
+      id: 11,
+      code: "CASE_VIEW",
+      module: "VAWG",
+      name: "View legal case",
+      description: "View a VAWG legal_case record.",
     },
     {
-      "id": 12,
-      "code": "CASE_EDIT",
-      "module": "VAWG",
-      "name": "Edit legal case",
-      "description": "Create or update a VAWG legal_case record."
+      id: 12,
+      code: "CASE_EDIT",
+      module: "VAWG",
+      name: "Edit legal case",
+      description: "Create or update a VAWG legal_case record.",
     },
     {
-      "id": 13,
-      "code": "CASE_CLOSE",
-      "module": "VAWG",
-      "name": "Close legal case",
-      "description": "Set a legal_case's closed_date/court_status to closed."
+      id: 13,
+      code: "CASE_CLOSE",
+      module: "VAWG",
+      name: "Close legal case",
+      description: "Set a legal_case's closed_date/court_status to closed.",
     },
     {
-      "id": 14,
-      "code": "COUNSELLING_VIEW",
-      "module": "VAWG",
-      "name": "View counselling session",
-      "description": "View counselling_session records (masked notes)."
+      id: 14,
+      code: "COUNSELLING_VIEW",
+      module: "VAWG",
+      name: "View counselling session",
+      description: "View counselling_session records (masked notes).",
     },
     {
-      "id": 15,
-      "code": "COUNSELLING_LOG",
-      "module": "VAWG",
-      "name": "Log counselling session",
-      "description": "Create a counselling_session record."
+      id: 15,
+      code: "COUNSELLING_LOG",
+      module: "VAWG",
+      name: "Log counselling session",
+      description: "Create a counselling_session record.",
     },
     {
-      "id": 16,
-      "code": "GRANT_APPLICATION_VIEW",
-      "module": "GRANTS",
-      "name": "View grant application",
-      "description": "View a grant_application record."
+      id: 16,
+      code: "GRANT_APPLICATION_VIEW",
+      module: "GRANTS",
+      name: "View grant application",
+      description: "View a grant_application record.",
     },
     {
-      "id": 17,
-      "code": "GRANT_APPLICATION_EDIT",
-      "module": "GRANTS",
-      "name": "Edit grant application",
-      "description": "Edit a grant_application before it's decided."
+      id: 17,
+      code: "GRANT_APPLICATION_EDIT",
+      module: "GRANTS",
+      name: "Edit grant application",
+      description: "Edit a grant_application before it's decided.",
     },
     {
-      "id": 18,
-      "code": "GRANT_APPLICATION_PREPARE",
-      "module": "GRANTS",
-      "name": "Prepare grant application",
-      "description": "Submit/prepare a grant_application (sign-off chain step 1)."
+      id: 18,
+      code: "GRANT_APPLICATION_PREPARE",
+      module: "GRANTS",
+      name: "Prepare grant application",
+      description: "Submit/prepare a grant_application (sign-off chain step 1).",
     },
     {
-      "id": 19,
-      "code": "GRANT_APPLICATION_REVIEW",
-      "module": "GRANTS",
-      "name": "Review grant application",
-      "description": "Mark a grant_application reviewed (sign-off chain step 2)."
+      id: 19,
+      code: "GRANT_APPLICATION_REVIEW",
+      module: "GRANTS",
+      name: "Review grant application",
+      description: "Mark a grant_application reviewed (sign-off chain step 2).",
     },
     {
-      "id": 20,
-      "code": "GRANT_APPLICATION_APPROVE",
-      "module": "GRANTS",
-      "name": "Approve grant application",
-      "description": "Approve a grant_application, creating its grant_award (sign-off chain step 3)."
+      id: 20,
+      code: "GRANT_APPLICATION_APPROVE",
+      module: "GRANTS",
+      name: "Approve grant application",
+      description: "Approve a grant_application, creating its grant_award (sign-off chain step 3).",
     },
     {
-      "id": 21,
-      "code": "GRANT_AWARD_VIEW",
-      "module": "GRANTS",
-      "name": "View grant award",
-      "description": "View a grant_award record."
+      id: 21,
+      code: "GRANT_AWARD_VIEW",
+      module: "GRANTS",
+      name: "View grant award",
+      description: "View a grant_award record.",
     },
     {
-      "id": 22,
-      "code": "GRANT_AWARD_MANAGE",
-      "module": "GRANTS",
-      "name": "Manage grant award",
-      "description": "Edit a grant_award's contract/lifecycle status."
+      id: 22,
+      code: "GRANT_AWARD_MANAGE",
+      module: "GRANTS",
+      name: "Manage grant award",
+      description: "Edit a grant_award's contract/lifecycle status.",
     },
     {
-      "id": 23,
-      "code": "GRANT_DISBURSEMENT_RECORD",
-      "module": "GRANTS",
-      "name": "Record disbursement",
-      "description": "Record a grant_disbursement payment tranche."
+      id: 23,
+      code: "GRANT_DISBURSEMENT_RECORD",
+      module: "GRANTS",
+      name: "Record disbursement",
+      description: "Record a grant_disbursement payment tranche.",
     },
     {
-      "id": 24,
-      "code": "GRANT_REPORT_VIEW",
-      "module": "GRANTS",
-      "name": "View grant report",
-      "description": "View a grant_award's grant_report compliance history."
+      id: 24,
+      code: "GRANT_REPORT_VIEW",
+      module: "GRANTS",
+      name: "View grant report",
+      description: "View a grant_award's grant_report compliance history.",
     },
     {
-      "id": 25,
-      "code": "GRANT_REPORT_MANAGE",
-      "module": "GRANTS",
-      "name": "Manage grant report",
-      "description": "Mark a grant_report submitted, upload its document."
+      id: 25,
+      code: "GRANT_REPORT_MANAGE",
+      module: "GRANTS",
+      name: "Manage grant report",
+      description: "Mark a grant_report submitted, upload its document.",
     },
     {
-      "id": 26,
-      "code": "BDS_VISIT_LOG",
-      "module": "WEE",
-      "name": "Log BDS visit",
-      "description": "Create a WEE business-development-support visit record."
+      id: 26,
+      code: "BDS_VISIT_LOG",
+      module: "WEE",
+      name: "Log BDS visit",
+      description: "Create a WEE business-development-support visit record.",
     },
     {
-      "id": 27,
-      "code": "ACTIVITY_SESSION_VIEW",
-      "module": "SRHR_SKILLING",
-      "name": "View group session",
-      "description": "View an activity_session record."
+      id: 27,
+      code: "ACTIVITY_SESSION_VIEW",
+      module: "SRHR_SKILLING",
+      name: "View group session",
+      description: "View an activity_session record.",
     },
     {
-      "id": 28,
-      "code": "ACTIVITY_SESSION_LOG",
-      "module": "SRHR_SKILLING",
-      "name": "Log group session",
-      "description": "Create an activity_session + attendance roster."
+      id: 28,
+      code: "ACTIVITY_SESSION_LOG",
+      module: "SRHR_SKILLING",
+      name: "Log group session",
+      description: "Create an activity_session + attendance roster.",
     },
     {
-      "id": 29,
-      "code": "TRAINING_ENROLLMENT_VIEW",
-      "module": "SKILLING",
-      "name": "View training placement",
-      "description": "View a training_enrollment record."
+      id: 29,
+      code: "TRAINING_ENROLLMENT_VIEW",
+      module: "SKILLING",
+      name: "View training placement",
+      description: "View a training_enrollment record.",
     },
     {
-      "id": 30,
-      "code": "TRAINING_ENROLLMENT_EDIT",
-      "module": "SKILLING",
-      "name": "Edit training placement",
-      "description": "Edit a training_enrollment record."
+      id: 30,
+      code: "TRAINING_ENROLLMENT_EDIT",
+      module: "SKILLING",
+      name: "Edit training placement",
+      description: "Edit a training_enrollment record.",
     },
     {
-      "id": 31,
-      "code": "ORG_ASSESSMENT_VIEW",
-      "module": "WROS",
-      "name": "View organisation assessment",
-      "description": "View an organisation_assessment and its scores."
+      id: 31,
+      code: "ORG_ASSESSMENT_VIEW",
+      module: "WROS",
+      name: "View organisation assessment",
+      description: "View an organisation_assessment and its scores.",
     },
     {
-      "id": 32,
-      "code": "ORG_ASSESSMENT_EDIT",
-      "module": "WROS",
-      "name": "Edit organisation assessment",
-      "description": "Create/edit an organisation_assessment and its scores."
+      id: 32,
+      code: "ORG_ASSESSMENT_EDIT",
+      module: "WROS",
+      name: "Edit organisation assessment",
+      description: "Create/edit an organisation_assessment and its scores.",
     },
     {
-      "id": 33,
-      "code": "ORG_ASSESSMENT_APPROVE",
-      "module": "WROS",
-      "name": "Approve organisation assessment",
-      "description": "Set an organisation_assessment's overall_recommendation."
+      id: 33,
+      code: "ORG_ASSESSMENT_APPROVE",
+      module: "WROS",
+      name: "Approve organisation assessment",
+      description: "Set an organisation_assessment's overall_recommendation.",
     },
     {
-      "id": 34,
-      "code": "DUE_DILIGENCE_MANAGE",
-      "module": "WROS",
-      "name": "Manage due-diligence checklist",
-      "description": "Edit assessment_document_check rows."
+      id: 34,
+      code: "DUE_DILIGENCE_MANAGE",
+      module: "WROS",
+      name: "Manage due-diligence checklist",
+      description: "Edit assessment_document_check rows.",
     },
     {
-      "id": 35,
-      "code": "REFERRAL_VIEW",
-      "module": "REFERRAL",
-      "name": "View referral",
-      "description": "View a referral record, sent or received."
+      id: 35,
+      code: "REFERRAL_VIEW",
+      module: "REFERRAL",
+      name: "View referral",
+      description: "View a referral record, sent or received.",
     },
     {
-      "id": 36,
-      "code": "REFERRAL_CREATE",
-      "module": "REFERRAL",
-      "name": "Create referral",
-      "description": "Send a new referral to another pillar or partner institution."
+      id: 36,
+      code: "REFERRAL_CREATE",
+      module: "REFERRAL",
+      name: "Create referral",
+      description: "Send a new referral to another pillar or partner institution.",
     },
     {
-      "id": 37,
-      "code": "REFERRAL_ACCEPT",
-      "module": "REFERRAL",
-      "name": "Accept referral",
-      "description": "Accept an incoming referral into the receiving pillar's caseload."
+      id: 37,
+      code: "REFERRAL_ACCEPT",
+      module: "REFERRAL",
+      name: "Accept referral",
+      description: "Accept an incoming referral into the receiving pillar's caseload.",
     },
     {
-      "id": 38,
-      "code": "DOCUMENT_VIEW",
-      "module": "DOCUMENT",
-      "name": "View document",
-      "description": "See that a document exists and its metadata."
+      id: 38,
+      code: "DOCUMENT_VIEW",
+      module: "DOCUMENT",
+      name: "View document",
+      description: "See that a document exists and its metadata.",
     },
     {
-      "id": 39,
-      "code": "DOCUMENT_UPLOAD",
-      "module": "DOCUMENT",
-      "name": "Upload/attach document",
-      "description": "Attach a new document to any owning record."
+      id: 39,
+      code: "DOCUMENT_UPLOAD",
+      module: "DOCUMENT",
+      name: "Upload/attach document",
+      description: "Attach a new document to any owning record.",
     },
     {
-      "id": 40,
-      "code": "DOCUMENT_DOWNLOAD",
-      "module": "DOCUMENT",
-      "name": "Download document",
-      "description": "Download the underlying file behind a document row."
+      id: 40,
+      code: "DOCUMENT_DOWNLOAD",
+      module: "DOCUMENT",
+      name: "Download document",
+      description: "Download the underlying file behind a document row.",
     },
     {
-      "id": 41,
-      "code": "NARRATIVE_REPORT_MANAGE",
-      "module": "REPORTING",
-      "name": "Manage narrative report",
-      "description": "Mark a project's narrative_report submitted."
+      id: 41,
+      code: "NARRATIVE_REPORT_MANAGE",
+      module: "REPORTING",
+      name: "Manage narrative report",
+      description: "Mark a project's narrative_report submitted.",
     },
     {
-      "id": 42,
-      "code": "REPORT_EXPORT_CSV",
-      "module": "REPORTING",
-      "name": "Export report as CSV",
-      "description": "Export a programme report or list view as CSV."
-    }
+      id: 42,
+      code: "REPORT_EXPORT_CSV",
+      module: "REPORTING",
+      name: "Export report as CSV",
+      description: "Export a programme report or list view as CSV.",
+    },
   ],
-  "users": [
+  users: [
     [
       "JM",
       "Judy Mwangi",
       "judy.mwangi",
-      [
-        "System Administrator"
-      ],
+      ["System Administrator"],
       "System-wide",
       "Now",
       "Active",
       "judy.mwangi@creaw.org",
-      "0711 203 344"
+      "0711 203 344",
     ],
     [
       "GW",
       "Grace Wanjiru",
       "grace.wanjiru",
-      [
-        "Head of MERL"
-      ],
+      ["Head of MERL"],
       "All pillars",
       "15 min ago",
       "Active",
       "grace.wanjiru@creaw.org",
-      "0722 610 414"
+      "0722 610 414",
     ],
     [
       "SN",
       "Samuel Ndegwa",
       "samuel.ndegwa",
-      [
-        "Pillar Lead (acting)",
-        "Grants & Finance Officer"
-      ],
+      ["Pillar Lead (acting)", "Grants & Finance Officer"],
       "WEE",
       "1 hr ago",
       "Active",
       "samuel.ndegwa@creaw.org",
-      "0733 445 566"
+      "0733 445 566",
     ],
     [
       "DK",
       "Dennis Kiprono",
       "dennis.kiprono",
-      [
-        "Case Officer",
-        "Grants & Finance Officer"
-      ],
+      ["Case Officer", "Grants & Finance Officer"],
       "WEE",
       "20 min ago",
       "Active",
       "dennis.kiprono@creaw.org",
-      "0733 118 760"
+      "0733 118 760",
     ],
     [
       "LO",
       "Lilian Otieno",
       "lilian.otieno",
-      [
-        "Pillar Lead"
-      ],
+      ["Pillar Lead"],
       "VAWG",
       "2 min ago",
       "Active",
       "lilian.otieno@creaw.org",
-      "0722 334 455"
+      "0722 334 455",
     ],
     [
       "CC",
       "Cynthia Chelimo",
       "cynthia.chelimo",
-      [
-        "Case Officer",
-        "Counsellor"
-      ],
+      ["Case Officer", "Counsellor"],
       "VAWG",
       "Yesterday",
       "Active",
       "cynthia.chelimo@creaw.org",
-      "0712 667 081"
+      "0712 667 081",
     ],
     [
       "AW",
       "Amina Wekesa",
       "amina.wekesa",
-      [
-        "Case Officer"
-      ],
+      ["Case Officer"],
       "VAWG",
       "4 days ago",
       "Active",
       "amina.wekesa@creaw.org",
-      "0798 021 455"
+      "0798 021 455",
     ],
     [
       "OW",
       "Otieno Were",
       "otieno.were",
-      [
-        "Pillar Lead",
-        "Grants & Finance Officer"
-      ],
+      ["Pillar Lead", "Grants & Finance Officer"],
       "WROs",
       "3 hrs ago",
       "Active",
       "otieno.were@creaw.org",
-      "0701 559 032"
+      "0701 559 032",
     ],
     [
       "EM",
       "Esther Mwangi",
       "esther.mwangi",
-      [
-        "Pillar Lead"
-      ],
+      ["Pillar Lead"],
       "SRHR",
       "2 hrs ago",
       "Active",
       "esther.mwangi@creaw.org",
-      "0720 118 845"
+      "0720 118 845",
     ],
     [
       "AK",
       "Ann Kamau",
       "ann.kamau",
-      [
-        "Pillar Lead",
-        "Data Entry"
-      ],
+      ["Pillar Lead", "Data Entry"],
       "Skilling",
       "2 days ago",
       "Active",
       "ann.kamau@creaw.org",
-      "0745 330 912"
+      "0745 330 912",
     ],
     [
       "FK",
       "Faith Kamau",
       "faith.kamau",
-      [
-        "Data Entry"
-      ],
+      ["Data Entry"],
       "VAWG",
       "3 days ago",
       "Active",
       "faith.kamau@creaw.org",
-      "0744 556 677"
+      "0744 556 677",
     ],
     [
       "MC",
       "Mercy Chebet",
       "mercy.chebet",
-      [
-        "Community Volunteer"
-      ],
+      ["Community Volunteer"],
       "SRHR",
       "1 week ago",
       "Active",
       "mercy.chebet@creaw.org",
-      "0798 110 245"
+      "0798 110 245",
     ],
     [
       "MN",
       "Mary Njoroge",
       "mary.njoroge",
-      [
-        "Portal Viewer"
-      ],
+      ["Portal Viewer"],
       "All (read-only)",
       "—",
       "Invited",
       "mary.njoroge@creaw.org",
-      "0711 908 823"
+      "0711 908 823",
     ],
     [
       "PM",
       "Peter Mbugua",
       "peter.mbugua",
-      [
-        "External Assessor"
-      ],
+      ["External Assessor"],
       "WROs",
       "4 months ago",
       "Inactive",
       "peter.mbugua@creaw.org",
-      "0755 667 788"
-    ]
+      "0755 667 788",
+    ],
   ],
-  "pipes": {
-    "vawg": [
+  pipes: {
+    vawg: [
       "Intake",
       "Screening & risk assessment",
       "Psychosocial counselling",
       "Legal aid & representation",
       "Court process",
       "Case conclusion",
-      "Follow-up & reintegration"
+      "Follow-up & reintegration",
     ],
-    "wee": [
+    wee: [
       "Application",
       "Business training",
       "Business plan",
       "Grant award",
-      "Disbursement & mentorship"
+      "Disbursement & mentorship",
     ],
-    "srhr": [
+    srhr: [
       "Mobilisation",
       "Registration",
       "Baseline survey",
@@ -518,9 +485,9 @@ export const story = {
       "Champion training",
       "Community dialogue",
       "Endline survey",
-      "Graduation"
+      "Graduation",
     ],
-    "skill": [
+    skill: [
       "Mobilisation",
       "Registration",
       "Orientation",
@@ -530,1380 +497,667 @@ export const story = {
       "Practical assessment",
       "Certification",
       "Apprenticeship",
-      "Grant recommendation"
+      "Grant recommendation",
     ],
-    "wro": [
+    wro: [
       "Onboarding",
       "Capacity assessment",
       "Due diligence",
       "Grant application",
       "Committee decision",
       "Contract",
-      "Disbursement"
-    ]
+      "Disbursement",
+    ],
   },
-  "refs": [
+  refs: [
     {
-      "id": "f0",
-      "pk": "p1",
-      "name": "Faith Njeri",
-      "from": "vawg",
-      "to": "vawg",
-      "reason": "Accepted shelter placement while legal case proceeds",
-      "by": "Amina Wekesa",
-      "date": "25 Sep 2026",
-      "status": "New",
-      "ext": "Nairobi Women's Shelter"
+      id: "f0",
+      pk: "p1",
+      name: "Faith Njeri",
+      from: "vawg",
+      to: "vawg",
+      reason: "Accepted shelter placement while legal case proceeds",
+      by: "Amina Wekesa",
+      date: "25 Sep 2026",
+      status: "New",
+      ext: "Nairobi Women's Shelter",
     },
     {
-      "id": "f1",
-      "pk": "p4",
-      "name": "Faith Atieno",
-      "from": "skill",
-      "to": "wee",
-      "reason": "Apprenticeship complete — recommended for a business grant",
-      "by": null,
-      "date": "02 Apr 2026",
-      "status": "Accepted"
+      id: "f1",
+      pk: "p4",
+      name: "Faith Atieno",
+      from: "skill",
+      to: "wee",
+      reason: "Apprenticeship complete — recommended for a business grant",
+      by: null,
+      date: "02 Apr 2026",
+      status: "Accepted",
     },
     {
-      "id": "f2",
-      "pk": "p8",
-      "name": "Esther Akinyi",
-      "from": "vawg",
-      "to": "srhr",
-      "reason": "Peer-educator potential after case closure",
-      "by": "Amina Wekesa",
-      "date": "20 Jun 2026",
-      "status": "Accepted"
+      id: "f2",
+      pk: "p8",
+      name: "Esther Akinyi",
+      from: "vawg",
+      to: "srhr",
+      reason: "Peer-educator potential after case closure",
+      by: "Amina Wekesa",
+      date: "20 Jun 2026",
+      status: "Accepted",
     },
     {
-      "id": "f3",
-      "pk": "p6",
-      "name": "Aisha Mohamed",
-      "from": "vawg",
-      "to": "wee",
-      "reason": "Needs own income to leave an unsafe home",
-      "by": "Cynthia Chelimo",
-      "date": "18 Sep 2026",
-      "status": "New"
+      id: "f3",
+      pk: "p6",
+      name: "Aisha Mohamed",
+      from: "vawg",
+      to: "wee",
+      reason: "Needs own income to leave an unsafe home",
+      by: "Cynthia Chelimo",
+      date: "18 Sep 2026",
+      status: "New",
     },
     {
-      "id": "f4",
-      "pk": "p5",
-      "name": "Mercy Chebet",
-      "from": "srhr",
-      "to": "skill",
-      "reason": "Asked to join the ICT basics course",
-      "by": "Esther Mwangi",
-      "date": "21 Sep 2026",
-      "status": "New"
+      id: "f4",
+      pk: "p5",
+      name: "Mercy Chebet",
+      from: "srhr",
+      to: "skill",
+      reason: "Asked to join the ICT basics course",
+      by: "Esther Mwangi",
+      date: "21 Sep 2026",
+      status: "New",
     },
     {
-      "id": "f5",
-      "pk": "p10",
-      "name": "Zawadi Mwende",
-      "from": "vawg",
-      "to": "srhr",
-      "reason": "Adolescent SRH counselling",
-      "by": "Amina Wekesa",
-      "date": "24 Sep 2026",
-      "status": "New"
+      id: "f5",
+      pk: "p10",
+      name: "Zawadi Mwende",
+      from: "vawg",
+      to: "srhr",
+      reason: "Adolescent SRH counselling",
+      by: "Amina Wekesa",
+      date: "24 Sep 2026",
+      status: "New",
     },
     {
-      "id": "f6",
-      "pk": "p7",
-      "name": "Joyce Wambui",
-      "from": "skill",
-      "to": "wee",
-      "reason": "Still in training — refer after certification",
-      "by": "Ann Kamau",
-      "date": "10 Sep 2026",
-      "status": "Declined"
-    }
+      id: "f6",
+      pk: "p7",
+      name: "Joyce Wambui",
+      from: "skill",
+      to: "wee",
+      reason: "Still in training — refer after certification",
+      by: "Ann Kamau",
+      date: "10 Sep 2026",
+      status: "Declined",
+    },
   ],
-  "reports": [
+  reports: [
     {
-      "id": "r1",
-      "title": "SRHR narrative report — Q2",
-      "donor": "Hewlett Foundation",
-      "pillar": "srhr",
-      "due": "14 Sep 2026",
-      "owner": "Esther Mwangi",
-      "status": "Overdue",
-      "tone": "crit"
+      id: "r1",
+      title: "SRHR narrative report — Q2",
+      donor: "Hewlett Foundation",
+      pillar: "srhr",
+      due: "14 Sep 2026",
+      owner: "Esther Mwangi",
+      status: "Overdue",
+      tone: "crit",
     },
     {
-      "id": "r2",
-      "title": "Peter Otieno grant report — Q2",
-      "donor": "MasterCard Foundation — Jasiri",
-      "pillar": "wee",
-      "due": "30 Aug 2026",
-      "owner": "Samuel Ndegwa",
-      "status": "Overdue",
-      "tone": "crit"
+      id: "r2",
+      title: "Peter Otieno grant report — Q2",
+      donor: "MasterCard Foundation — Jasiri",
+      pillar: "wee",
+      due: "30 Aug 2026",
+      owner: "Samuel Ndegwa",
+      status: "Overdue",
+      tone: "crit",
     },
     {
-      "id": "r3",
-      "title": "VAWG quarterly data return",
-      "donor": "UN Women",
-      "pillar": "vawg",
-      "due": "05 Oct 2026",
-      "owner": "Lilian Otieno",
-      "status": "Due in 9 days",
-      "tone": "warn"
+      id: "r3",
+      title: "VAWG quarterly data return",
+      donor: "UN Women",
+      pillar: "vawg",
+      due: "05 Oct 2026",
+      owner: "Lilian Otieno",
+      status: "Due in 9 days",
+      tone: "warn",
     },
     {
-      "id": "r4",
-      "title": "Tumaini WRN compliance report",
-      "donor": "WROs sub-grant",
-      "pillar": "wro",
-      "due": "08 Oct 2026",
-      "owner": "Otieno Were",
-      "status": "In progress",
-      "tone": "info"
+      id: "r4",
+      title: "Tumaini WRN compliance report",
+      donor: "WROs sub-grant",
+      pillar: "wro",
+      due: "08 Oct 2026",
+      owner: "Otieno Were",
+      status: "In progress",
+      tone: "info",
     },
     {
-      "id": "r5",
-      "title": "VAWG narrative report — Q3",
-      "donor": "Mastercard Foundation",
-      "pillar": "vawg",
-      "due": "15 Oct 2026",
-      "owner": "Lilian Otieno",
-      "status": "In progress",
-      "tone": "info"
+      id: "r5",
+      title: "VAWG narrative report — Q3",
+      donor: "Mastercard Foundation",
+      pillar: "vawg",
+      due: "15 Oct 2026",
+      owner: "Lilian Otieno",
+      status: "In progress",
+      tone: "info",
     },
     {
-      "id": "r6",
-      "title": "Skilling cohort 2 completion report",
-      "donor": "Ford Foundation",
-      "pillar": "skill",
-      "due": "20 Oct 2026",
-      "owner": "Ann Kamau",
-      "status": "Not started",
-      "tone": "neutral"
+      id: "r6",
+      title: "Skilling cohort 2 completion report",
+      donor: "Ford Foundation",
+      pillar: "skill",
+      due: "20 Oct 2026",
+      owner: "Ann Kamau",
+      status: "Not started",
+      tone: "neutral",
     },
     {
-      "id": "r7",
-      "title": "WEE financial report — H1",
-      "donor": "Sida",
-      "pillar": "wee",
-      "due": "30 Aug 2026",
-      "owner": "Samuel Ndegwa",
-      "status": "Submitted",
-      "tone": "good"
-    }
+      id: "r7",
+      title: "WEE financial report — H1",
+      donor: "Sida",
+      pillar: "wee",
+      due: "30 Aug 2026",
+      owner: "Samuel Ndegwa",
+      status: "Submitted",
+      tone: "good",
+    },
   ],
-  "submissions": [
+  submissions: [
     {
-      "id": "m1",
-      "pillar": "srhr",
-      "type": "Session attendance",
-      "title": "Menstrual health & rights — Langas Secondary",
-      "officer": "Mercy Chebet",
-      "place": "Langas, Eldoret",
-      "when": "12 Sep · 14:22",
-      "status": "Approved",
-      "nPhotos": 6,
-      "rec": "s1",
-      "gps": "0.4870, 35.2700",
-      "flag": ""
+      id: "m1",
+      pillar: "srhr",
+      type: "Session attendance",
+      title: "Menstrual health & rights — Langas Secondary",
+      officer: "Mercy Chebet",
+      place: "Langas, Eldoret",
+      when: "12 Sep · 14:22",
+      status: "Approved",
+      nPhotos: 6,
+      rec: "s1",
+      gps: "0.4870, 35.2700",
+      flag: "",
     },
     {
-      "id": "m2",
-      "pillar": "vawg",
-      "type": "Participant registration",
-      "title": "New survivor intake — Zawadi M. (minor)",
-      "officer": "Amina Wekesa",
-      "place": "Mlolongo, Machakos",
-      "when": "06 Sep · 10:05",
-      "status": "Pending review",
-      "nPhotos": 2,
-      "rec": "p10",
-      "gps": "-1.3900, 36.9400",
-      "flag": ""
+      id: "m2",
+      pillar: "vawg",
+      type: "Participant registration",
+      title: "New survivor intake — Zawadi M. (minor)",
+      officer: "Amina Wekesa",
+      place: "Mlolongo, Machakos",
+      when: "06 Sep · 10:05",
+      status: "Pending review",
+      nPhotos: 2,
+      rec: "p10",
+      gps: "-1.3900, 36.9400",
+      flag: "",
     },
     {
-      "id": "m3",
-      "pillar": "wee",
-      "type": "Business visit",
-      "title": "Site visit — Peter Otieno retail shop",
-      "officer": "Samuel Ndegwa",
-      "place": "Kondele Market, Kisumu",
-      "when": "25 Sep · 11:40",
-      "status": "Pending review",
-      "nPhotos": 3,
-      "rec": "g1",
-      "gps": "-0.0917, 34.7680",
-      "flag": ""
+      id: "m3",
+      pillar: "wee",
+      type: "Business visit",
+      title: "Site visit — Peter Otieno retail shop",
+      officer: "Samuel Ndegwa",
+      place: "Kondele Market, Kisumu",
+      when: "25 Sep · 11:40",
+      status: "Pending review",
+      nPhotos: 3,
+      rec: "g1",
+      gps: "-0.0917, 34.7680",
+      flag: "",
     },
     {
-      "id": "m4",
-      "pillar": "wro",
-      "type": "Assessment scoring",
-      "title": "Capacity assessment — Sauti ya Mama",
-      "officer": "Otieno Were",
-      "place": "Ukunda, Kwale",
-      "when": "24 Sep · 15:18",
-      "status": "Flagged",
-      "nPhotos": 4,
-      "rec": "o3",
-      "gps": "-4.2870, 39.5710",
-      "flag": "Two capacity scores changed after the visit — confirm with the assessor."
+      id: "m4",
+      pillar: "wro",
+      type: "Assessment scoring",
+      title: "Capacity assessment — Sauti ya Mama",
+      officer: "Otieno Were",
+      place: "Ukunda, Kwale",
+      when: "24 Sep · 15:18",
+      status: "Flagged",
+      nPhotos: 4,
+      rec: "o3",
+      gps: "-4.2870, 39.5710",
+      flag: "Two capacity scores changed after the visit — confirm with the assessor.",
     },
     {
-      "id": "m5",
-      "pillar": "srhr",
-      "type": "Session attendance",
-      "title": "Facility referral day — Kilifi County Hospital",
-      "officer": "Esther Mwangi",
-      "place": "Kilifi Town",
-      "when": "24 Sep · 13:02",
-      "status": "Flagged",
-      "nPhotos": 3,
-      "rec": "s5",
-      "gps": "-3.6305, 39.8499",
-      "flag": "Attendance sheet photo missing — 53 attendees unverified."
+      id: "m5",
+      pillar: "srhr",
+      type: "Session attendance",
+      title: "Facility referral day — Kilifi County Hospital",
+      officer: "Esther Mwangi",
+      place: "Kilifi Town",
+      when: "24 Sep · 13:02",
+      status: "Flagged",
+      nPhotos: 3,
+      rec: "s5",
+      gps: "-3.6305, 39.8499",
+      flag: "Attendance sheet photo missing — 53 attendees unverified.",
     },
     {
-      "id": "m6",
-      "pillar": "skill",
-      "type": "Attendance register",
-      "title": "Week 9 register — ICT basics, Cohort 3",
-      "officer": "Ann Kamau",
-      "place": "Kiambu Youth Centre",
-      "when": "23 Sep · 16:45",
-      "status": "Approved",
-      "nPhotos": 2,
-      "rec": "k1",
-      "gps": "-1.0330, 37.0690",
-      "flag": ""
+      id: "m6",
+      pillar: "skill",
+      type: "Attendance register",
+      title: "Week 9 register — ICT basics, Cohort 3",
+      officer: "Ann Kamau",
+      place: "Kiambu Youth Centre",
+      when: "23 Sep · 16:45",
+      status: "Approved",
+      nPhotos: 2,
+      rec: "k1",
+      gps: "-1.0330, 37.0690",
+      flag: "",
     },
     {
-      "id": "m7",
-      "pillar": "wee",
-      "type": "Business visit",
-      "title": "Site visit — Rehema Karisa poultry unit",
-      "officer": "Samuel Ndegwa",
-      "place": "Mtwapa, Kilifi",
-      "when": "22 Sep · 09:30",
-      "status": "Pending review",
-      "nPhotos": 5,
-      "rec": "g2",
-      "gps": "-3.9420, 39.7460",
-      "flag": ""
+      id: "m7",
+      pillar: "wee",
+      type: "Business visit",
+      title: "Site visit — Rehema Karisa poultry unit",
+      officer: "Samuel Ndegwa",
+      place: "Mtwapa, Kilifi",
+      when: "22 Sep · 09:30",
+      status: "Pending review",
+      nPhotos: 5,
+      rec: "g2",
+      gps: "-3.9420, 39.7460",
+      flag: "",
     },
     {
-      "id": "m8",
-      "pillar": "vawg",
-      "type": "Case update",
-      "title": "Court attendance — CRW-VAWG-0142",
-      "officer": "Cynthia Chelimo",
-      "place": "Kibera Law Courts",
-      "when": "19 Sep · 12:10",
-      "status": "Approved",
-      "nPhotos": 1,
-      "rec": "c1",
-      "gps": "-1.3100, 36.7870",
-      "flag": ""
-    }
+      id: "m8",
+      pillar: "vawg",
+      type: "Case update",
+      title: "Court attendance — CRW-VAWG-0142",
+      officer: "Cynthia Chelimo",
+      place: "Kibera Law Courts",
+      when: "19 Sep · 12:10",
+      status: "Approved",
+      nPhotos: 1,
+      rec: "c1",
+      gps: "-1.3100, 36.7870",
+      flag: "",
+    },
   ],
-  "geo": {
-    "Nairobi": {
-      "code": "047",
-      "subs": {
-        "Kibra": [
-          "Laini Saba",
-          "Lindi",
-          "Makina",
-          "Woodley/Kenyatta Golf Course",
-          "Sarang'ombe"
-        ],
-        "Mathare": [
-          "Hospital",
-          "Mabatini",
-          "Huruma",
-          "Ngei",
-          "Mlango Kubwa",
-          "Kiamaiko"
-        ],
-        "Dagoretti North": [
-          "Kawangware",
-          "Gatina",
-          "Kileleshwa",
-          "Kabiro",
-          "Kilimani"
-        ],
-        "Lang'ata": [
-          "Karen",
-          "Nairobi West",
-          "Mugumo-ini",
-          "South C",
-          "Nyayo Highrise"
-        ]
-      }
+  geo: {
+    Nairobi: {
+      code: "047",
+      subs: {
+        Kibra: ["Laini Saba", "Lindi", "Makina", "Woodley/Kenyatta Golf Course", "Sarang'ombe"],
+        Mathare: ["Hospital", "Mabatini", "Huruma", "Ngei", "Mlango Kubwa", "Kiamaiko"],
+        "Dagoretti North": ["Kawangware", "Gatina", "Kileleshwa", "Kabiro", "Kilimani"],
+        "Lang'ata": ["Karen", "Nairobi West", "Mugumo-ini", "South C", "Nyayo Highrise"],
+      },
     },
-    "Mombasa": {
-      "code": "001",
-      "subs": {
-        "Kisauni": [
-          "Mjambere",
-          "Junda",
-          "Bamburi",
-          "Mwakirunge",
-          "Mtopanga",
-          "Magogoni",
-          "Shanzu"
-        ],
-        "Nyali": [
-          "Frere Town",
-          "Ziwa la Ng'ombe",
-          "Mkomani",
-          "Kongowea",
-          "Kadzandani"
-        ]
-      }
+    Mombasa: {
+      code: "001",
+      subs: {
+        Kisauni: ["Mjambere", "Junda", "Bamburi", "Mwakirunge", "Mtopanga", "Magogoni", "Shanzu"],
+        Nyali: ["Frere Town", "Ziwa la Ng'ombe", "Mkomani", "Kongowea", "Kadzandani"],
+      },
     },
-    "Kwale": {
-      "code": "002",
-      "subs": {
-        "Msambweni": [
-          "Gombato Bongwe",
-          "Ukunda",
-          "Kinondo",
-          "Ramisi"
-        ]
-      }
+    Kwale: {
+      code: "002",
+      subs: {
+        Msambweni: ["Gombato Bongwe", "Ukunda", "Kinondo", "Ramisi"],
+      },
     },
-    "Kilifi": {
-      "code": "003",
-      "subs": {
-        "Kilifi North": [
-          "Tezo",
-          "Sokoni",
-          "Kibarani",
-          "Dabaso",
-          "Matsangoni"
-        ],
-        "Kilifi South": [
-          "Mtwapa",
-          "Junju",
-          "Mwarakaya",
-          "Shimo la Tewa",
-          "Chasimba"
-        ]
-      }
+    Kilifi: {
+      code: "003",
+      subs: {
+        "Kilifi North": ["Tezo", "Sokoni", "Kibarani", "Dabaso", "Matsangoni"],
+        "Kilifi South": ["Mtwapa", "Junju", "Mwarakaya", "Shimo la Tewa", "Chasimba"],
+      },
     },
-    "Machakos": {
-      "code": "016",
-      "subs": {
-        "Mavoko": [
-          "Athi River",
-          "Kinanie",
-          "Muthwani",
-          "Syokimau/Mulolongo"
-        ]
-      }
+    Machakos: {
+      code: "016",
+      subs: {
+        Mavoko: ["Athi River", "Kinanie", "Muthwani", "Syokimau/Mulolongo"],
+      },
     },
-    "Kiambu": {
-      "code": "022",
-      "subs": {
-        "Thika Town": [
-          "Township",
-          "Kamenu",
-          "Hospital",
-          "Gatuanyaga",
-          "Ngoliba"
-        ]
-      }
+    Kiambu: {
+      code: "022",
+      subs: {
+        "Thika Town": ["Township", "Kamenu", "Hospital", "Gatuanyaga", "Ngoliba"],
+      },
     },
     "Uasin Gishu": {
-      "code": "027",
-      "subs": {
-        "Kapseret": [
-          "Simat/Kapseret",
-          "Kipkenyo",
-          "Ngeria",
-          "Megun",
-          "Langas"
-        ]
-      }
+      code: "027",
+      subs: {
+        Kapseret: ["Simat/Kapseret", "Kipkenyo", "Ngeria", "Megun", "Langas"],
+      },
     },
-    "Nakuru": {
-      "code": "032",
-      "subs": {
-        "Nakuru Town East": [
-          "Biashara",
-          "Kivumbini",
-          "Flamingo",
-          "Menengai",
-          "Nakuru East"
-        ],
-        "Nakuru Town West": [
-          "Barut",
-          "London",
-          "Kaptembwo",
-          "Kapkures",
-          "Rhoda",
-          "Shaabab"
-        ]
-      }
+    Nakuru: {
+      code: "032",
+      subs: {
+        "Nakuru Town East": ["Biashara", "Kivumbini", "Flamingo", "Menengai", "Nakuru East"],
+        "Nakuru Town West": ["Barut", "London", "Kaptembwo", "Kapkures", "Rhoda", "Shaabab"],
+      },
     },
-    "Kakamega": {
-      "code": "037",
-      "subs": {
-        "Lurambi": [
+    Kakamega: {
+      code: "037",
+      subs: {
+        Lurambi: [
           "Butsotso East",
           "Butsotso South",
           "Butsotso Central",
           "Sheywe",
           "Mahiakalo",
-          "Shirere"
-        ]
-      }
+          "Shirere",
+        ],
+      },
     },
-    "Kisumu": {
-      "code": "042",
-      "subs": {
+    Kisumu: {
+      code: "042",
+      subs: {
         "Kisumu Central": [
           "Railways",
           "Migosi",
           "Shaurimoyo Kaloleni",
           "Market Milimani",
           "Kondele",
-          "Nyalenda B"
+          "Nyalenda B",
         ],
-        "Kisumu East": [
-          "Kajulu",
-          "Kolwa East",
-          "Manyatta B",
-          "Nyalenda A",
-          "Kolwa Central"
-        ]
-      }
+        "Kisumu East": ["Kajulu", "Kolwa East", "Manyatta B", "Nyalenda A", "Kolwa Central"],
+      },
     },
-    "Kisii": {
-      "code": "045",
-      "subs": {
-        "Kitutu Chache South": [
-          "Bogusero",
-          "Bogeka",
-          "Nyakoe",
-          "Kitutu Central",
-          "Nyatieko"
-        ]
-      }
-    }
+    Kisii: {
+      code: "045",
+      subs: {
+        "Kitutu Chache South": ["Bogusero", "Bogeka", "Nyakoe", "Kitutu Central", "Nyatieko"],
+      },
+    },
   },
-  "lookups": {
-    "Pillars": [
-      [
-        "VAWG",
-        "Violence Against Women & Girls",
-        "Lilian Otieno",
-        "Active"
-      ],
-      [
-        "WEE",
-        "Women's Economic Empowerment",
-        "Samuel Ndegwa (acting)",
-        "Active"
-      ],
-      [
-        "SRHR",
-        "Sexual & Reproductive Health & Rights",
-        "Esther Mwangi",
-        "Active"
-      ],
-      [
-        "LEADERSHIP",
-        "Leadership",
-        "—",
-        "Active · no process configured"
-      ],
-      [
-        "WROS",
-        "Women's Rights Organisations",
-        "Otieno Were",
-        "Active"
-      ],
-      [
-        "SKILLING",
-        "Skilling",
-        "Ann Kamau",
-        "Active"
-      ]
+  lookups: {
+    Pillars: [
+      ["VAWG", "Violence Against Women & Girls", "Lilian Otieno", "Active"],
+      ["WEE", "Women's Economic Empowerment", "Samuel Ndegwa (acting)", "Active"],
+      ["SRHR", "Sexual & Reproductive Health & Rights", "Esther Mwangi", "Active"],
+      ["LEADERSHIP", "Leadership", "—", "Active · no process configured"],
+      ["WROS", "Women's Rights Organisations", "Otieno Were", "Active"],
+      ["SKILLING", "Skilling", "Ann Kamau", "Active"],
     ],
-    "Donors": [
-      [
-        "MasterCard Foundation — Jasiri",
-        "Primary funder of WEE business-grant programming"
-      ],
-      [
-        "Hewlett Foundation",
-        "Funds SRHR adolescent programming"
-      ],
-      [
-        "Embassy of Sweden (SIDA)",
-        "Funds the WROs sub-grant facility"
-      ],
-      [
-        "UN Women",
-        "VAWG response and data programming"
-      ],
-      [
-        "Ford Foundation",
-        "Skilling cohort funding"
-      ]
+    Donors: [
+      ["MasterCard Foundation — Jasiri", "Primary funder of WEE business-grant programming"],
+      ["Hewlett Foundation", "Funds SRHR adolescent programming"],
+      ["Embassy of Sweden (SIDA)", "Funds the WROs sub-grant facility"],
+      ["UN Women", "VAWG response and data programming"],
+      ["Ford Foundation", "Skilling cohort funding"],
     ],
     "Business sectors": [
-      [
-        "Tailoring & textiles"
-      ],
-      [
-        "Agribusiness"
-      ],
-      [
-        "Retail & trade"
-      ],
-      [
-        "Food & beverage"
-      ],
-      [
-        "Beauty & cosmetology"
-      ],
-      [
-        "Arts & crafts"
-      ],
-      [
-        "Transport & logistics"
-      ],
-      [
-        "Technology & digital services"
-      ],
-      [
-        "Other"
-      ]
+      ["Tailoring & textiles"],
+      ["Agribusiness"],
+      ["Retail & trade"],
+      ["Food & beverage"],
+      ["Beauty & cosmetology"],
+      ["Arts & crafts"],
+      ["Transport & logistics"],
+      ["Technology & digital services"],
+      ["Other"],
     ],
     "Case types": [
-      [
-        "Custody & maintenance",
-        "No",
-        "Mediation/ADR first"
-      ],
-      [
-        "IPV — physical",
-        "Yes",
-        "Mediation/ADR first"
-      ],
-      [
-        "IPV — emotional",
-        "No",
-        "Mediation/ADR first"
-      ],
-      [
-        "IPV — verbal",
-        "No",
-        "Mediation/ADR first"
-      ],
-      [
-        "IPV — economic",
-        "No",
-        "Mediation/ADR first"
-      ],
-      [
-        "Sexual violence (rape/defilement)",
-        "Yes",
-        "Court, direct"
-      ],
-      [
-        "Divorce",
-        "No",
-        "Mediation/ADR first"
-      ]
+      ["Custody & maintenance", "No", "Mediation/ADR first"],
+      ["IPV — physical", "Yes", "Mediation/ADR first"],
+      ["IPV — emotional", "No", "Mediation/ADR first"],
+      ["IPV — verbal", "No", "Mediation/ADR first"],
+      ["IPV — economic", "No", "Mediation/ADR first"],
+      ["Sexual violence (rape/defilement)", "Yes", "Court, direct"],
+      ["Divorce", "No", "Mediation/ADR first"],
     ],
     "Partner institutions": [
-      [
-        "Rift Valley Technical Training Institute",
-        "TVET",
-        "Uasin Gishu"
-      ],
-      [
-        "Eldoret Polytechnic",
-        "TVET",
-        "Uasin Gishu"
-      ],
-      [
-        "Nairobi Women's Hospital — GBV Recovery Centre",
-        "Health facility",
-        "Nairobi"
-      ],
-      [
-        "Milimani Law Courts",
-        "Court",
-        "Nairobi"
-      ],
-      [
-        "Kilimani Police Station",
-        "Police",
-        "Nairobi"
-      ],
-      [
-        "Nairobi Women's Shelter",
-        "Shelter",
-        "Nairobi"
-      ]
+      ["Rift Valley Technical Training Institute", "TVET", "Uasin Gishu"],
+      ["Eldoret Polytechnic", "TVET", "Uasin Gishu"],
+      ["Nairobi Women's Hospital — GBV Recovery Centre", "Health facility", "Nairobi"],
+      ["Milimani Law Courts", "Court", "Nairobi"],
+      ["Kilimani Police Station", "Police", "Nairobi"],
+      ["Nairobi Women's Shelter", "Shelter", "Nairobi"],
     ],
     "Activity types": [
-      [
-        "SRHR",
-        "YSLA",
-        "Youth Savings & Loan Association group meeting"
-      ],
-      [
-        "SRHR",
-        "Mentorship",
-        "One-to-one or small-group mentorship circle"
-      ],
-      [
-        "SRHR",
-        "Male Engagement",
-        "Dialogue session engaging men and boys on GBV prevention"
-      ],
-      [
-        "SRHR",
-        "Health Talk",
-        "Facilitated SRH health-education talk"
-      ],
-      [
-        "Skilling",
-        "Life Skills Session",
-        "Group life-skills session for Skilling trainees"
-      ]
-    ]
+      ["SRHR", "YSLA", "Youth Savings & Loan Association group meeting"],
+      ["SRHR", "Mentorship", "One-to-one or small-group mentorship circle"],
+      ["SRHR", "Male Engagement", "Dialogue session engaging men and boys on GBV prevention"],
+      ["SRHR", "Health Talk", "Facilitated SRH health-education talk"],
+      ["Skilling", "Life Skills Session", "Group life-skills session for Skilling trainees"],
+    ],
   },
-  "participants": [
+  participants: [
     {
-      "key": "p1",
-      "fields": [
-        [
-          "Full name",
-          "Faith Njeri"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "29"
-        ],
-        [
-          "County",
-          "Nairobi"
-        ],
-        [
-          "Ward / location",
-          "Kibera"
-        ],
-        [
-          "National ID number",
-          "29481172",
-          1
-        ],
-        [
-          "Phone",
-          "0712 448 481",
-          1
-        ],
-        [
-          "Registered",
-          "14 Feb 2026"
-        ],
-        [
-          "Registered by",
-          "Cynthia Chelimo"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p1",
+      fields: [
+        ["Full name", "Faith Njeri"],
+        ["Gender", "Female"],
+        ["Age", "29"],
+        ["County", "Nairobi"],
+        ["Ward / location", "Kibera"],
+        ["National ID number", "29481172", 1],
+        ["Phone", "0712 448 481", 1],
+        ["Registered", "14 Feb 2026"],
+        ["Registered by", "Cynthia Chelimo"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Faith Njeri"
+      title: "Faith Njeri",
     },
     {
-      "key": "p2",
-      "fields": [
-        [
-          "Full name",
-          "Rehema Karisa"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "34"
-        ],
-        [
-          "County",
-          "Kilifi"
-        ],
-        [
-          "Ward / location",
-          "Mtwapa"
-        ],
-        [
-          "National ID number",
-          "31220987",
-          1
-        ],
-        [
-          "Phone",
-          "0722 193 006",
-          1
-        ],
-        [
-          "Registered",
-          "03 Mar 2026"
-        ],
-        [
-          "Registered by",
-          "Samuel Ndegwa"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p2",
+      fields: [
+        ["Full name", "Rehema Karisa"],
+        ["Gender", "Female"],
+        ["Age", "34"],
+        ["County", "Kilifi"],
+        ["Ward / location", "Mtwapa"],
+        ["National ID number", "31220987", 1],
+        ["Phone", "0722 193 006", 1],
+        ["Registered", "03 Mar 2026"],
+        ["Registered by", "Samuel Ndegwa"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Rehema Karisa"
+      title: "Rehema Karisa",
     },
     {
-      "key": "p3",
-      "fields": [
-        [
-          "Full name",
-          "Peter Otieno"
-        ],
-        [
-          "Gender",
-          "Male"
-        ],
-        [
-          "Age",
-          "41"
-        ],
-        [
-          "County",
-          "Kisumu"
-        ],
-        [
-          "Ward / location",
-          "Kondele"
-        ],
-        [
-          "National ID number",
-          "24876310",
-          1
-        ],
-        [
-          "Phone",
-          "0733 502 118",
-          1
-        ],
-        [
-          "Registered",
-          "20 Jan 2026"
-        ],
-        [
-          "Registered by",
-          "Samuel Ndegwa"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p3",
+      fields: [
+        ["Full name", "Peter Otieno"],
+        ["Gender", "Male"],
+        ["Age", "41"],
+        ["County", "Kisumu"],
+        ["Ward / location", "Kondele"],
+        ["National ID number", "24876310", 1],
+        ["Phone", "0733 502 118", 1],
+        ["Registered", "20 Jan 2026"],
+        ["Registered by", "Samuel Ndegwa"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Peter Otieno"
+      title: "Peter Otieno",
     },
     {
-      "key": "p4",
-      "fields": [
-        [
-          "Full name",
-          "Faith Atieno"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "26"
-        ],
-        [
-          "County",
-          "Nairobi"
-        ],
-        [
-          "Ward / location",
-          "Mathare"
-        ],
-        [
-          "National ID number",
-          "35510442",
-          1
-        ],
-        [
-          "Phone",
-          "0745 877 230",
-          1
-        ],
-        [
-          "Registered",
-          "09 Nov 2025"
-        ],
-        [
-          "Registered by",
-          "Ann Kamau"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p4",
+      fields: [
+        ["Full name", "Faith Atieno"],
+        ["Gender", "Female"],
+        ["Age", "26"],
+        ["County", "Nairobi"],
+        ["Ward / location", "Mathare"],
+        ["National ID number", "35510442", 1],
+        ["Phone", "0745 877 230", 1],
+        ["Registered", "09 Nov 2025"],
+        ["Registered by", "Ann Kamau"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Faith Atieno"
+      title: "Faith Atieno",
     },
     {
-      "key": "p5",
-      "fields": [
-        [
-          "Full name",
-          "Mercy Chebet"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "19"
-        ],
-        [
-          "County",
-          "Uasin Gishu"
-        ],
-        [
-          "Ward / location",
-          "Langas"
-        ],
-        [
-          "National ID number",
-          "40218873",
-          1
-        ],
-        [
-          "Phone",
-          "0798 110 245",
-          1
-        ],
-        [
-          "Registered",
-          "28 Jan 2026"
-        ],
-        [
-          "Registered by",
-          "Esther Mwangi"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p5",
+      fields: [
+        ["Full name", "Mercy Chebet"],
+        ["Gender", "Female"],
+        ["Age", "19"],
+        ["County", "Uasin Gishu"],
+        ["Ward / location", "Langas"],
+        ["National ID number", "40218873", 1],
+        ["Phone", "0798 110 245", 1],
+        ["Registered", "28 Jan 2026"],
+        ["Registered by", "Esther Mwangi"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Mercy Chebet"
+      title: "Mercy Chebet",
     },
     {
-      "key": "p6",
-      "fields": [
-        [
-          "Full name",
-          "Aisha Mohamed"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "31"
-        ],
-        [
-          "County",
-          "Mombasa"
-        ],
-        [
-          "Ward / location",
-          "Bamburi"
-        ],
-        [
-          "National ID number",
-          "28733019",
-          1
-        ],
-        [
-          "Phone",
-          "0711 650 932",
-          1
-        ],
-        [
-          "Registered",
-          "02 May 2026"
-        ],
-        [
-          "Registered by",
-          "Cynthia Chelimo"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p6",
+      fields: [
+        ["Full name", "Aisha Mohamed"],
+        ["Gender", "Female"],
+        ["Age", "31"],
+        ["County", "Mombasa"],
+        ["Ward / location", "Bamburi"],
+        ["National ID number", "28733019", 1],
+        ["Phone", "0711 650 932", 1],
+        ["Registered", "02 May 2026"],
+        ["Registered by", "Cynthia Chelimo"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Aisha Mohamed"
+      title: "Aisha Mohamed",
     },
     {
-      "key": "p7",
-      "fields": [
-        [
-          "Full name",
-          "Joyce Wambui"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "22"
-        ],
-        [
-          "County",
-          "Kiambu"
-        ],
-        [
-          "Ward / location",
-          "Thika"
-        ],
-        [
-          "National ID number",
-          "38804561",
-          1
-        ],
-        [
-          "Phone",
-          "0757 320 117",
-          1
-        ],
-        [
-          "Registered",
-          "15 Jul 2026"
-        ],
-        [
-          "Registered by",
-          "Ann Kamau"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p7",
+      fields: [
+        ["Full name", "Joyce Wambui"],
+        ["Gender", "Female"],
+        ["Age", "22"],
+        ["County", "Kiambu"],
+        ["Ward / location", "Thika"],
+        ["National ID number", "38804561", 1],
+        ["Phone", "0757 320 117", 1],
+        ["Registered", "15 Jul 2026"],
+        ["Registered by", "Ann Kamau"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Joyce Wambui"
+      title: "Joyce Wambui",
     },
     {
-      "key": "p8",
-      "fields": [
-        [
-          "Full name",
-          "Esther Akinyi"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "27"
-        ],
-        [
-          "County",
-          "Kisumu"
-        ],
-        [
-          "Ward / location",
-          "Nyalenda"
-        ],
-        [
-          "National ID number",
-          "33190284",
-          1
-        ],
-        [
-          "Phone",
-          "0726 904 573",
-          1
-        ],
-        [
-          "Registered",
-          "11 Dec 2025"
-        ],
-        [
-          "Registered by",
-          "Amina Wekesa"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p8",
+      fields: [
+        ["Full name", "Esther Akinyi"],
+        ["Gender", "Female"],
+        ["Age", "27"],
+        ["County", "Kisumu"],
+        ["Ward / location", "Nyalenda"],
+        ["National ID number", "33190284", 1],
+        ["Phone", "0726 904 573", 1],
+        ["Registered", "11 Dec 2025"],
+        ["Registered by", "Amina Wekesa"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Esther Akinyi"
+      title: "Esther Akinyi",
     },
     {
-      "key": "p9",
-      "fields": [
-        [
-          "Full name",
-          "Naomi Wairimu"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "38"
-        ],
-        [
-          "County",
-          "Nakuru"
-        ],
-        [
-          "Ward / location",
-          "Bondeni"
-        ],
-        [
-          "National ID number",
-          "26640098",
-          1
-        ],
-        [
-          "Phone",
-          "0702 884 316",
-          1
-        ],
-        [
-          "Registered",
-          "18 Aug 2026"
-        ],
-        [
-          "Registered by",
-          "Samuel Ndegwa"
-        ],
-        [
-          "Consent",
-          "Signed on device"
-        ]
+      key: "p9",
+      fields: [
+        ["Full name", "Naomi Wairimu"],
+        ["Gender", "Female"],
+        ["Age", "38"],
+        ["County", "Nakuru"],
+        ["Ward / location", "Bondeni"],
+        ["National ID number", "26640098", 1],
+        ["Phone", "0702 884 316", 1],
+        ["Registered", "18 Aug 2026"],
+        ["Registered by", "Samuel Ndegwa"],
+        ["Consent", "Signed on device"],
       ],
-      "title": "Naomi Wairimu"
+      title: "Naomi Wairimu",
     },
     {
-      "key": "p10",
-      "fields": [
-        [
-          "Full name",
-          "Zawadi Mwende"
-        ],
-        [
-          "Gender",
-          "Female"
-        ],
-        [
-          "Age",
-          "17"
-        ],
-        [
-          "County",
-          "Machakos"
-        ],
-        [
-          "Ward / location",
-          "Mlolongo"
-        ],
-        [
-          "Guardian ID number",
-          "23019874",
-          1
-        ],
-        [
-          "Phone",
-          "0790 223 871",
-          1
-        ],
-        [
-          "Registered",
-          "06 Sep 2026"
-        ],
-        [
-          "Registered by",
-          "Amina Wekesa"
-        ],
-        [
-          "Consent",
-          "Guardian consent on file"
-        ]
+      key: "p10",
+      fields: [
+        ["Full name", "Zawadi Mwende"],
+        ["Gender", "Female"],
+        ["Age", "17"],
+        ["County", "Machakos"],
+        ["Ward / location", "Mlolongo"],
+        ["Guardian ID number", "23019874", 1],
+        ["Phone", "0790 223 871", 1],
+        ["Registered", "06 Sep 2026"],
+        ["Registered by", "Amina Wekesa"],
+        ["Consent", "Guardian consent on file"],
       ],
-      "title": "Zawadi Mwende"
-    }
+      title: "Zawadi Mwende",
+    },
   ],
-  "organisations": [
+  organisations: [
     {
-      "title": "Tumaini Women Network",
-      "fields": [
-        [
-          "Organisation",
-          "Tumaini Women Network"
-        ],
-        [
-          "County",
-          "Machakos"
-        ],
-        [
-          "Focus area",
-          "GBV response & shelters"
-        ],
-        [
-          "Registration no.",
-          "OP.218/051/17/0335"
-        ],
-        [
-          "Contact person",
-          "Jane Mutua"
-        ],
-        [
-          "Assessor",
-          "Otieno Were"
-        ],
-        [
-          "Capacity score",
-          "3.6 / 5"
-        ],
-        [
-          "Bank account",
-          "•••• 4410",
-          1
-        ]
+      title: "Tumaini Women Network",
+      fields: [
+        ["Organisation", "Tumaini Women Network"],
+        ["County", "Machakos"],
+        ["Focus area", "GBV response & shelters"],
+        ["Registration no.", "OP.218/051/17/0335"],
+        ["Contact person", "Jane Mutua"],
+        ["Assessor", "Otieno Were"],
+        ["Capacity score", "3.6 / 5"],
+        ["Bank account", "•••• 4410", 1],
       ],
-      "scores": [
-        [
-          "Governance",
-          4
-        ],
-        [
-          "Financial management",
-          3.5
-        ],
-        [
-          "Programme delivery",
-          3.8
-        ],
-        [
-          "M&E capacity",
-          3.2
-        ],
-        [
-          "Safeguarding",
-          3.5
-        ]
-      ]
+      scores: [
+        ["Governance", 4],
+        ["Financial management", 3.5],
+        ["Programme delivery", 3.8],
+        ["M&E capacity", 3.2],
+        ["Safeguarding", 3.5],
+      ],
     },
     {
-      "title": "Amani Na Haki",
-      "fields": [
-        [
-          "Organisation",
-          "Amani Na Haki"
-        ],
-        [
-          "County",
-          "Nakuru"
-        ],
-        [
-          "Focus area",
-          "Legal literacy"
-        ],
-        [
-          "Registration no.",
-          "OP.218/051/18/0342"
-        ],
-        [
-          "Contact person",
-          "Rose Wekesa"
-        ],
-        [
-          "Assessor",
-          "Otieno Were"
-        ],
-        [
-          "Capacity score",
-          "3.1 / 5"
-        ],
-        [
-          "Bank account",
-          "•••• 4410",
-          1
-        ]
+      title: "Amani Na Haki",
+      fields: [
+        ["Organisation", "Amani Na Haki"],
+        ["County", "Nakuru"],
+        ["Focus area", "Legal literacy"],
+        ["Registration no.", "OP.218/051/18/0342"],
+        ["Contact person", "Rose Wekesa"],
+        ["Assessor", "Otieno Were"],
+        ["Capacity score", "3.1 / 5"],
+        ["Bank account", "•••• 4410", 1],
       ],
-      "scores": [
-        [
-          "Governance",
-          3.2
-        ],
-        [
-          "Financial management",
-          2.8
-        ],
-        [
-          "Programme delivery",
-          3.5
-        ],
-        [
-          "M&E capacity",
-          2.9
-        ],
-        [
-          "Safeguarding",
-          3.1
-        ]
-      ]
+      scores: [
+        ["Governance", 3.2],
+        ["Financial management", 2.8],
+        ["Programme delivery", 3.5],
+        ["M&E capacity", 2.9],
+        ["Safeguarding", 3.1],
+      ],
     },
     {
-      "title": "Sauti ya Mama",
-      "fields": [
-        [
-          "Organisation",
-          "Sauti ya Mama"
-        ],
-        [
-          "County",
-          "Kwale"
-        ],
-        [
-          "Focus area",
-          "Maternal rights advocacy"
-        ],
-        [
-          "Registration no.",
-          "OP.218/051/15/0321"
-        ],
-        [
-          "Contact person",
-          "Mwanaisha Salim"
-        ],
-        [
-          "Assessor",
-          "Otieno Were"
-        ],
-        [
-          "Capacity score",
-          "2.4 / 5"
-        ],
-        [
-          "Bank account",
-          "•••• 4410",
-          1
-        ]
+      title: "Sauti ya Mama",
+      fields: [
+        ["Organisation", "Sauti ya Mama"],
+        ["County", "Kwale"],
+        ["Focus area", "Maternal rights advocacy"],
+        ["Registration no.", "OP.218/051/15/0321"],
+        ["Contact person", "Mwanaisha Salim"],
+        ["Assessor", "Otieno Were"],
+        ["Capacity score", "2.4 / 5"],
+        ["Bank account", "•••• 4410", 1],
       ],
-      "scores": [
-        [
-          "Governance",
-          2.6
-        ],
-        [
-          "Financial management",
-          2
-        ],
-        [
-          "Programme delivery",
-          2.8
-        ],
-        [
-          "M&E capacity",
-          2.1
-        ],
-        [
-          "Safeguarding",
-          2.5
-        ]
-      ]
+      scores: [
+        ["Governance", 2.6],
+        ["Financial management", 2],
+        ["Programme delivery", 2.8],
+        ["M&E capacity", 2.1],
+        ["Safeguarding", 2.5],
+      ],
     },
     {
-      "title": "Ushirika Women Collective",
-      "fields": [
-        [
-          "Organisation",
-          "Ushirika Women Collective"
-        ],
-        [
-          "County",
-          "Kakamega"
-        ],
-        [
-          "Focus area",
-          "Economic justice"
-        ],
-        [
-          "Registration no.",
-          "OP.218/051/18/0342"
-        ],
-        [
-          "Contact person",
-          "Beatrice Nasimiyu"
-        ],
-        [
-          "Assessor",
-          "Otieno Were"
-        ],
-        [
-          "Capacity score",
-          "4.1 / 5"
-        ],
-        [
-          "Bank account",
-          "•••• 4410",
-          1
-        ]
+      title: "Ushirika Women Collective",
+      fields: [
+        ["Organisation", "Ushirika Women Collective"],
+        ["County", "Kakamega"],
+        ["Focus area", "Economic justice"],
+        ["Registration no.", "OP.218/051/18/0342"],
+        ["Contact person", "Beatrice Nasimiyu"],
+        ["Assessor", "Otieno Were"],
+        ["Capacity score", "4.1 / 5"],
+        ["Bank account", "•••• 4410", 1],
       ],
-      "scores": [
-        [
-          "Governance",
-          4.3
-        ],
-        [
-          "Financial management",
-          4
-        ],
-        [
-          "Programme delivery",
-          4.2
-        ],
-        [
-          "M&E capacity",
-          3.9
-        ],
-        [
-          "Safeguarding",
-          4.1
-        ]
-      ]
-    }
-  ]
+      scores: [
+        ["Governance", 4.3],
+        ["Financial management", 4],
+        ["Programme delivery", 4.2],
+        ["M&E capacity", 3.9],
+        ["Safeguarding", 4.1],
+      ],
+    },
+  ],
 } as const;
