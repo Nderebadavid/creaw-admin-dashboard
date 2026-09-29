@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 vi.mock("server-only", () => ({}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("./actions", () => ({
   advanceGrantAction: vi.fn(),
   downloadGrantPackAction: vi.fn(),
@@ -53,7 +54,7 @@ describe("grant compliance panel", () => {
         canLogReport={hasPermission(grants, "GRANT_REPORT_MANAGE", { pillarId: detail!.pillarId })}
       />
     );
-    expect(screen.getByRole("button", { name: "Log reporting period" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Log report" })).toBeEnabled();
     expect(screen.getByText(/30 Aug 2026/)).toBeInTheDocument();
     expect(screen.queryByText(/55,000/)).not.toBeInTheDocument();
   });

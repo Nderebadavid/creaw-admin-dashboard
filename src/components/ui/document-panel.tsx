@@ -10,16 +10,18 @@ export interface DocumentItem {
 export function DocumentPanel({
   documents,
   requirements = [],
+  title = "Documents",
 }: {
   documents: readonly DocumentItem[];
   requirements?: readonly string[];
+  title?: string;
 }) {
   const missing = requirements.filter(
     (requirement) => !documents.some((document) => document.requirement === requirement)
   );
   return (
-    <section aria-label="Documents" className="rounded-2xl border bg-white p-5">
-      <h3 className="mb-4 font-heading text-xl font-bold">Documents</h3>
+    <section aria-label={title} className="rounded-2xl border bg-white p-5">
+      <h2 className="mb-4 font-heading text-[22px] font-bold">{title}</h2>
       <ul className="divide-y">
         {documents.map((document) => (
           <li key={document.id} className="flex items-center gap-3 py-3">

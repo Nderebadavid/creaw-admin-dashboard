@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { grantsApi } from "@/features/grants/api";
@@ -29,29 +28,25 @@ export default async function GrantDetailPage({ params }: { params: Promise<{ id
         ? ![detail.signoffs.preparedBy, detail.signoffs.reviewedBy].includes(session.user.id)
         : true;
   return (
-    <>
-      <PageHeading
-        title="Grant application"
-        section="Records"
-        description={`${detail.applicant} · ${detail.project}`}
-      />
-      <GrantDetailContent
-        detail={detail}
-        canAdvance={Boolean(
-          code &&
-          distinctActor &&
-          hasPermission(session.grants, code, { pillarId: detail.pillarId })
-        )}
-        canDisburse={hasPermission(session.grants, "GRANT_DISBURSEMENT_RECORD", {
-          pillarId: detail.pillarId,
-        })}
-        canDownload={hasPermission(session.grants, "DOCUMENT_DOWNLOAD", {
-          pillarId: detail.pillarId,
-        })}
-        canLogReport={hasPermission(session.grants, "GRANT_REPORT_MANAGE", {
-          pillarId: detail.pillarId,
-        })}
-      />
-    </>
+    <GrantDetailContent
+      heading={{
+        title: "Grant application",
+        section: "Records",
+        description: `${detail.applicant} · ${detail.project}`,
+      }}
+      detail={detail}
+      canAdvance={Boolean(
+        code && distinctActor && hasPermission(session.grants, code, { pillarId: detail.pillarId })
+      )}
+      canDisburse={hasPermission(session.grants, "GRANT_DISBURSEMENT_RECORD", {
+        pillarId: detail.pillarId,
+      })}
+      canDownload={hasPermission(session.grants, "DOCUMENT_DOWNLOAD", {
+        pillarId: detail.pillarId,
+      })}
+      canLogReport={hasPermission(session.grants, "GRANT_REPORT_MANAGE", {
+        pillarId: detail.pillarId,
+      })}
+    />
   );
 }
