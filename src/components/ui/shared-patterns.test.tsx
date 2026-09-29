@@ -36,6 +36,20 @@ it("keeps failed modal forms open and displays the server error", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("A record already exists");
   expect(onOpenChange).not.toHaveBeenCalled();
 });
+it("bounds long modal forms to the viewport and keeps actions outside the keyboard-scrollable fields", () => {
+  render(<ModalForm open title="Long record" description="Complete the fields." onOpenChange={() => {}} action={async () => ({success:true})}>
+    {Array.from({length:20}, (_, index) => <label key={index}>Field {index + 1}<input name={`field-${index}`} /></label>)}
+  </ModalForm>);
+  const dialog = screen.getByRole("dialog", {name:"Long record"});
+  const fields = screen.getByRole("region", {name:"Long record fields"});
+  expect(dialog).toHaveClass("max-h-[calc(100dvh-3rem)]", "overflow-hidden");
+  expect(fields).toHaveClass("min-h-0", "overflow-y-auto");
+  expect(fields).toHaveAttribute("tabindex", "0");
+  expect(fields).toContainElement(screen.getByLabelText("Field 20"));
+  expect(dialog).toContainElement(screen.getByRole("button", {name:"Save"}));
+  expect(fields).not.toContainElement(screen.getByRole("button", {name:"Save"}));
+  expect(fields).not.toContainElement(screen.getByRole("button", {name:"Cancel"}));
+});
 it("exposes chart values to assistive technology", () => {
   render(<ProgressChart label="Quarterly reach" series={[{label:"July",value:12,target:20}]} />);
   expect(screen.getByRole("progressbar", {name:"July"})).toHaveAttribute("aria-valuenow","12");
