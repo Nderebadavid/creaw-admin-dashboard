@@ -83,6 +83,26 @@ function allowed(store: MockStore, grants: EffectiveGrant[], code: string, table
 function masked(table: TableName, row: Row, audit = false): Row {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, key === "password_hash" ? "[REDACTED]" : isSensitiveField(table, key) && value !== null ? audit ? "[REDACTED]" : maskSensitiveValue(value) : value])) as Row;
 }
+const secretMetadataKey = /(?:password|token|secret|credential|authorization|cookie|email|phone|contact|id_number|first_name|middle_name|last_name|salary|amount|notes?|payload|file_url|address|date_of_birth)/i;
+const safeAuditStringKey = /^(?:status|stage_event_status|code|module|action|source|entity_type|type|kind|role_code|permission_code)$/i;
+function redactAuditValue(table: string | null, value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(item => redactAuditValue(table, item));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
+    secretMetadataKey.test(key) || table && isSensitiveField(table, key) || typeof item === "string" && !safeAuditStringKey.test(key) ? "[REDACTED]" : redactAuditValue(table, item)]));
+  return value;
+}
+function redactAuditText(table: string | null, text: string | null): string | null {
+  if (!text) return text;
+  try { return JSON.stringify(redactAuditValue(table, JSON.parse(text))); }
+  catch { return "[REDACTED]"; }
+}
+function safeAuditRow(store: MockStore, row: MockStore["audit_logs"][number]) {
+  const actor = store.user.find(user => user.id === row.performed_by && !user.is_deleted);
+  return { ...row, performed_by_name: actor ? `${actor.first_name} ${actor.last_name}` : null,
+    input_payload: redactAuditText(row.entity_type, row.input_payload),
+    previous_state: redactAuditText(row.entity_type, row.previous_state),
+    new_state: redactAuditText(row.entity_type, row.new_state) };
+}
 function referralRead(store: MockStore, row: Row): Row {
   const enrollment = store.enrollment.find((item) => item.id === row.enrollment_id && !item.is_deleted);
   const participant = store.participant.find((item) => item.id === enrollment?.participant_id && !item.is_deleted);
@@ -108,8 +128,8 @@ function auditWrite(store: MockStore, request: ApiRequest<unknown>, userId: numb
   const now = new Date().toISOString();
   store.audit_logs.push(makeRow("audit_logs", {
     entity_type: table, entity_id: after.id, action: action ?? (after.is_deleted ? "DELETE" : before ? "UPDATE" : "CREATE"), source: "HTTP", performed_by: userId,
-    performed_at: now, endpoint: request.routeTemplate, input_payload: JSON.stringify(masked(table, (request.body ?? {}) as Row, true)),
-    previous_state: before ? JSON.stringify(masked(table, before, true)) : null, new_state: JSON.stringify(masked(table, after, true)),
+    performed_at: now, endpoint: request.routeTemplate, input_payload: redactAuditText(table, JSON.stringify(request.body ?? {})),
+    previous_state: before ? redactAuditText(table, JSON.stringify(before)) : null, new_state: redactAuditText(table, JSON.stringify(after)),
   }, Math.max(0, ...store.audit_logs.map((row) => row.id)) + 1, now));
 }
 function signoffActors(store: MockStore, applicationId: number) {
@@ -215,6 +235,40 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   const grants = getEffectiveGrants(userId);
   if (!grants.length) return envelope(403);
   if (url.pathname === "/auth/me") return request.method === "GET" ? envelope(200, { user: masked("user", store.user.find((row) => row.id === userId)! as unknown as Row), grants }) : envelope(422);
+  if (url.pathname === "/audit-logs") {
+    if (!hasPermission(grants, "AUDIT_LOG_VIEW")) return envelope(403);
+    if (request.method !== "GET" || [...query.keys()].some(key => !["id", "page", "pageSize", "search", "source", "module", "action", "performed_by", "from", "to", "format", "sortBy", "sortOrder"].includes(key))) return envelope(422);
+    const readInt = (key: string, defaultValue?: number) => query.has(key) ? Number(query.get(key)) : defaultValue;
+    const id = readInt("id"), page = readInt("page", 1)!, pageSize = readInt("pageSize", 25)!, actorId = readInt("performed_by");
+    if ([id, page, pageSize, actorId].some(value => value !== undefined && (!Number.isSafeInteger(value) || value < 1)) || pageSize > 100 || id && query.size !== 1) return envelope(422);
+    if (query.has("source") && !["HTTP", "KAFKA"].includes(query.get("source")!) || query.has("from") && !/^\d{4}-\d{2}-\d{2}$/.test(query.get("from")!) || query.has("to") && !/^\d{4}-\d{2}-\d{2}$/.test(query.get("to")!) || query.has("from") && query.has("to") && query.get("from")! > query.get("to")! || query.has("sortBy") && !["id", "performed_at"].includes(query.get("sortBy")!) || query.has("sortOrder") && !["asc", "desc"].includes(query.get("sortOrder")!)) return envelope(422);
+    if (id) { const row = store.audit_logs.find(item => item.id === id); return row ? envelope(200, safeAuditRow(store, row)) : envelope(404); }
+    const search = query.get("search")?.toLowerCase();
+    const filtered = store.audit_logs.map(row => safeAuditRow(store, row)).filter(row =>
+      (!query.get("source") || row.source === query.get("source")) &&
+      (!query.get("module") || row.entity_type === query.get("module")) &&
+      (!query.get("action") || row.action === query.get("action")) &&
+      (actorId === undefined || row.performed_by === actorId) &&
+      (!query.get("from") || row.performed_at.slice(0, 10) >= query.get("from")!) &&
+      (!query.get("to") || row.performed_at.slice(0, 10) <= query.get("to")!) &&
+      (!search || `${row.entity_type ?? ""} ${row.entity_id ?? ""} ${row.action} ${row.performed_by_name ?? ""} ${row.endpoint ?? ""} ${row.event_name ?? ""}`.toLowerCase().includes(search))
+    ).sort((a, b) => (query.get("sortBy") === "id" ? a.id - b.id : a.performed_at.localeCompare(b.performed_at) || a.id - b.id) * (query.get("sortOrder") === "asc" ? 1 : -1));
+    if (query.has("format")) {
+      if (query.get("format") !== "csv" || !hasPermission(grants, "REPORT_EXPORT_CSV")) return envelope(403);
+      const columns = ["id", "entity_type", "entity_id", "action", "source", "performed_by", "performed_by_name", "performed_at", "endpoint", "event_name", "input_payload", "previous_state", "new_state"] as const;
+      const cell = (value: unknown) => { const text = String(value ?? ""); return '"' + (/^[=+\-@\t\r\n]/.test(text) ? "'" : "") + text.replaceAll('"', '""') + '"'; };
+      const content = [columns.join(","), ...filtered.map(row => columns.map(column => cell(row[column])).join(","))].join("\r\n");
+      const now = new Date().toISOString();
+      store.audit_logs.push(makeRow("audit_logs", { entity_type: "audit_logs", action: "EXPORT", source: "HTTP", performed_by: userId, performed_at: now, endpoint: request.routeTemplate, input_payload: JSON.stringify({ filters: Object.fromEntries([...query].filter(([key]) => key !== "format")), totalItems: filtered.length }) }, Math.max(0, ...store.audit_logs.map(row => row.id)) + 1, now));
+      return envelope(200, { filename: "audit-log.csv", content, totalItems: filtered.length });
+    }
+    return envelope(200, { items: filtered.slice((page - 1) * pageSize, page * pageSize), page, pageSize, totalItems: filtered.length, totalPages: Math.ceil(filtered.length / pageSize) });
+  }
+  if (url.pathname === "/admin/users" && query.get("catalog") === "pillars") {
+    if (request.method !== "GET" || [...query.keys()].some(key => key !== "catalog")) return envelope(422);
+    if (!hasPermission(grants, "ROLE_MANAGE")) return envelope(403);
+    return envelope(200, store.pillar.filter(row => !row.is_deleted && row.status === "ACTIVE").map(row => ({ id: row.id, name: row.name, code: row.code })));
+  }
   if (url.pathname === "/reports" && query.get("catalog") === "true") {
     if (request.method !== "GET" || [...query.keys()].some(key => key !== "catalog")) return envelope(422);
     if (!grants.some(grant => ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].includes(grant.permissionCode))) return envelope(403);
@@ -262,10 +316,11 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (idText !== undefined && (!/^\d+$/.test(idText) || Number(idText) < 1)) return envelope(404);
   const id = idText ? Number(idText) : undefined;
   const rows = rowsFor(store, table);
-  const existing = id === undefined ? undefined : rows.find((row) => row.id === id && visible(row));
+  const existing = id === undefined ? undefined : rows.find((row) => row.id === id && (visible(row) || (table === "user_role" || table === "role_permission")));
   if (id !== undefined && !existing) return envelope(404);
   if (pillar && existing && !scopes(store, table, existing).includes(pillar.id)) return envelope(404);
   let permission = permissionCodes[table]?.[request.method === "GET" ? 0 : 1] ?? (request.method === "GET" ? "DASHBOARD_VIEW" : "LOOKUP_MANAGE");
+  if (table === "role" && request.method === "GET" && hasPermission(grants, "PERMISSION_MANAGE")) permission = "PERMISSION_MANAGE";
   if (family === "assessments" && table === "organisation" && request.method === "GET") permission = "ORG_ASSESSMENT_VIEW";
   if (table === "referral" && request.method === "POST") permission = "REFERRAL_CREATE";
   if (table === "grant_application" && request.method !== "GET" && request.body && typeof request.body === "object" && "status" in request.body) {
@@ -350,9 +405,10 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
     const countyId = query.has("countyId") ? Number(query.get("countyId")) : undefined;
     if (countyId !== undefined && (table !== "participant" || !Number.isSafeInteger(countyId) || countyId < 1)) return envelope(422);
-    const reserved = new Set(["page", "pageSize", "pillarId", "countyId", "table", "search", "q", "sortBy", "sortOrder", "format"]);
+    const reserved = new Set(["page", "pageSize", "pillarId", "countyId", "table", "search", "q", "sortBy", "sortOrder", "format", "includeDeleted"]);
+    if (query.has("includeDeleted") && (!(table === "user_role" || table === "role_permission") || query.get("includeDeleted") !== "true")) return envelope(422);
     for (const [key] of query) if (!reserved.has(key) && (!Object.hasOwn(tableDefinitions[table], key) || isSensitiveField(table, key))) return envelope(422);
-    let filtered = rows.filter((row) => visible(row) && allowed(store, grants, permission, table, row) && (pillarFilter === undefined || scopes(store, table, row).includes(pillarFilter)));
+    let filtered = rows.filter((row) => (visible(row) || query.get("includeDeleted") === "true") && allowed(store, grants, permission, table, row) && (pillarFilter === undefined || scopes(store, table, row).includes(pillarFilter)));
     if (countyId !== undefined) filtered = filtered.filter((row) => {
       const ward = store.ward.find((item) => item.id === row.ward_id);
       return store.sub_county.some((item) => item.id === ward?.sub_county_id && item.county_id === countyId);
@@ -389,6 +445,53 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!request.body || typeof request.body !== "object" || Array.isArray(request.body)) return envelope(422);
   const body = request.body as Row;
   if (Object.keys(body).some((key) => ["id", "created_at", "updated_at", "password_hash"].includes(key))) return envelope(422);
+  if (table === "user") {
+    const permitted = request.method === "POST" ? ["first_name", "middle_name", "last_name", "username", "phone_number", "email"] : ["first_name", "middle_name", "last_name", "phone_number", "email", "status", "status_description", "is_deleted"];
+    if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
+    if (request.method === "PATCH" && existing?.id === userId && (body.is_deleted === true || body.status && body.status !== "ACTIVE")) return envelope(403, null, "You cannot disable your own account");
+  }
+  if (table === "role") {
+    const permitted = request.method === "POST" ? ["code", "name", "description"] : ["name", "description", "status", "status_description", "is_deleted"];
+    if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
+    if (existing?.is_system_role) return envelope(403, null, "Built-in roles cannot be edited");
+  }
+  if (table === "permission") {
+    const permitted = request.method === "POST" ? ["code", "module", "name", "description"] : ["name", "description"];
+    if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
+  }
+  if (table === "user_role") {
+    const permitted = request.method === "POST" ? ["user_id", "role_id", "pillar_id"] : ["status", "is_deleted"];
+    if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
+    if (existing?.user_id === userId && (body.is_deleted === true || body.status && body.status !== "ACTIVE")) return envelope(403, null, "You cannot revoke your own role");
+    const becomingActive = request.method === "POST" || !!existing && (existing.is_deleted || existing.status !== "ACTIVE") && (body.is_deleted ?? existing.is_deleted) === false && (body.status ?? existing.status) === "ACTIVE";
+    if (becomingActive) {
+      const targetRole = store.role.find(role => role.id === (request.method === "POST" ? body.role_id : existing?.role_id) && !role.is_deleted && role.status === "ACTIVE");
+      const targetUser = store.user.find(user => user.id === (request.method === "POST" ? body.user_id : existing?.user_id) && !user.is_deleted && user.status === "ACTIVE");
+      const scope = request.method === "POST" ? body.pillar_id : existing?.pillar_id;
+      if (!targetRole || !targetUser || scope !== null && (!Number.isSafeInteger(scope) || !store.pillar.some(pillar => pillar.id === scope && !pillar.is_deleted && pillar.status === "ACTIVE"))) return envelope(422);
+      const roleCodes = targetRole.is_system_role && targetRole.code === "SYSTEM_ADMIN"
+        ? store.permission.filter(permission => !permission.is_deleted && permission.status === "ACTIVE").map(permission => permission.code)
+        : store.role_permission.filter(link => link.role_id === targetRole.id && !link.is_deleted && link.status === "ACTIVE").map(link => store.permission.find(permission => permission.id === link.permission_id && !permission.is_deleted && permission.status === "ACTIVE")?.code).filter((code): code is string => !!code);
+      if (roleCodes.some(code => !hasPermission(grants, code, { pillarId: scope as number | null }))) return envelope(403, null, "Role exceeds your grants");
+    }
+  }
+  if (table === "role_permission") {
+    const permitted = request.method === "POST" ? ["role_id", "permission_id"] : ["status", "is_deleted"];
+    if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
+    const targetRoleId = request.method === "POST" ? body.role_id : existing?.role_id;
+    const targetRole = store.role.find(role => role.id === targetRoleId && !role.is_deleted && role.status === "ACTIVE");
+    if (!targetRole) return envelope(422);
+    if (targetRole.is_system_role) return envelope(403, null, "Built-in role permissions cannot be edited");
+    const targetPermissionId = request.method === "POST" ? body.permission_id : existing?.permission_id;
+    const targetPermission = store.permission.find(item => item.id === targetPermissionId && !item.is_deleted && item.status === "ACTIVE");
+    if (!targetPermission) return envelope(422);
+    const becomingActive = request.method === "POST" || !!existing && (existing.is_deleted || existing.status !== "ACTIVE") && (body.is_deleted ?? existing.is_deleted) === false && (body.status ?? existing.status) === "ACTIVE";
+    if (becomingActive && !hasPermission(grants, targetPermission.code)) return envelope(403, null, "Permission exceeds your grants");
+    if (request.method === "PATCH" && (body.is_deleted === true || body.status && body.status !== "ACTIVE") && targetPermission.code === "PERMISSION_MANAGE" && store.user_role.some(assignment => assignment.user_id === userId && assignment.role_id === targetRole.id && !assignment.is_deleted && assignment.status === "ACTIVE")) {
+      const remaining = grants.filter(grant => grant.permissionCode === "PERMISSION_MANAGE");
+      if (remaining.length <= 1) return envelope(403, null, "You cannot remove your last permission-management grant");
+    }
+  }
   if (query.has("enroll") && (table !== "participant" || request.method !== "POST" || query.get("enroll") !== "true" || !query.has("pillarId"))) return envelope(422);
   let next: Row;
   const now = new Date().toISOString();
@@ -436,7 +539,6 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   }
   // Check both sides of a mutation to prevent moving records into/out of scope.
   if (existing && !allowed(store, grants, permission, table, existing) || !mayWriteNext) return envelope(403);
-  if (table === "role" && existing?.is_system_role) return envelope(403, null, "Built-in roles cannot be edited");
   // Match a network boundary: request-owned nested JSON must never become a
   // mutable reference into storage, including when only part of a row changes.
   try { next = structuredClone(next); } catch { return envelope(422); }

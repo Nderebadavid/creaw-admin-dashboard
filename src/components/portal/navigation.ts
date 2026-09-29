@@ -12,7 +12,7 @@ export interface NavigationItem {
 export const implementedPortalRoutes: readonly string[] = [
   "/dashboard", "/field-submissions", "/pillars/vawg", "/pillars/wee", "/pillars/srhr",
   "/pillars/leadership", "/pillars/wros", "/pillars/skilling",
-  "/participants", "/referrals", "/grants", "/assessments", "/reporting",
+  "/participants", "/referrals", "/grants", "/assessments", "/reporting", "/audit", "/admin/users", "/admin/permissions",
 ];
 export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   { label: "Overview", items: [
@@ -38,7 +38,7 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     {label:"Audit log",href:"/audit",permissions:["AUDIT_LOG_VIEW"],icon:History},
   ]},
   { label: "Admin", items: [
-    {label:"Users & roles",href:"/admin/users",permissions:["USER_MANAGE","ROLE_MANAGE"],icon:UserCog},
+    {label:"Users & roles",href:"/admin/users",permissions:["USER_MANAGE"],icon:UserCog},
     {label:"Roles & permissions",href:"/admin/permissions",permissions:["PERMISSION_MANAGE","ROLE_MANAGE"],icon:ShieldCheck},
     {label:"Pipeline config",href:"/admin/pipelines",permissions:["PILLAR_CONFIG_MANAGE"],icon:Workflow},
     {label:"Lookup tables",href:"/admin/lookups/pillar",permissions:["LOOKUP_MANAGE"],icon:SlidersHorizontal},
