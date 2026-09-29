@@ -30,12 +30,12 @@ export class LiveApiTransport implements ApiTransport {
 
     const headers: Record<string, string> = {};
     if (request.token) headers.Authorization = `Bearer ${request.token}`;
-    if (request.correlationId) headers["x-correlation-id"] = request.correlationId;
+    headers["x-correlation-id"] = request.correlationId;
     if (request.body !== undefined) headers["Content-Type"] = "application/json";
 
     const trace = {
       method: request.method,
-      path: request.path.split("?")[0],
+      routeTemplate: request.routeTemplate,
       correlationId: request.correlationId,
     };
 

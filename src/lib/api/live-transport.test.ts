@@ -28,6 +28,7 @@ describe("LiveApiTransport", () => {
       {
         method: "GET",
         path: "/participants",
+        routeTemplate: "/participants",
         query: { page: 1, active: false, missing: undefined },
         token: "secret",
         correlationId: "req-123",
@@ -52,10 +53,30 @@ describe("LiveApiTransport", () => {
 
     await expect(
       new LiveApiTransport("https://example.test").request(
-        { method: "GET", path: "/participants" },
+        { method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-http" },
         z.unknown()
       )
     ).rejects.toMatchObject({ kind: "http", status: 503 });
+  });
+
+  it("uses the concrete path for fetch but only the route template for logs", async () => {
+    const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await new LiveApiTransport("https://example.test").request(
+      {
+        method: "GET",
+        path: "/participants/1",
+        routeTemplate: "/participants/:id",
+        correlationId: "req-789",
+      },
+      z.object({ ok: z.boolean() })
+    );
+
+    expect(String(fetchSpy.mock.calls[0][0])).toContain("/participants/1");
+    expect(JSON.stringify(logSpy.mock.calls)).toContain("/participants/:id");
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain("/participants/1");
   });
 
   it("normalizes timeouts", async () => {
@@ -63,7 +84,7 @@ describe("LiveApiTransport", () => {
 
     await expect(
       new LiveApiTransport("https://example.test").request(
-        { method: "GET", path: "/participants" },
+        { method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-timeout" },
         z.unknown()
       )
     ).rejects.toMatchObject({ kind: "timeout" } satisfies Partial<ApiTransportError>);
@@ -74,7 +95,7 @@ describe("LiveApiTransport", () => {
 
     await expect(
       new LiveApiTransport("https://example.test").request(
-        { method: "GET", path: "/participants" },
+        { method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-invalid" },
         z.object({ id: z.number() })
       )
     ).rejects.toMatchObject({ kind: "invalid-response" });
@@ -90,7 +111,7 @@ describe("injected API boundary", () => {
     );
 
     const result = await client.request(
-      { method: "POST", path: "/participants", body: { firstName: "Faith" } },
+      { method: "POST", path: "/participants", routeTemplate: "/participants", body: { firstName: "Faith" } },
       z.object({ id: z.string(), count: z.number() })
     );
 
@@ -102,7 +123,7 @@ describe("injected API boundary", () => {
     const transport = new MockApiTransport(() => ({ id: "wrong" }));
 
     await expect(
-      transport.request({ method: "GET", path: "/participants" }, z.object({ id: z.number() }))
+      transport.request({ method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "req-invalid-mock" }, z.object({ id: z.number() }))
     ).rejects.toThrow();
   });
 
@@ -114,13 +135,45 @@ describe("injected API boundary", () => {
 
     await expect(
       transport.request(
-        { method: "PATCH", path: "/participants/1", correlationId: "req-456" },
+        { method: "PATCH", path: "/participants/1", routeTemplate: "/participants/:id", correlationId: "req-456" },
         z.unknown()
       )
     ).rejects.toThrow("handler failed");
     expect(logSpy).toHaveBeenCalledWith(
       "[api]",
-      expect.objectContaining({ correlationId: "req-456", outcome: "error" })
+      expect.objectContaining({ correlationId: "req-456", routeTemplate: "/participants/:id", outcome: "error" })
     );
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain("/participants/1");
+  });
+
+  it("generates a correlation ID before handing a request to a transport", async () => {
+    let seenCorrelationId: string | undefined;
+    const client = createApiClient(new MockApiTransport((request) => {
+      seenCorrelationId = request.correlationId;
+      return { ok: true };
+    }));
+
+    await client.request(
+      { method: "GET", path: "/participants/1", routeTemplate: "/participants/:id" },
+      z.object({ ok: z.boolean() })
+    );
+
+    expect(seenCorrelationId).toBeTruthy();
+    expect(seenCorrelationId).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
+  it("preserves a caller-supplied correlation ID", async () => {
+    let seenCorrelationId: string | undefined;
+    const client = createApiClient(new MockApiTransport((request) => {
+      seenCorrelationId = request.correlationId;
+      return { ok: true };
+    }));
+
+    await client.request(
+      { method: "GET", path: "/participants/1", routeTemplate: "/participants/:id", correlationId: "upstream-123" },
+      z.object({ ok: z.boolean() })
+    );
+
+    expect(seenCorrelationId).toBe("upstream-123");
   });
 });

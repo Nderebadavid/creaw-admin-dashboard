@@ -1,6 +1,6 @@
 export interface ApiOperationEvent {
   method: string;
-  path: string;
+  routeTemplate: string;
   correlationId?: string;
   status?: number;
   outcome?: string;
@@ -8,6 +8,15 @@ export interface ApiOperationEvent {
 }
 
 const sensitiveKey = /password|token|id_number|phone|salary|amount|notes|authorization|secret|cookie/i;
+const dynamicSegment = /^(?:\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}|[a-z]{1,2}\d+)$/i;
+
+export function sanitizeRouteTemplate(routeTemplate: string): string {
+  return routeTemplate
+    .split(/[?#]/, 1)[0]
+    .split("/")
+    .map((segment) => (dynamicSegment.test(segment) ? ":id" : segment))
+    .join("/");
+}
 
 function redact(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redact);
@@ -23,5 +32,15 @@ function redact(value: unknown): unknown {
 }
 
 export function logApiOperation(event: ApiOperationEvent): void {
-  console.info("[api]", redact(event));
+  console.info(
+    "[api]",
+    redact({
+      method: event.method,
+      routeTemplate: sanitizeRouteTemplate(event.routeTemplate),
+      correlationId: event.correlationId,
+      status: event.status,
+      outcome: event.outcome,
+      details: event.details,
+    })
+  );
 }

@@ -10,7 +10,7 @@ export class MockApiTransport implements ApiTransport {
   async request<T>(request: ApiRequest<unknown>, schema: z.ZodType<T>): Promise<T> {
     const trace = {
       method: request.method,
-      path: request.path.split("?")[0],
+      routeTemplate: request.routeTemplate,
       correlationId: request.correlationId,
     };
     try {

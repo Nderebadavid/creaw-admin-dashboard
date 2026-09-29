@@ -9,7 +9,7 @@ describe("logApiOperation", () => {
 
     logApiOperation({
       method: "POST",
-      path: "/participants",
+      routeTemplate: "/participants",
       correlationId: "req-123",
       details: {
         password: "pw",
@@ -31,5 +31,23 @@ describe("logApiOperation", () => {
     expect(serialized).not.toContain("token-value");
     expect(serialized).not.toContain("private");
     expect(serialized.match(/\[REDACTED\]/g)).toHaveLength(8);
+  });
+
+  it.each([
+    ["/participants/1", "/participants/:id"],
+    ["/participants/p1", "/participants/:id"],
+    ["/grants/g2", "/grants/:id"],
+    ["/referrals/f3", "/referrals/:id"],
+    ["/participants/550e8400-e29b-41d4-a716-446655440000", "/participants/:id"],
+    ["/participants/abcdef0123456789", "/participants/:id"],
+    ["/admin/lookups/:table", "/admin/lookups/:table"],
+  ])("sanitizes dynamic route segment %s", (routeTemplate, expected) => {
+    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    logApiOperation({ method: "GET", routeTemplate });
+
+    const serialized = JSON.stringify(spy.mock.calls[0]);
+    expect(serialized).toContain(expected);
+    if (routeTemplate !== expected) expect(serialized).not.toContain(routeTemplate);
   });
 });
