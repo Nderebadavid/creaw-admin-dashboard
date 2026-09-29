@@ -65,6 +65,8 @@ export function PortalShell({
             quarter={quarter}
             onQuarterChange={setQuarter}
             destinations={destinations}
+            grants={session.grants}
+            status={status}
           />
           <main
             id="portal-content"

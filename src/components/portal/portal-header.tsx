@@ -1,18 +1,13 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Bell, Menu, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
-import { logoutAction } from "@/lib/auth/actions";
+import { hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
 import { GlobalSearch, type SearchDestination } from "./global-search";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import type { NavigationStatus } from "./navigation";
+import { NotificationsMenu } from "./notifications-menu";
+import { UserMenu } from "./user-menu";
 
 export function PortalHeader({
   user,
@@ -22,8 +17,12 @@ export function PortalHeader({
   quarter,
   onQuarterChange,
   destinations,
+  grants,
+  status,
 }: {
   user: SessionUser;
+  grants: readonly EffectiveGrant[];
+  status?: NavigationStatus;
   collapsed: boolean;
   onToggleSidebar: () => void;
   onOpenMobile: () => void;
@@ -31,23 +30,7 @@ export function PortalHeader({
   onQuarterChange: (quarter: string) => void;
   destinations: readonly SearchDestination[];
 }) {
-  const router = useRouter();
-  const [notifications, setNotifications] = useState(false),
-    [signingOut, setSigningOut] = useState(false),
-    [error, setError] = useState("");
   const [year] = useState(() => Number(quarter.slice(0, 4)));
-  async function signOut() {
-    setSigningOut(true);
-    setError("");
-    try {
-      await logoutAction();
-      router.push("/login");
-      router.refresh();
-    } catch {
-      setError("Could not sign out. Please try again.");
-      setSigningOut(false);
-    }
-  }
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-white px-4 py-3 lg:flex-nowrap lg:px-7">
       <Button
@@ -89,50 +72,13 @@ export function PortalHeader({
             ))
           )}
         </select>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Notifications"
-          onClick={() => setNotifications(true)}
-          className="rounded-full"
-        >
-          <Bell aria-hidden="true" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={`Account for ${user.name}`}
-            disabled={signingOut}
-            className="flex items-center gap-3 rounded-lg p-1 text-left"
-          >
-            <span className="flex size-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
-              {user.initials}
-            </span>
-            <span className="hidden xl:block">
-              <span className="block text-sm font-semibold">{user.name}</span>
-              <span className="block text-xs text-creaw-muted">CREAW MERL Portal</span>
-            </span>
-            <ChevronDown size={16} aria-hidden="true" className="hidden sm:block" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <div className="px-2 py-2 text-sm">
-              <p className="font-semibold">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            </div>
-            <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationsMenu status={status} />
+        <UserMenu
+          user={user}
+          canManageUsers={hasModulePermission(grants, "USER_MANAGE")}
+          canViewAudit={hasModulePermission(grants, "AUDIT_LOG_VIEW")}
+        />
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <Dialog open={notifications} onOpenChange={setNotifications}>
-        <DialogContent>
-          <DialogTitle>Notifications</DialogTitle>
-          <DialogDescription>No new notifications.</DialogDescription>
-        </DialogContent>
-      </Dialog>
     </header>
   );
 }

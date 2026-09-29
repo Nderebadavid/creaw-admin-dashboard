@@ -9,7 +9,7 @@ import { auditQuerySchema } from "@/features/audit/schemas";
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ module?: string; targetId?: string }>;
+  searchParams: Promise<{ module?: string; targetId?: string; userId?: string }>;
 }) {
   const session = await requireSession();
   if (!hasPermission(session.grants, "AUDIT_LOG_VIEW")) notFound();
@@ -19,6 +19,8 @@ export default async function AuditPage({
     pageSize: 25,
     module: params.module || undefined,
     targetId: params.targetId ? Number(params.targetId) : undefined,
+    // Set by the account menu's "My activity" link.
+    userId: params.userId ? Number(params.userId) : undefined,
   });
   if (!parsed.success) notFound();
   const initial = await auditApi.list(parsed.data);

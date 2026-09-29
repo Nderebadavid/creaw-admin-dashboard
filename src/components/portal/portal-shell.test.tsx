@@ -15,6 +15,7 @@ const session = {
     name: "Judy Mwangi",
     email: "judy@creaw.org",
     initials: "JM",
+    roles: ["System Administrator"],
   },
   grants: [{ permissionCode: "DASHBOARD_VIEW", pillarId: null }],
 };
@@ -36,7 +37,7 @@ it("shows the signed-in identity and exposes quarter selection to pages", () => 
   fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
   expect(screen.getByText("Dashboard")).toHaveClass("sr-only");
 });
-it("opens a labelled mobile drawer and notification dialog", async () => {
+it("opens a labelled mobile drawer and the notifications panel", async () => {
   render(
     <PortalShell session={session}>
       <p>Content</p>
@@ -46,7 +47,7 @@ it("opens a labelled mobile drawer and notification dialog", async () => {
   expect(await screen.findByRole("dialog", { name: "Navigation" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
-  expect(await screen.findByRole("dialog", { name: "Notifications" })).toHaveTextContent(
-    "No new notifications."
+  expect(screen.getByRole("region", { name: "Notifications" })).toHaveTextContent(
+    "You're all caught up."
   );
 });

@@ -38,7 +38,22 @@ export function handleCurrentUser(ctx: MockContext): ApiEnvelope<unknown> | unde
       ? envelope(200, {
           user: masked("user", store.user.find((row) => row.id === userId)! as unknown as Row),
           grants,
+          roles: activeRoleNames(store, userId),
         })
       : envelope(422);
   return undefined;
+}
+
+/** Distinct names of the user's active, non-deleted role assignments. */
+function activeRoleNames(store: MockContext["store"], userId: number): string[] {
+  const live = (row: { is_deleted: boolean; status: string }) =>
+    !row.is_deleted && row.status === "ACTIVE";
+  const roleIds = store.user_role
+    .filter((row) => row.user_id === userId && live(row))
+    .map((row) => row.role_id);
+  return [
+    ...new Set(
+      store.role.filter((role) => roleIds.includes(role.id) && live(role)).map((role) => role.name)
+    ),
+  ];
 }

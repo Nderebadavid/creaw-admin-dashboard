@@ -29,6 +29,7 @@ describe("session resolution", () => {
     expect(session?.user).toMatchObject({ name: "Judy Mwangi" });
     expect(session?.user.email).toContain(".org");
     expect(session?.grants.length).toBeGreaterThan(0);
+    expect(session?.user.roles).toEqual(["System Administrator"]);
     expect(JSON.stringify(session)).not.toContain("password_hash");
   });
 

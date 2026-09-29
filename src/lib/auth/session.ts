@@ -7,6 +7,8 @@ export interface SessionUser {
   name: string;
   email: string;
   initials: string;
+  /** Names of the user's active roles, e.g. ["Pillar Lead", "Data Entry"]. */
+  roles: string[];
 }
 
 export interface Session {
@@ -14,12 +16,10 @@ export interface Session {
   grants: Array<{ permissionCode: string; pillarId: number | null }>;
 }
 
-export function toPortalSessionUser(user: {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string | null;
-}): SessionUser {
+export function toPortalSessionUser(
+  user: { id: number; first_name: string; last_name: string; email: string | null },
+  roles: string[] = []
+): SessionUser {
   const firstName = user.first_name;
   const lastName = user.last_name;
   return {
@@ -29,5 +29,6 @@ export function toPortalSessionUser(user: {
     name: `${firstName} ${lastName}`.trim(),
     email: user.email ?? "",
     initials: `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase(),
+    roles,
   };
 }

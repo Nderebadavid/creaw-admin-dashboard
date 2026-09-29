@@ -25,6 +25,7 @@ const meSchema = z.object({
         email: z.string().nullable(),
       }),
       grants: z.array(z.object({ permissionCode: z.string(), pillarId: z.number().nullable() })),
+      roles: z.array(z.string()).default([]),
     }),
     z.null(),
   ]),
@@ -44,8 +45,8 @@ export async function getSession(): Promise<Session | null> {
       meSchema
     );
     if (!response.success || !response.data) return null;
-    const { user, grants } = response.data;
-    return { user: toPortalSessionUser(user), grants };
+    const { user, grants, roles } = response.data;
+    return { user: toPortalSessionUser(user, roles), grants };
   } catch {
     return null;
   }
