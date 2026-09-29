@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission } from "@/lib/auth/permissions";
 import { grantsApi } from "@/features/grants/api";
@@ -12,17 +11,15 @@ export default async function GrantsPage() {
     grantsApi.pillars(),
   ]);
   return (
-    <>
-      <PageHeading
-        title="Grants"
-        section="Records"
-        description="WEE business grants and WRO sub-grants"
-      />
-      <GrantsContent
-        initial={initial}
-        pillars={pillars}
-        canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
-      />
-    </>
+    <GrantsContent
+      heading={{
+        title: "Grants",
+        section: "Records",
+        description: "WEE business grants and WRO sub-grants",
+      }}
+      initial={initial}
+      pillars={pillars}
+      canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
+    />
   );
 }
