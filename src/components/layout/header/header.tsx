@@ -7,7 +7,7 @@ import { ChevronDownIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useCurrentUser, useRoleSwitcher } from "@/lib/auth/current-role";
-import { logout } from "@/lib/auth/auth-client";
+import { logoutAction } from "@/lib/auth/actions";
 import { ALL_ROLES, type UserRole } from "@/types/navigation";
 import {
   DropdownMenu,
@@ -33,7 +33,7 @@ export function Header() {
   const handleSignOut = async () => {
     setSigningOut(true);
     try {
-      await logout();
+      await logoutAction();
     } finally {
       router.push("/login");
     }

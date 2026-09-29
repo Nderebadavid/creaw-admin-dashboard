@@ -5,7 +5,7 @@ import type { ApiRequest } from "../api/transport";
 import { API_ROUTE_TEMPLATES } from "../api/transport";
 import { getEffectiveGrants, hasPermission, type EffectiveGrant } from "../auth/permissions";
 import { isSensitiveField, maskSensitiveValue } from "../sensitive-fields";
-import { getMockStore } from "./store";
+import { getMockStore, isMockTokenRevoked, issueMockToken, revokeMockToken } from "./store";
 import { tableDefinitions } from "./schema";
 import { makeRow } from "./rows";
 import { MOCK_PASSWORD } from "./seed";
@@ -127,9 +127,16 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     if (typeof body?.username !== "string" || typeof body?.password !== "string") return envelope(422);
     const user = store.user.find((row) => row.username === body.username && !row.is_deleted && row.status === "ACTIVE");
     if (!user || body.password !== MOCK_PASSWORD) return envelope(403);
-    return envelope(200, { token: `mock-user-${user.id}`, user: masked("user", user as unknown as Row), grants: getEffectiveGrants(user.id) });
+    return envelope(200, { token: issueMockToken(user.id), user: masked("user", user as unknown as Row), grants: getEffectiveGrants(user.id) });
   }
-  const token = request.token?.match(/^mock-user-(\d+)$/);
+  if (url.pathname === "/auth/logout") {
+    if (request.method !== "POST") return envelope(422);
+    if (!request.token || !/^mock-user-\d+(?:-v\d+)?$/.test(request.token) || isMockTokenRevoked(request.token)) return envelope(403);
+    revokeMockToken(request.token);
+    return envelope(200);
+  }
+  const token = request.token?.match(/^mock-user-(\d+)(?:-v\d+)?$/);
+  if (request.token && isMockTokenRevoked(request.token)) return envelope(403);
   const userId = token ? Number(token[1]) : 0;
   const grants = getEffectiveGrants(userId);
   if (!grants.length) return envelope(403);

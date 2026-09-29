@@ -1,50 +1,46 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createPortalApiClient } from "@/lib/api/portal-client";
 import {
   SESSION_COOKIE_NAME,
-  toSessionUser,
-  unwrapEnvelope,
-  type IdentityServiceEnvelope,
+  toPortalSessionUser,
+  type Session,
   type SessionUser,
-  type UserProfilePayload,
 } from "./session";
 
-export type { SessionUser };
+export type { SessionUser, Session };
 
-/**
- * Server-side only: resolves the signed-in user from the session cookie via
- * GET /users/me (open to any authenticated user -- see
- * vsla-identity-service/docs/api-testing/README.md). Returns null if there's
- * no cookie or the identity service rejects it (expired/revoked token) --
- * callers (the dashboard layout) should redirect to /login in that case.
- *
- * proxy.ts already checked /auth/validate before this ever renders, so a
- * null here means the token expired in the few hundred ms since, or the
- * service is unreachable -- rare, but handled rather than assumed away.
- */
-export async function getSessionUser(): Promise<SessionUser | null> {
-  const baseUrl = process.env.IDENTITY_SERVICE_BASE_URL;
+const meSchema = z.object({
+  resultCode: z.number(), success: z.boolean(), message: z.string(),
+  data: z.union([z.object({
+    user: z.object({ id: z.number(), first_name: z.string(), last_name: z.string(), email: z.string().nullable() }),
+    grants: z.array(z.object({ permissionCode: z.string(), pillarId: z.number().nullable() })),
+  }), z.null()]),
+});
+
+export async function getSession(): Promise<Session | null> {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token || !baseUrl) return null;
-
-  let res: Response;
+  if (!token) return null;
   try {
-    res = await fetch(`${baseUrl}/users/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("[session-server] failed to reach identity service:", err);
+    const response = await createPortalApiClient().request({
+      method: "GET", path: "/auth/me", routeTemplate: "/auth/me", token,
+    }, meSchema);
+    if (!response.success || !response.data) return null;
+    const { user, grants } = response.data;
+    return { user: toPortalSessionUser(user, grants), grants };
+  } catch {
     return null;
   }
+}
 
-  if (!res.ok) return null;
+export async function requireSession(): Promise<Session> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  return session;
+}
 
-  const data: IdentityServiceEnvelope<UserProfilePayload> | null = await res
-    .json()
-    .catch(() => null);
-
-  const payload = unwrapEnvelope(data);
-  if (!data?.success || !payload) return null;
-  return toSessionUser(payload);
+export async function getSessionUser(): Promise<SessionUser | null> {
+  return (await getSession())?.user ?? null;
 }

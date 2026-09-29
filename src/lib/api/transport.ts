@@ -2,6 +2,7 @@ import type { z } from "zod";
 
 export const API_ROUTE_TEMPLATES = [
   "/auth/login",
+  "/auth/logout",
   "/auth/me",
   "/dashboard",
   "/field-submissions",

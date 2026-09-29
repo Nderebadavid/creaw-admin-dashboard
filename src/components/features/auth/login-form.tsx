@@ -2,20 +2,12 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowRight, Eye, EyeOff, Lock, User } from "lucide-react";
-
-import { FormInput } from "@/components/ui/form-input";
-import { login } from "@/lib/auth/auth-client";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { loginAction } from "@/lib/auth/actions";
 import { AuthShell } from "./auth-shell";
 
-// proxy.ts sets ?redirect=<pathname> when it bounces an unauthenticated
-// visitor here. It's attacker-controllable via the URL (not just proxy.ts),
-// so only ever treat it as a same-origin relative path -- never pass it to
-// router.push unsanitized, or a crafted //evil.com value becomes an open
-// redirect right after a real login.
-function safeRedirectTarget(value: string | null): string {
-  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
+export function safeRedirectTarget(value: string | null): string {
+  if (value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && !/[\r\n]/.test(value)) return value;
   return "/dashboard";
 }
 
@@ -24,122 +16,61 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError("");
-
-    if (!username.trim() || !password) {
-      setError("Please enter your username and password.");
-      return;
-    }
-
+    if (!username.trim()) { setError("Enter your email or username."); return; }
+    if (!password) { setError("Enter your password."); return; }
     setLoading(true);
     try {
-      const result = await login(username, password);
-      if (!result.success) {
-        setError(result.error ?? "Login failed. Please check your credentials.");
-        return;
-      }
-      // TODO: once a change-password page exists, route
-      // result.requirePasswordChange there instead of the redirect target.
+      const result = await loginAction(username, password, remember);
+      if (!result.success) { setError(result.error ?? "Sign in failed. Please try again."); return; }
       router.push(safeRedirectTarget(searchParams.get("redirect")));
     } catch {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your account">
-      {error && (
-        <div
-          role="alert"
-          className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-        >
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <FormInput
-          label="Username"
-          id="username"
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username or email"
-          autoComplete="username"
-          autoCorrect="off"
-          autoCapitalize="none"
-          disabled={loading}
-          icon={<User className="h-4 w-4 text-slate-500" />}
-          showLabel={false}
-          containerClassName="space-y-1.5"
-          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-2.5 pr-3 pl-10 text-sm text-white transition-all placeholder:text-slate-600 focus-visible:border-primary/30 focus-visible:ring-1 focus-visible:ring-primary/20 disabled:opacity-50"
-        />
-
-        <FormInput
-          label="Password"
-          id="password"
-          type={showPassword ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter password"
-          autoComplete="current-password"
-          disabled={loading}
-          icon={<Lock className="h-4 w-4 text-slate-500" />}
-          showLabel={false}
-          containerClassName="space-y-1.5"
-          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-2.5 pr-10 pl-10 text-sm text-white transition-all placeholder:text-slate-600 focus-visible:border-primary/30 focus-visible:ring-1 focus-visible:ring-primary/20 disabled:opacity-50"
-          suffix={
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="flex items-center text-slate-500 transition-colors hover:text-slate-400"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
+    <AuthShell title="Sign in" subtitle="Use your CREAW staff account.">
+      {error && <div role="alert" className="rounded-[10px] border border-[#F3CCC6] bg-[#FBE9E6] px-3.5 py-3 text-sm text-[#6E2019]">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-[18px]" noValidate>
+        <label htmlFor="username" className="block space-y-[7px] text-sm font-semibold text-[#4A413A]">
+          <span>Email or username</span>
+          <span className="flex h-12 items-center gap-2.5 rounded-[10px] border border-[#E2DBD3] px-3.5 focus-within:border-[#B4552E] focus-within:ring-2 focus-within:ring-[#F0CDBB]">
+            <Mail size={20} className="shrink-0 text-[#A39A92]" aria-hidden />
+            <input id="username" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" placeholder="name@creaw.org" value={username} onChange={(event) => setUsername(event.target.value)} disabled={loading} className="min-w-0 flex-1 bg-transparent text-[15px] font-normal text-[#221C18] outline-none placeholder:text-[#A39A92]" />
+          </span>
+        </label>
+        <label htmlFor="password" className="block space-y-[7px] text-sm font-semibold text-[#4A413A]">
+          <span>Password</span>
+          <span className="flex h-12 items-center gap-2.5 rounded-[10px] border border-[#E2DBD3] pr-1.5 pl-3.5 focus-within:border-[#B4552E] focus-within:ring-2 focus-within:ring-[#F0CDBB]">
+            <LockKeyhole size={20} className="shrink-0 text-[#A39A92]" aria-hidden />
+            <input id="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={loading} className="min-w-0 flex-1 bg-transparent text-[15px] font-normal text-[#221C18] outline-none placeholder:text-[#A39A92]" />
+            <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-label={showPassword ? "Hide password" : "Show password"} className="grid h-9 w-9 place-items-center rounded-lg text-[#6B625B] hover:bg-[#F7F4F0]">
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
-          }
-        />
-
-        <div className="flex items-center justify-end text-xs">
-          {/* Placeholder route -- build the reset-password flow when auth lands. */}
-          <Link
-            href="/forgot-password"
-            className="text-primary/80 transition-colors hover:text-primary"
-          >
-            Forgot password?
-          </Link>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? (
-            <>
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-              <span>Signing in...</span>
-            </>
-          ) : (
-            <>
-              <span>Sign in</span>
-              <ArrowRight className="h-4 w-4" />
-            </>
-          )}
+          </span>
+        </label>
+        <label className="flex items-center gap-2.5 text-sm text-[#4A413A]">
+          <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="h-[18px] w-[18px] accent-[#B4552E]" />
+          Keep me signed in on this device for 12 hours
+        </label>
+        <button type="submit" disabled={loading} className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#B4552E] text-base font-semibold text-white hover:bg-[#8C3F20] disabled:cursor-wait disabled:opacity-60">
+          {loading ? "Signing in…" : "Sign in"} {!loading && <ArrowRight size={19} aria-hidden />}
         </button>
       </form>
+      <div className="rounded-xl bg-[#F7F4F0] p-3.5 text-[13px] leading-relaxed text-[#6B625B]">
+        <p className="flex gap-2"><ShieldCheck size={20} className="shrink-0 text-[#B4552E]" aria-hidden /><span>This portal holds survivor and participant data. Need an account? Ask your System Administrator.</span></p>
+        <p className="mt-2 pl-7">Demo: <strong>judy.mwangi</strong> / <strong>creaw-demo</strong></p>
+      </div>
     </AuthShell>
   );
 }
