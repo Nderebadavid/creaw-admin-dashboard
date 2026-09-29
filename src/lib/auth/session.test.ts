@@ -6,7 +6,7 @@ vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn((path: string) => { throw new Error(`REDIRECT:${path}`); }) }));
 
 import { getSession, requireSession } from "./session-server";
-import { resetMockStore } from "../mock-api/store";
+import { issueMockToken, resetMockStore } from "../mock-api/store";
 
 beforeEach(() => { resetMockStore(); cookieStore.get.mockReset(); });
 
@@ -17,7 +17,7 @@ describe("session resolution", () => {
   });
 
   it("resolves the signed-in user and grants through /auth/me", async () => {
-    cookieStore.get.mockReturnValue({ value: "mock-user-1" });
+    cookieStore.get.mockReturnValue({ value: issueMockToken(1) });
     const session = await getSession();
     expect(session?.user).toMatchObject({ name: "Judy Mwangi" });
     expect(session?.user.email).toContain(".org");

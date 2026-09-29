@@ -404,4 +404,6 @@ export interface DbTables {
   audit_logs: AuditLogs;
 }
 export type TableName = keyof DbTables;
-export type MockStore = { [K in TableName]: DbTables[K][] };
+export type MockStore = { [K in TableName]: DbTables[K][] } & {
+  sessions: Map<string, number>;
+};

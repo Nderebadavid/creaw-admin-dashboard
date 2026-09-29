@@ -9,6 +9,7 @@ const pillarIds: Record<string, number> = { vawg: 1, wee: 2, srhr: 3, leadership
 
 export function createSeed(): MockStore {
   const store = Object.fromEntries(Object.keys(tableDefinitions).map((table) => [table, []])) as unknown as MockStore;
+  store.sessions = new Map();
   function add<K extends TableName>(table: K, input: Partial<DbTables[K]>) {
     const row = makeRow(table, input, store[table].length + 1, SEED_DATE);
     (store[table] as DbTables[K][]).push(row);

@@ -4,28 +4,21 @@ import { createSeed } from "./seed";
 
 // One process-local store survives development module reloads. Restarting the
 // server clears it; production mock processes also remain isolated from each other.
-const globalStore = globalThis as typeof globalThis & {
-  __creawMockStoreV1?: MockStore;
-  __creawRevokedTokensV1?: Set<string>;
-  __creawTokenSequenceV1?: Map<number, number>;
-};
+const globalStore = globalThis as typeof globalThis & { __creawMockStoreV2?: MockStore };
 export function issueMockToken(userId: number): string {
-  const sequence = globalStore.__creawTokenSequenceV1 ??= new Map();
-  const version = (sequence.get(userId) ?? 0) + 1;
-  sequence.set(userId, version);
-  return `mock-user-${userId}${version === 1 ? "" : `-v${version}`}`;
+  const token = crypto.randomUUID();
+  getMockStore().sessions.set(token, userId);
+  return token;
 }
-export function isMockTokenRevoked(token: string): boolean {
-  return (globalStore.__creawRevokedTokensV1 ??= new Set()).has(token);
+export function resolveMockToken(token: string | undefined): number | undefined {
+  return token ? getMockStore().sessions.get(token) : undefined;
 }
-export function revokeMockToken(token: string): void {
-  (globalStore.__creawRevokedTokensV1 ??= new Set()).add(token);
+export function revokeMockToken(token: string): boolean {
+  return getMockStore().sessions.delete(token);
 }
 export function getMockStore(): MockStore {
-  return globalStore.__creawMockStoreV1 ??= createSeed();
+  return globalStore.__creawMockStoreV2 ??= createSeed();
 }
 export function resetMockStore(): MockStore {
-  globalStore.__creawRevokedTokensV1 = new Set();
-  globalStore.__creawTokenSequenceV1 = new Map();
-  return globalStore.__creawMockStoreV1 = createSeed();
+  return globalStore.__creawMockStoreV2 = createSeed();
 }

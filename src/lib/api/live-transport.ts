@@ -48,22 +48,18 @@ export class LiveApiTransport implements ApiTransport {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
 
-      if (!response.ok) {
-        throw new ApiTransportError("http", `API request failed with status ${response.status}`, response.status);
-      }
-
       let payload: unknown;
       try {
         payload = await response.json();
       } catch (error) {
-        throw new ApiTransportError("invalid-response", "API response is not valid JSON", response.status, {
+        throw new ApiTransportError(response.ok ? "invalid-response" : "http", response.ok ? "API response is not valid JSON" : `API request failed with status ${response.status}`, response.status, {
           cause: error,
         });
       }
 
       try {
         const parsed = schema.parse(payload);
-        logApiOperation({ ...trace, status: response.status, outcome: "success" });
+        logApiOperation({ ...trace, status: response.status, outcome: response.ok ? "success" : "http" });
         return parsed;
       } catch (error) {
         if (!(error instanceof ZodError)) throw error;

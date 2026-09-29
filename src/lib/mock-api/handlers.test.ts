@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 vi.mock("server-only", () => ({}));
 import { handleMockRequest } from "./handlers";
-import { getMockStore, resetMockStore } from "./store";
+import { getMockStore, issueMockToken, resetMockStore } from "./store";
 import { createPortalApiClient } from "../api/portal-client";
 import type { ApiRequest } from "../api/transport";
 import { tableDefinitions } from "./schema";
 import type { TableName } from "@/types/db";
-const request = (overrides: Partial<ApiRequest<unknown>> = {}) => handleMockRequest({ method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "test", token: "mock-user-1", ...overrides });
+const request = (overrides: Partial<ApiRequest<unknown>> = {}) => {
+  const selectedToken = Object.hasOwn(overrides, "token") ? overrides.token : "mock-user-1";
+  const fixtureUser = selectedToken?.match(/^mock-user-(\d+)$/);
+  const token = fixtureUser ? issueMockToken(Number(fixtureUser[1])) : selectedToken;
+  return handleMockRequest({ method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "test", ...overrides, token });
+};
 beforeEach(() => { resetMockStore(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 describe("mock repository contracts", () => {
   it("paginates query strings with totals", async () => {
@@ -57,7 +62,7 @@ describe("mock repository contracts", () => {
   it("composes mock transport with no fetch and rejects unknown modes immediately", async () => {
     const fetchSpy = vi.fn(); vi.stubGlobal("fetch", fetchSpy);
     vi.stubEnv("PORTAL_API_MODE", "mock");
-    await createPortalApiClient().request({ method: "GET", path: "/participants", routeTemplate: "/participants", token: "mock-user-1" }, z.unknown());
+    await createPortalApiClient().request({ method: "GET", path: "/participants", routeTemplate: "/participants", token: issueMockToken(1) }, z.unknown());
     expect(fetchSpy).not.toHaveBeenCalled();
     vi.stubEnv("PORTAL_API_MODE", "typo");
     expect(() => createPortalApiClient()).toThrow(/mode/i);
@@ -110,7 +115,7 @@ describe("mock repository contracts", () => {
     for (const path of paths) expect(await request({ path, routeTemplate: (path.startsWith("/lookups") ? "/lookups/:table" : path.startsWith("/pillars") ? "/pillars/:pillar" : path) as ApiRequest["routeTemplate"] })).toMatchObject({ resultCode: 200 });
   });
   it("authenticates mock credentials, returns effective grants and composes live mode", async () => {
-    expect(await request({ path: "/auth/login", routeTemplate: "/auth/login", method: "POST", body: {username: "judy.mwangi", password: "creaw-demo"}, token: undefined })).toMatchObject({ resultCode: 200, data: {token: "mock-user-1"} });
+    expect(await request({ path: "/auth/login", routeTemplate: "/auth/login", method: "POST", body: {username: "judy.mwangi", password: "creaw-demo"}, token: undefined })).toMatchObject({ resultCode: 200, data: {token: expect.stringMatching(/^[0-9a-f-]{36}$/i)} });
     expect(await request({ path: "/auth/login", routeTemplate: "/auth/login", method: "POST", body: {username: "judy.mwangi", password: "wrong"} })).toMatchObject({ resultCode: 403 });
     expect(await request({ path: "/auth/me", routeTemplate: "/auth/me" })).toMatchObject({ resultCode: 200 });
     vi.stubEnv("PORTAL_API_MODE", "live"); vi.stubEnv("PORTAL_API_BASE_URL", "https://api.example.test/v1");

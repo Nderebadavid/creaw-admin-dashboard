@@ -1,6 +1,8 @@
 "use server";
 
 import { membersStore } from "@/lib/mock-db/members";
+import { requireSession } from "@/lib/auth/session-server";
+import { hasPermission } from "@/lib/auth/permissions";
 import type { Member } from "@/types/member";
 
 export interface ActionResult {
@@ -31,7 +33,13 @@ export interface UpdateMemberData {
   notes?: string;
 }
 
+async function requireMemberManagement(): Promise<void> {
+  const { grants } = await requireSession();
+  if (!hasPermission(grants, "USER_MANAGE")) throw new Error("Forbidden");
+}
+
 export async function fetchMembers(): Promise<ActionResult> {
+  await requireMemberManagement();
   try {
     return { success: true, message: "Members fetched", data: membersStore.list() };
   } catch (error) {
@@ -40,6 +48,7 @@ export async function fetchMembers(): Promise<ActionResult> {
 }
 
 export async function createMember(data: CreateMemberData): Promise<ActionResult> {
+  await requireMemberManagement();
   try {
     const payload = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== "" && v !== undefined)
@@ -72,6 +81,7 @@ export async function createMember(data: CreateMemberData): Promise<ActionResult
 }
 
 export async function updateMember(memberId: string, data: UpdateMemberData): Promise<ActionResult> {
+  await requireMemberManagement();
   try {
     const payload = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== "" && v !== undefined)

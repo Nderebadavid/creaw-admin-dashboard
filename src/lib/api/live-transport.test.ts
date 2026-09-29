@@ -59,6 +59,26 @@ describe("LiveApiTransport", () => {
     ).rejects.toMatchObject({ kind: "http", status: 503 });
   });
 
+  it("returns a validated API error envelope from an HTTP 403 response", async () => {
+    const envelope = { resultCode: 403, success: false, message: "Invalid credentials", data: null };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(envelope), { status: 403 })));
+    const schema = z.object({
+      resultCode: z.number(), success: z.boolean(), message: z.string(), data: z.null(),
+    });
+    await expect(new LiveApiTransport("https://example.test").request(
+      { method: "POST", path: "/auth/login", routeTemplate: "/auth/login", correlationId: "req-credential" },
+      schema
+    )).resolves.toEqual(envelope);
+  });
+
+  it("rejects an HTTP error body that does not match the response schema", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "wrong shape" }), { status: 422 })));
+    await expect(new LiveApiTransport("https://example.test").request(
+      { method: "POST", path: "/auth/login", routeTemplate: "/auth/login", correlationId: "req-shape" },
+      z.object({ resultCode: z.number(), success: z.boolean(), message: z.string() })
+    )).rejects.toMatchObject({ kind: "invalid-response", status: 422 });
+  });
+
   it("uses the concrete path for fetch but only the route template for logs", async () => {
     const logSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true })));
