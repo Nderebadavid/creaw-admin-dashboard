@@ -5,7 +5,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock("@/lib/auth/actions", () => ({ logoutAction: vi.fn() }));
-import { PortalShell, usePortalPeriod } from "./portal-shell";
+import { PortalShell, usePortalDateRange } from "./portal-shell";
 afterEach(cleanup);
 const session = {
   user: {
@@ -20,20 +20,21 @@ const session = {
   grants: [{ permissionCode: "DASHBOARD_VIEW", pillarId: null }],
 };
 function Content() {
-  const period = usePortalPeriod();
-  return <p>{period.quarter}</p>;
+  const { range } = usePortalDateRange();
+  return <p>{`${range.from}..${range.to}`}</p>;
 }
-it("shows the signed-in identity and exposes quarter selection to pages", () => {
+it("shows the signed-in identity and shares the applied date range with pages", () => {
   render(
     <PortalShell session={session}>
       <Content />
     </PortalShell>
   );
   expect(screen.getByText("Judy Mwangi")).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Reporting quarter"), { target: { value: "2026-Q2" } });
-  expect(screen.getByText("2026-Q2")).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Reporting quarter"), { target: { value: "2025-Q2" } });
-  expect(screen.getByRole("option", { name: "Q3 2026 (Jul–Sep)" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Date range/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Last year" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  const lastYear = new Date().getFullYear() - 1;
+  expect(screen.getByText(`${lastYear}-01-01..${lastYear}-12-31`)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
   expect(screen.getByText("Dashboard")).toHaveClass("sr-only");
 });

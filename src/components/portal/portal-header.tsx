@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
 import { hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
@@ -8,14 +7,15 @@ import { Button } from "@/components/ui/button";
 import type { NavigationStatus } from "./navigation";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
+import { DateRangePicker, type DateRange } from "./date-range-picker";
 
 export function PortalHeader({
   user,
   collapsed,
   onToggleSidebar,
   onOpenMobile,
-  quarter,
-  onQuarterChange,
+  range,
+  onRangeChange,
   destinations,
   grants,
   status,
@@ -26,11 +26,10 @@ export function PortalHeader({
   collapsed: boolean;
   onToggleSidebar: () => void;
   onOpenMobile: () => void;
-  quarter: string;
-  onQuarterChange: (quarter: string) => void;
+  range: DateRange;
+  onRangeChange: (range: DateRange) => void;
   destinations: readonly SearchDestination[];
 }) {
-  const [year] = useState(() => Number(quarter.slice(0, 4)));
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-white px-4 py-3 lg:flex-nowrap lg:px-7">
       <Button
@@ -55,23 +54,7 @@ export function PortalHeader({
         <GlobalSearch destinations={destinations} />
       </div>
       <div className="ml-auto flex items-center gap-3">
-        <label className="sr-only" htmlFor="reporting-quarter">
-          Reporting quarter
-        </label>
-        <select
-          id="reporting-quarter"
-          value={quarter}
-          onChange={(event) => onQuarterChange(event.target.value)}
-          className="h-11 max-w-40 rounded-xl border bg-white px-2 text-sm font-semibold"
-        >
-          {[year, year - 1].flatMap((y) =>
-            [4, 3, 2, 1].map((q) => (
-              <option key={`${y}-Q${q}`} value={`${y}-Q${q}`}>
-                Q{q} {y} ({["Jan–Mar", "Apr–Jun", "Jul–Sep", "Oct–Dec"][q - 1]})
-              </option>
-            ))
-          )}
-        </select>
+        <DateRangePicker value={range} onChange={onRangeChange} />
         <NotificationsMenu status={status} />
         <UserMenu
           user={user}

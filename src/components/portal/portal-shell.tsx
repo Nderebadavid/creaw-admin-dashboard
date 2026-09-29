@@ -7,14 +7,16 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { PortalSidebar } from "./portal-sidebar";
 import { PortalHeader } from "./portal-header";
 import { permittedNavigation, type NavigationStatus } from "./navigation";
+import { defaultRange, type DateRange } from "./date-range-picker";
 
-const PortalPeriodContext = createContext<{
-  quarter: string;
-  setQuarter: (value: string) => void;
+/** The header's created-date range, shared with pages that filter by it. */
+const PortalDateRangeContext = createContext<{
+  range: DateRange;
+  setRange: (value: DateRange) => void;
 } | null>(null);
-export function usePortalPeriod() {
-  const context = useContext(PortalPeriodContext);
-  if (!context) throw new Error("usePortalPeriod requires PortalShell");
+export function usePortalDateRange() {
+  const context = useContext(PortalDateRangeContext);
+  if (!context) throw new Error("usePortalDateRange requires PortalShell");
   return context;
 }
 export function PortalShell({
@@ -22,25 +24,23 @@ export function PortalShell({
   children,
   availableRoutes,
   status,
-  initialQuarter = "2026-Q3",
 }: {
   session: Session;
   children: ReactNode;
   availableRoutes?: readonly string[];
   /** Waiting-work counts for sidebar badges and notifications. */
   status?: NavigationStatus;
-  initialQuarter?: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false),
     [mobileOpen, setMobileOpen] = useState(false),
-    [quarter, setQuarter] = useState(initialQuarter);
+    [range, setRange] = useState(() => defaultRange(new Date()));
   const sidebarProps = { grants: session.grants, pathname, availableRoutes, status };
   const destinations = permittedNavigation(session.grants, availableRoutes).flatMap((group) =>
     group.items.map((item) => ({ label: item.label, href: item.href }))
   );
   return (
-    <PortalPeriodContext.Provider value={{ quarter, setQuarter }}>
+    <PortalDateRangeContext.Provider value={{ range, setRange }}>
       <div className="flex min-h-screen bg-background">
         <a
           href="#portal-content"
@@ -62,8 +62,8 @@ export function PortalShell({
             collapsed={collapsed}
             onToggleSidebar={() => setCollapsed((value) => !value)}
             onOpenMobile={() => setMobileOpen(true)}
-            quarter={quarter}
-            onQuarterChange={setQuarter}
+            range={range}
+            onRangeChange={setRange}
             destinations={destinations}
             grants={session.grants}
             status={status}
@@ -84,6 +84,6 @@ export function PortalShell({
           </DialogContent>
         </Dialog>
       </div>
-    </PortalPeriodContext.Provider>
+    </PortalDateRangeContext.Provider>
   );
 }
