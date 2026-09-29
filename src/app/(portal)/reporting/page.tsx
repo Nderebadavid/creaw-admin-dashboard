@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { reportingApi } from "@/features/reporting/api";
@@ -22,20 +21,18 @@ export default async function ReportingPage() {
     .filter((row) => hasPermission(session.grants, "GRANT_REPORT_MANAGE", { pillarId: row.id }))
     .map((row) => row.id);
   return (
-    <>
-      <PageHeading
-        title="Reporting calendar"
-        section="Reporting"
-        description="Donor and grant reports across pillars"
-      />
-      <ReportingContent
-        initial={initial}
-        catalog={catalog}
-        canManage={narrativePillars.length > 0}
-        canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
-        narrativePillars={narrativePillars}
-        grantPillars={grantPillars}
-      />
-    </>
+    <ReportingContent
+      heading={{
+        title: "Reporting calendar",
+        section: "Reporting",
+        description: "Donor and grant reports across pillars",
+      }}
+      initial={initial}
+      catalog={catalog}
+      canManage={narrativePillars.length > 0}
+      canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
+      narrativePillars={narrativePillars}
+      grantPillars={grantPillars}
+    />
   );
 }

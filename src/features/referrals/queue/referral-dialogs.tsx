@@ -1,5 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
+import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,23 +21,6 @@ export interface ReferralOriginOption {
   category: string;
 }
 
-type Result = { success: boolean; message: string };
-
-/** Busy/error state for a dialog whose submit calls one Server Action. */
-function useSubmit(onDone: (message: string) => void) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function run(action: Promise<Result>, successMessage: string) {
-    setBusy(true);
-    setError("");
-    const response = await action;
-    setBusy(false);
-    if (response.success) onDone(successMessage);
-    else setError(response.message);
-  }
-  return { busy, error, run, clearError: () => setError("") };
-}
-
 /** Refers one of the user's enrollments to another pillar or an outside partner. */
 export function NewReferralDialog({
   open,
@@ -54,7 +38,7 @@ export function NewReferralDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const submit = useSubmit(onDone);
+  const submit = useActionSubmit(onDone);
   const [originId, setOriginId] = useState(origins[0]?.enrollmentId ?? 0);
   const [kind, setKind] = useState<"internal" | "external">("internal");
   const origin = origins.find((item) => item.enrollmentId === originId);
@@ -181,7 +165,7 @@ export function RespondDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const submit = useSubmit(onDone);
+  const submit = useActionSubmit(onDone);
 
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -255,7 +239,7 @@ export function EditReferralDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const submit = useSubmit(onDone);
+  const submit = useActionSubmit(onDone);
 
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -309,7 +293,7 @@ export function WithdrawReferralDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const submit = useSubmit(onDone);
+  const submit = useActionSubmit(onDone);
   return (
     <ActionDialog
       open={referral !== null}
