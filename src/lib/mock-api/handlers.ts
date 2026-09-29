@@ -164,7 +164,11 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     if (status !== existing?.status) permission = ({ PREPARED: "GRANT_APPLICATION_PREPARE", REVIEWED: "GRANT_APPLICATION_REVIEW", APPROVED: "GRANT_APPLICATION_APPROVE" } as Record<string, string>)[String(status)] ?? permission;
   }
   if (table === "grant_award" && request.method === "POST") permission = "GRANT_APPLICATION_APPROVE";
-  if (table === "organisation_assessment" && request.method === "PATCH" && request.body && typeof request.body === "object" && "overall_recommendation" in request.body && request.body.overall_recommendation !== existing?.overall_recommendation) permission = "ORG_ASSESSMENT_APPROVE";
+  if (table === "organisation_assessment" && request.body && typeof request.body === "object" && "overall_recommendation" in request.body) {
+    const recommendation = request.body.overall_recommendation;
+    const requiresApproval = request.method === "POST" ? recommendation != null : request.method === "PATCH" && recommendation !== existing?.overall_recommendation;
+    if (requiresApproval) permission = "ORG_ASSESSMENT_APPROVE";
+  }
   if (!permission || !grants.some((grant) => grant.permissionCode === permission)) return envelope(403);
   if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   if (request.method === "GET") {

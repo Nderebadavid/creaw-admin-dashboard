@@ -167,6 +167,28 @@ describe("mock repository contracts", () => {
     expect(await request({...target,token:"mock-user-1",body:{overall_recommendation:"award"}})).toMatchObject({resultCode:200});
     expect(await request({...target,body:{overall_recommendation:null}})).toMatchObject({resultCode:403});
   });
+  it("requires approval permission to create an assessment with a recommendation", async () => {
+    const target = {token:"mock-user-8",path:"/assessments",routeTemplate:"/assessments" as const,method:"POST" as const};
+    const body = {organisation_id:3,instrument_id:1,overall_recommendation:"award"};
+    const count = getMockStore().organisation_assessment.length;
+    const audits = getMockStore().audit_logs.length;
+    expect(await request({...target,body})).toMatchObject({resultCode:403});
+    expect(getMockStore().organisation_assessment).toHaveLength(count);
+    expect(getMockStore().audit_logs).toHaveLength(audits);
+    expect(await request({...target,body:{organisation_id:3,instrument_id:1}})).toMatchObject({resultCode:201,data:{overall_recommendation:null}});
+    expect(await request({...target,body:{...body,overall_recommendation:null}})).toMatchObject({resultCode:201,data:{overall_recommendation:null}});
+    expect(await request({...target,token:"mock-user-1",body})).toMatchObject({resultCode:201,data:{overall_recommendation:"award"}});
+  });
+  it("permits recommended assessment creation only within a scoped approver's pillar", async () => {
+    const store = getMockStore();
+    const approval = store.permission.find((row) => row.code === "ORG_ASSESSMENT_APPROVE")!;
+    const edit = store.permission.find((row) => row.code === "ORG_ASSESSMENT_EDIT")!;
+    store.role_permission.filter((row) => row.role_id === 3 && row.permission_id === edit.id).forEach((row) => { row.is_deleted = true; });
+    store.role_permission.push({...store.role_permission[0],id:9999,role_id:3,permission_id:approval.id});
+    const target = {path:"/assessments",routeTemplate:"/assessments" as const,method:"POST" as const,body:{organisation_id:3,instrument_id:1,overall_recommendation:"award"}};
+    expect(await request({...target,token:"mock-user-3"})).toMatchObject({resultCode:403});
+    expect(await request({...target,token:"mock-user-8"})).toMatchObject({resultCode:201,data:{overall_recommendation:"award"}});
+  });
   it("supports pillar-owned detail, reveal, updates and soft deletion through query.id", async () => {
     const target = {token:"mock-user-5",path:"/pillars/vawg",routeTemplate:"/pillars/:pillar" as const,query:{table:"legal_case",id:1}};
     const detail = await request(target);
