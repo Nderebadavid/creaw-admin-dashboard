@@ -12,7 +12,7 @@ export interface NavigationItem {
 export const implementedPortalRoutes: readonly string[] = [
   "/dashboard", "/field-submissions", "/pillars/vawg", "/pillars/wee", "/pillars/srhr",
   "/pillars/leadership", "/pillars/wros", "/pillars/skilling",
-  "/participants", "/referrals", "/grants", "/assessments", "/reporting", "/audit", "/admin/users", "/admin/permissions",
+  "/participants", "/referrals", "/grants", "/assessments", "/reporting", "/audit", "/admin/users", "/admin/permissions", "/admin/pipelines", "/admin/lookups/pillar",
 ];
 export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   { label: "Overview", items: [
@@ -48,6 +48,7 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
 export function permittedNavigation(grants: readonly EffectiveGrant[], availableRoutes: readonly string[] = implementedPortalRoutes) {
   return navigationGroups.map(group => ({ ...group, items: group.items.filter(item =>
     availableRoutes.includes(item.href) && grants.some(grant => item.permissions.includes(grant.permissionCode) &&
+      (item.href !== "/admin/lookups/pillar" || grant.pillarId === null) &&
       (item.pillarId === undefined || grant.pillarId === null || grant.pillarId === item.pillarId)))
   })).filter(group => group.items.length > 0);
 }

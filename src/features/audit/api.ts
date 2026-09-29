@@ -15,7 +15,7 @@ export function createAuditApi(client: ApiClient, token: string) {
   const queryParams = (query: AuditQuery = {}) => {
     const parsed = auditQuerySchema.parse(query);
     return { page: parsed.page, pageSize: parsed.pageSize, source: parsed.source, module: parsed.module,
-      action: parsed.action, performed_by: parsed.userId, from: parsed.from, to: parsed.to, search: parsed.search };
+      action: parsed.action, targetId: parsed.targetId, performed_by: parsed.userId, from: parsed.from, to: parsed.to, search: parsed.search };
   };
   return {
     async list(query: AuditQuery = {}): Promise<AuditPage> {

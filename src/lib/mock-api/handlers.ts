@@ -29,7 +29,7 @@ const routeTables: Record<string, TableName> = {
   participants: "participant", referrals: "referral", grants: "grant_application", assessments: "organisation_assessment", reports: "narrative_report", "field-submissions": "participant_stage_event", "audit-logs": "audit_logs",
   "admin/users": "user", "admin/roles": "role", "admin/permissions": "permission", "admin/pipelines": "pipeline_definition",
 };
-const lookups: TableName[] = ["pillar", "county", "sub_county", "ward", "donor", "business_sector", "case_type", "partner_institution", "activity_type_definition", "assessment_instrument", "assessment_criterion"];
+const lookups: TableName[] = ["pillar", "county", "sub_county", "ward", "donor", "business_sector", "case_type", "partner_institution", "activity_type_definition"];
 // Related resources use a table query on the owning route family, keeping the
 // existing closed route-template catalogue intact and logs free of row IDs.
 const relatedTables: Record<string, TableName[]> = {
@@ -242,16 +242,17 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (url.pathname === "/auth/me") return request.method === "GET" ? envelope(200, { user: masked("user", store.user.find((row) => row.id === userId)! as unknown as Row), grants }) : envelope(422);
   if (url.pathname === "/audit-logs") {
     if (!hasPermission(grants, "AUDIT_LOG_VIEW")) return envelope(403);
-    if (request.method !== "GET" || [...query.keys()].some(key => !["id", "page", "pageSize", "search", "source", "module", "action", "performed_by", "from", "to", "format", "sortBy", "sortOrder"].includes(key))) return envelope(422);
+    if (request.method !== "GET" || [...query.keys()].some(key => !["id", "targetId", "page", "pageSize", "search", "source", "module", "action", "performed_by", "from", "to", "format", "sortBy", "sortOrder"].includes(key))) return envelope(422);
     const readInt = (key: string, defaultValue?: number) => query.has(key) ? Number(query.get(key)) : defaultValue;
-    const id = readInt("id"), page = readInt("page", 1)!, pageSize = readInt("pageSize", 25)!, actorId = readInt("performed_by");
-    if ([id, page, pageSize, actorId].some(value => value !== undefined && (!Number.isSafeInteger(value) || value < 1)) || pageSize > 100 || id && query.size !== 1) return envelope(422);
+    const id = readInt("id"), targetId = readInt("targetId"), page = readInt("page", 1)!, pageSize = readInt("pageSize", 25)!, actorId = readInt("performed_by");
+    if ([id, targetId, page, pageSize, actorId].some(value => value !== undefined && (!Number.isSafeInteger(value) || value < 1)) || pageSize > 100 || id && query.size !== 1) return envelope(422);
     if (query.has("source") && !["HTTP", "KAFKA"].includes(query.get("source")!) || query.has("from") && !/^\d{4}-\d{2}-\d{2}$/.test(query.get("from")!) || query.has("to") && !/^\d{4}-\d{2}-\d{2}$/.test(query.get("to")!) || query.has("from") && query.has("to") && query.get("from")! > query.get("to")! || query.has("sortBy") && !["id", "performed_at"].includes(query.get("sortBy")!) || query.has("sortOrder") && !["asc", "desc"].includes(query.get("sortOrder")!)) return envelope(422);
     if (id) { const row = store.audit_logs.find(item => item.id === id); return row ? envelope(200, safeAuditRow(store, row)) : envelope(404); }
     const search = query.get("search")?.toLowerCase();
     const filtered = store.audit_logs.map(row => safeAuditRow(store, row)).filter(row =>
       (!query.get("source") || row.source === query.get("source")) &&
       (!query.get("module") || row.entity_type === query.get("module")) &&
+      (targetId === undefined || row.entity_id === targetId) &&
       (!query.get("action") || row.action === query.get("action")) &&
       (actorId === undefined || row.performed_by === actorId) &&
       (!query.get("from") || row.performed_at.slice(0, 10) >= query.get("from")!) &&
@@ -273,6 +274,72 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     if (request.method !== "GET" || [...query.keys()].some(key => key !== "catalog")) return envelope(422);
     if (!hasPermission(grants, "ROLE_MANAGE")) return envelope(403);
     return envelope(200, store.pillar.filter(row => !row.is_deleted && row.status === "ACTIVE").map(row => ({ id: row.id, name: row.name, code: row.code })));
+  }
+  if (url.pathname === "/admin/pipelines" && query.get("catalog") === "pillars") {
+    if (request.method !== "GET" || [...query.keys()].some(key => key !== "catalog")) return envelope(422);
+    if (!grants.some(grant => grant.permissionCode === "PILLAR_CONFIG_MANAGE")) return envelope(403);
+    return envelope(200, store.pillar.filter(row => !row.is_deleted && row.status === "ACTIVE" && hasPermission(grants, "PILLAR_CONFIG_MANAGE", { pillarId: row.id })).map(row => ({ id: row.id, name: row.name, code: row.code })));
+  }
+  if (url.pathname === "/admin/pipelines" && request.method === "POST") {
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).sort().join() !== ["first_stage", "last_stage", "name", "pillar_id"].join() ||
+      !Number.isSafeInteger(body.pillar_id) || typeof body.name !== "string" || typeof body.first_stage !== "string" || typeof body.last_stage !== "string" ||
+      ![body.name, body.first_stage, body.last_stage].every(value => (value as string).trim().length >= 2 && (value as string).length <= 160) || body.first_stage.toLowerCase() === body.last_stage.toLowerCase()) return envelope(422);
+    const pillar = store.pillar.find(row => row.id === body.pillar_id && !row.is_deleted && row.status === "ACTIVE");
+    if (!pillar) return envelope(422);
+    if (!hasPermission(grants, "PILLAR_CONFIG_MANAGE", { pillarId: pillar.id })) return envelope(403);
+    if (store.pipeline_definition.some(row => row.pillar_id === pillar.id && !row.is_deleted)) return envelope(422, null, "A pipeline already exists for this pillar");
+    const now = new Date().toISOString();
+    const pipeline = makeRow("pipeline_definition", { pillar_id: pillar.id, name: body.name.trim() }, Math.max(0, ...store.pipeline_definition.map(row => row.id)) + 1, now);
+    const first = makeRow("stage_definition", { pipeline_id: pipeline.id, step_no: 1, name: body.first_stage.trim() }, Math.max(0, ...store.stage_definition.map(row => row.id)) + 1, now);
+    const last = makeRow("stage_definition", { pipeline_id: pipeline.id, step_no: 2, name: body.last_stage.trim() }, first.id + 1, now);
+    store.pipeline_definition.push(pipeline); store.stage_definition.push(first, last);
+    auditWrite(store, request, userId, "pipeline_definition", null, pipeline as unknown as Row);
+    auditWrite(store, request, userId, "stage_definition", null, first as unknown as Row);
+    auditWrite(store, request, userId, "stage_definition", null, last as unknown as Row);
+    return envelope(201, masked("pipeline_definition", pipeline as unknown as Row));
+  }
+  if (parts[0] === "admin" && parts[1] === "pipelines" && parts[2] && request.method === "PATCH") {
+    if (query.get("operation") !== "stage" || query.size !== 1 || !/^\d+$/.test(parts[2])) return envelope(422);
+    const pipeline = store.pipeline_definition.find(row => row.id === Number(parts[2]) && !row.is_deleted && row.status === "ACTIVE");
+    if (!pipeline) return envelope(404);
+    if (!hasPermission(grants, "PILLAR_CONFIG_MANAGE", { pillarId: pipeline.pillar_id })) return envelope(403);
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.action !== "string") return envelope(422);
+    const stages = store.stage_definition.filter(row => row.pipeline_id === pipeline.id && !row.is_deleted).sort((a, b) => a.step_no - b.step_no);
+    const stage = stages.find(row => row.id === body.stageId);
+    const now = new Date().toISOString();
+    const changes = new Map<number, Row>();
+    let target: typeof stages[number] | undefined;
+    if (body.action === "add") {
+      if (Object.keys(body).sort().join() !== ["action", "name", "position"].join() || typeof body.name !== "string" || body.name.trim().length < 2 || body.name.length > 160 || !Number.isSafeInteger(body.position) || Number(body.position) < 1 || Number(body.position) > stages.length + 1) return envelope(422);
+      if (stages.some(row => row.name.toLowerCase() === body.name!.toString().trim().toLowerCase())) return envelope(422, null, "Stage name already exists");
+      target = makeRow("stage_definition", { pipeline_id: pipeline.id, step_no: Number(body.position), name: body.name.trim() }, Math.max(0, ...store.stage_definition.map(row => row.id)) + 1, now);
+      stages.splice(Number(body.position) - 1, 0, target);
+    } else if (body.action === "rename") {
+      if (Object.keys(body).sort().join() !== ["action", "name", "stageId"].join() || !stage || typeof body.name !== "string" || body.name.trim().length < 2 || body.name.length > 160 || stages.some(row => row.id !== stage.id && row.name.toLowerCase() === body.name!.toString().trim().toLowerCase())) return envelope(422);
+      changes.set(stage.id, structuredClone(stage as unknown as Row)); stage.name = body.name.trim(); target = stage;
+    } else if (body.action === "move") {
+      if (Object.keys(body).sort().join() !== ["action", "direction", "stageId"].join() || !stage || !["up", "down"].includes(String(body.direction))) return envelope(422);
+      const from = stages.indexOf(stage), to = from + (body.direction === "up" ? -1 : 1);
+      if (to < 0 || to >= stages.length) return envelope(422, null, "Stage is already at the edge");
+      stages.splice(from, 1); stages.splice(to, 0, stage); target = stage;
+    } else if (body.action === "remove") {
+      if (Object.keys(body).sort().join() !== ["action", "stageId"].join() || !stage || stages.length <= 1) return envelope(422);
+      changes.set(stage.id, structuredClone(stage as unknown as Row)); stages.splice(stages.indexOf(stage), 1);
+      stage.is_deleted = true; stage.status = "INACTIVE";
+      // The SQL unique key includes soft-removed rows. Reserve a stable negative
+      // number for history so future active steps can reuse the positive range.
+      stage.step_no = -stage.id;
+      target = stage;
+    } else return envelope(422);
+    for (const [index, row] of stages.entries()) if (row.step_no !== index + 1) {
+      if (!changes.has(row.id)) changes.set(row.id, structuredClone(row as unknown as Row));
+      row.step_no = index + 1;
+    }
+    if (body.action === "add") { store.stage_definition.push(target!); auditWrite(store, request, userId, "stage_definition", null, target as unknown as Row); }
+    for (const [id, before] of changes) { const row = store.stage_definition.find(item => item.id === id)!; row.updated_at = now; auditWrite(store, request, userId, "stage_definition", before, row as unknown as Row); }
+    return envelope(body.action === "add" ? 201 : 200, masked("stage_definition", target as unknown as Row));
   }
   if (url.pathname === "/reports" && query.get("catalog") === "true") {
     if (request.method !== "GET" || [...query.keys()].some(key => key !== "catalog")) return envelope(422);
@@ -321,10 +388,13 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (idText !== undefined && (!/^\d+$/.test(idText) || Number(idText) < 1)) return envelope(404);
   const id = idText ? Number(idText) : undefined;
   const rows = rowsFor(store, table);
-  const existing = id === undefined ? undefined : rows.find((row) => row.id === id && (visible(row) || (table === "user_role" || table === "role_permission")));
+  const existing = id === undefined ? undefined : rows.find((row) => row.id === id && (visible(row) || (table === "user_role" || table === "role_permission") || (family === "lookups" && request.method === "PATCH")));
   if (id !== undefined && !existing) return envelope(404);
   if (pillar && existing && !scopes(store, table, existing).includes(pillar.id)) return envelope(404);
   let permission = permissionCodes[table]?.[request.method === "GET" ? 0 : 1] ?? (request.method === "GET" ? "DASHBOARD_VIEW" : "LOOKUP_MANAGE");
+  if (family === "admin/pipelines") permission = "PILLAR_CONFIG_MANAGE";
+  if (family === "lookups" && request.method !== "GET") permission = "LOOKUP_MANAGE";
+  if (family === "lookups" && request.method === "GET" && hasPermission(grants, "LOOKUP_MANAGE")) permission = "LOOKUP_MANAGE";
   if (table === "role" && request.method === "GET" && hasPermission(grants, "PERMISSION_MANAGE")) permission = "PERMISSION_MANAGE";
   if (family === "assessments" && table === "organisation" && request.method === "GET") permission = "ORG_ASSESSMENT_VIEW";
   if (table === "referral" && request.method === "POST") permission = "REFERRAL_CREATE";
@@ -411,7 +481,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const countyId = query.has("countyId") ? Number(query.get("countyId")) : undefined;
     if (countyId !== undefined && (table !== "participant" || !Number.isSafeInteger(countyId) || countyId < 1)) return envelope(422);
     const reserved = new Set(["page", "pageSize", "pillarId", "countyId", "table", "search", "q", "sortBy", "sortOrder", "format", "includeDeleted"]);
-    if (query.has("includeDeleted") && (!(table === "user_role" || table === "role_permission") || query.get("includeDeleted") !== "true")) return envelope(422);
+    if (query.has("includeDeleted") && (!(table === "user_role" || table === "role_permission" || family === "lookups" && hasPermission(grants, "LOOKUP_MANAGE")) || query.get("includeDeleted") !== "true")) return envelope(422);
     for (const [key] of query) if (!reserved.has(key) && (!Object.hasOwn(tableDefinitions[table], key) || isSensitiveField(table, key))) return envelope(422);
     let filtered = rows.filter((row) => (visible(row) || query.get("includeDeleted") === "true") && allowed(store, grants, permission, table, row) && (pillarFilter === undefined || scopes(store, table, row).includes(pillarFilter)));
     if (countyId !== undefined) filtered = filtered.filter((row) => {
@@ -450,6 +520,39 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!request.body || typeof request.body !== "object" || Array.isArray(request.body)) return envelope(422);
   const body = request.body as Row;
   if (Object.keys(body).some((key) => ["id", "created_at", "updated_at", "password_hash"].includes(key))) return envelope(422);
+  if (family === "admin/pipelines") return envelope(422);
+  if (family === "lookups") {
+    if (!hasPermission(grants, "LOOKUP_MANAGE")) return envelope(403);
+    const writable: Partial<Record<TableName, string[]>> = {
+      pillar: ["code", "name", "focus_description", "lead_user_id"], county: ["name"], sub_county: ["name", "county_id"], ward: ["name", "sub_county_id"], donor: ["name", "notes"], business_sector: ["name"],
+      case_type: ["name", "pillar_id", "requires_p3_prc_forms", "default_route"], partner_institution: ["name", "institution_type", "county_id", "contact_details"], activity_type_definition: ["name", "pillar_id", "description"],
+    };
+    const keys = Object.keys(body), allowedKeys = writable[table] ?? [];
+    if (!keys.length || keys.some(key => !allowedKeys.includes(key) && !(request.method === "PATCH" && ["status", "is_deleted"].includes(key)))) return envelope(422);
+    if (request.method === "PATCH" && existing) {
+      if (table === "pillar" && "code" in body && body.code !== existing.code) return envelope(422, null, "Pillar code cannot change because it identifies routes and grants");
+      const relation = table === "sub_county" ? "county_id" : table === "ward" ? "sub_county_id" : table === "activity_type_definition" || table === "case_type" ? "pillar_id" : undefined;
+      if (relation && relation in body && body[relation] !== existing[relation]) return envelope(422, null, "Parent cannot be changed");
+      if ("status" in body || "is_deleted" in body) {
+        if (keys.some(key => !["status", "is_deleted"].includes(key)) || typeof body.is_deleted !== "boolean" || !["ACTIVE", "INACTIVE"].includes(String(body.status)) || (body.status === "ACTIVE") !== (body.is_deleted === false)) return envelope(422);
+        if (body.status === "ACTIVE") {
+          const relation = table === "sub_county" ? ["county", existing.county_id] as const : table === "ward" ? ["sub_county", existing.sub_county_id] as const : null;
+          if (relation && !rowsFor(store, relation[0]).some(row => row.id === relation[1] && visible(row) && row.status === "ACTIVE")) return envelope(422, null, "Parent is inactive");
+          if (table === "pillar" && (existing.is_deleted || existing.status !== "ACTIVE")) {
+            const hypothetical = { ...store, pillar: store.pillar.map(row => row.id === existing.id ? { ...row, status: "ACTIVE", is_deleted: false } : row) };
+            if (store.user_role.some(link => link.pillar_id === existing.id && addsGrantsBeyondActor(store, hypothetical, link.user_id, grants))) return envelope(403, null, "Pillar activation would restore grants beyond your access");
+          }
+        } else {
+          if (table === "county" && store.sub_county.some(row => row.county_id === existing.id && !row.is_deleted && row.status === "ACTIVE") || table === "sub_county" && store.ward.some(row => row.sub_county_id === existing.id && !row.is_deleted && row.status === "ACTIVE")) return envelope(422, null, "Deactivate active geographic children first");
+        }
+      }
+    }
+    if (typeof body.name === "string") {
+      const parentKey = table === "sub_county" ? "county_id" : table === "ward" ? "sub_county_id" : table === "activity_type_definition" ? "pillar_id" : null;
+      const parentId = parentKey ? body[parentKey] ?? existing?.[parentKey] : null;
+      if (rows.some(row => row.id !== existing?.id && row.name && String(row.name).toLowerCase() === String(body.name).trim().toLowerCase() && (!parentKey || row[parentKey] === parentId))) return envelope(422, null, "Lookup name already exists");
+    }
+  }
   if (table === "user") {
     const permitted = request.method === "POST" ? ["first_name", "middle_name", "last_name", "username", "phone_number", "email"] : ["first_name", "middle_name", "last_name", "phone_number", "email", "status", "status_description", "is_deleted"];
     if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);

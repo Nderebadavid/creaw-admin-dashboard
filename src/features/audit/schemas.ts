@@ -16,6 +16,7 @@ export const auditExportSchema = createEnvelopeSchema(z.object({ filename: z.str
 export const auditQuerySchema = z.object({
   page: z.number().int().positive().max(100000).default(1), pageSize: z.number().int().positive().max(100).default(25),
   source: z.enum(["HTTP", "KAFKA"]).optional(), module: z.string().trim().max(80).optional(), action: z.string().trim().max(80).optional(),
+  targetId: id.optional(),
   userId: id.optional(), from: z.iso.date().optional(), to: z.iso.date().optional(), search: z.string().trim().max(120).optional(),
 }).refine(query => !query.from || !query.to || query.from <= query.to, "End date must follow start date");
 export type AuditQuery = z.input<typeof auditQuerySchema>;

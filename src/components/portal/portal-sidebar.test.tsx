@@ -37,3 +37,8 @@ it("shows completed participant and referral routes to permitted users", () => {
   expect(screen.getByRole("link", {name:"Participants"})).toHaveAttribute("href", "/participants");
   expect(screen.getByRole("link", {name:"Referral queue"})).toHaveAttribute("href", "/referrals");
 });
+it("requires a global lookup grant while allowing a scoped pipeline grant", () => {
+  render(<PortalSidebar pathname="/admin/pipelines" grants={[{permissionCode:"LOOKUP_MANAGE",pillarId:2},{permissionCode:"PILLAR_CONFIG_MANAGE",pillarId:2}]} />);
+  expect(screen.getByRole("link", {name:"Pipeline config"})).toBeInTheDocument();
+  expect(screen.queryByRole("link", {name:"Lookup tables"})).not.toBeInTheDocument();
+});

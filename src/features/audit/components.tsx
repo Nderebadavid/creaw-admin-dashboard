@@ -12,8 +12,8 @@ import type { AuditQuery } from "./schemas";
 
 const displayDate = (iso: string) => new Date(iso).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
 function formattedJson(text: string | null) { if (!text) return "—"; try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; } }
-export function AuditContent({ initial, canExport }: { initial: AuditPage; canExport: boolean }) {
-  const [data, setData] = useState(initial), [query, setQuery] = useState<AuditQuery>({ page: 1, pageSize: 25 });
+export function AuditContent({ initial, initialQuery = { page: 1, pageSize: 25 }, canExport }: { initial: AuditPage; initialQuery?: AuditQuery; canExport: boolean }) {
+  const [data, setData] = useState(initial), [query, setQuery] = useState<AuditQuery>(initialQuery);
   const [loading, setLoading] = useState(false), [error, setError] = useState(""), [selected, setSelected] = useState<AuditRow | null>(null);
   const first = useRef(true);
   useEffect(() => {
@@ -31,7 +31,7 @@ export function AuditContent({ initial, canExport }: { initial: AuditPage; canEx
   const modules = [...new Set([...initial.items, ...data.items].map(row => row.entity_type).filter((item): item is string => !!item))].sort();
   const actions = [...new Set([...initial.items, ...data.items].map(row => row.action))].sort();
   const actors = [...new Map([...initial.items, ...data.items].filter(row => row.performed_by && row.performed_by_name).map(row => [row.performed_by!, row.performed_by_name!])).entries()];
-  const filtered = Boolean(query.search || query.source || query.module || query.action || query.userId || query.from || query.to);
+  const filtered = Boolean(query.search || query.source || query.module || query.targetId || query.action || query.userId || query.from || query.to);
   const columns: DataColumn<AuditRow>[] = [
     { id: "entity", header: "Entity", cell: row => <span className="font-semibold">{row.entity_type ?? "System"}{row.entity_id ? <span className="block font-mono text-xs text-[#8A8078]">#{row.entity_id}</span> : null}</span> },
     { id: "action", header: "Action", cell: row => <span className="rounded-full bg-[#FBEDE5] px-2.5 py-1 text-xs font-semibold text-[#B4552E]">{row.action}</span> },
@@ -42,6 +42,7 @@ export function AuditContent({ initial, canExport }: { initial: AuditPage; canEx
   return <div className="space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-heading text-xl font-bold">Activity trail</h2><p className="text-sm text-[#8A8078]">Portal, integration and background activity. Records are immutable.</p></div><span title={!canExport ? "CSV export permission required" : undefined}><ExportButton disabled={!canExport} exportAction={() => exportAuditAction(query)} /></span></div>
     <section aria-label="Audit filters" className="rounded-2xl border border-[#ECE6DF] bg-white p-4 sm:p-5">
+      {query.targetId && <div className="mb-3 flex flex-wrap items-center gap-2 text-sm"><span className="rounded-full bg-[#FBEDE5] px-3 py-1 font-semibold text-[#B4552E]">History for {query.module ?? "record"} #{query.targetId}</span><Button size="sm" variant="outline" onClick={() => filter({ targetId: undefined, module: undefined })}>Clear record filter</Button></div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <label className="flex items-center gap-2 rounded-lg border bg-[#F7F4F0] px-3 py-2 sm:col-span-2"><Search size={17} aria-hidden="true" /><span className="sr-only">Search audit entries</span><input type="search" value={query.search ?? ""} onChange={event => filter({ search: event.target.value || undefined })} placeholder="Search entity, target or performed by" className="min-w-0 w-full bg-transparent text-sm outline-none" /></label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-[#6B625B]">Module<select aria-label="Module" value={query.module ?? ""} onChange={event => filter({ module: event.target.value || undefined })} className="rounded-lg border bg-white p-2 text-sm font-normal"><option value="">All modules</option>{modules.map(module => <option key={module} value={module}>{module.replaceAll("_", " ")}</option>)}</select></label>
