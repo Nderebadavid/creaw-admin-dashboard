@@ -150,4 +150,96 @@ describe("mock repository contracts", () => {
     (result.data as {pillars:{name:string}[]}).pillars[0].name = "Mutated outside API";
     expect(getMockStore().pillar[0].name).not.toBe("Mutated outside API");
   });
+  it("authorizes referral creation against its source pillar, never its destination", async () => {
+    const body = {enrollment_id:1,from_pillar_id:1,to_pillar_id:2,to_project_id:1,trigger_reason:"Follow-up"};
+    const count = getMockStore().referral.length;
+    const audits = getMockStore().audit_logs.length;
+    expect(await request({token:"mock-user-3",path:"/referrals",routeTemplate:"/referrals",method:"POST",body})).toMatchObject({resultCode:403});
+    expect(getMockStore().referral).toHaveLength(count);
+    expect(getMockStore().audit_logs).toHaveLength(audits);
+    expect(await request({token:"mock-user-5",path:"/referrals",routeTemplate:"/referrals",method:"POST",body})).toMatchObject({resultCode:201});
+  });
+  it("requires assessment approval rights for recommendation changes but permits ordinary edits", async () => {
+    const target = {token:"mock-user-8",path:"/assessments/3",routeTemplate:"/assessments/:id" as const,method:"PATCH" as const};
+    expect(await request({...target,body:{overall_recommendation:"award"}})).toMatchObject({resultCode:403});
+    expect(getMockStore().organisation_assessment[2].overall_recommendation).toBeNull();
+    expect(await request({...target,body:{section_comments:{governance:"Reviewed"}}})).toMatchObject({resultCode:200});
+    expect(await request({...target,token:"mock-user-1",body:{overall_recommendation:"award"}})).toMatchObject({resultCode:200});
+    expect(await request({...target,body:{overall_recommendation:null}})).toMatchObject({resultCode:403});
+  });
+  it("supports pillar-owned detail, reveal, updates and soft deletion through query.id", async () => {
+    const target = {token:"mock-user-5",path:"/pillars/vawg",routeTemplate:"/pillars/:pillar" as const,query:{table:"legal_case",id:1}};
+    const detail = await request(target);
+    expect(detail).toMatchObject({resultCode:200,data:{id:1,enrollment_id:1}});
+    expect(JSON.stringify(detail.data)).not.toContain("Safety plan");
+    expect(await request({...target,query:{...target.query,reveal:"outcome_notes"}})).toMatchObject({resultCode:200,data:{outcome_notes:"Safety plan and shelter referral discussed."}});
+    expect(getMockStore().audit_logs.at(-1)?.action).toBe("REVEAL");
+    expect(await request({...target,method:"PATCH",body:{court_status:"ruled"}})).toMatchObject({resultCode:200});
+    expect(getMockStore().legal_case[0].court_status).toBe("ruled");
+    expect(await request({...target,method:"PATCH",body:{is_deleted:true}})).toMatchObject({resultCode:200});
+    expect(getMockStore().legal_case[0].is_deleted).toBe(true);
+    expect(getMockStore().audit_logs.at(-1)?.action).toBe("DELETE");
+    expect(await request(target)).toMatchObject({resultCode:404});
+  });
+  it("constrains selected pillar rows to the path pillar and the caller's grants", async () => {
+    const target = {path:"/pillars/wee",routeTemplate:"/pillars/:pillar" as const,query:{table:"legal_case",id:1}};
+    expect(await request(target)).toMatchObject({resultCode:404});
+    expect(await request({...target,method:"PATCH",body:{court_status:"closed"}})).toMatchObject({resultCode:404});
+    expect(await request({...target,path:"/pillars/vawg",token:"mock-user-3"})).toMatchObject({resultCode:403});
+    expect(await request({...target,path:"/pillars/vawg",query:{table:"legal_case",id:"invalid"}})).toMatchObject({resultCode:404});
+    expect(await request({...target,path:"/pillars/vawg",method:"PATCH",body:{enrollment_id:2}})).toMatchObject({resultCode:403});
+  });
+  it("requires the named pillar scope even when an organisation is shared across pillars", async () => {
+    const store = getMockStore();
+    store.enrollment.push({...store.enrollment[12],id:999,organisation_id:1,pillar_id:2});
+    const view = store.permission.find((row) => row.code === "ORGANISATION_VIEW")!;
+    store.role_permission.push({...store.role_permission[0],id:9999,role_id:3,permission_id:view.id});
+    expect(await request({token:"mock-user-8",path:"/pillars/wee",routeTemplate:"/pillars/:pillar",query:{table:"organisation",id:1}})).toMatchObject({resultCode:403});
+    expect(await request({token:"mock-user-8",path:"/pillars/wros",routeTemplate:"/pillars/:pillar",query:{table:"organisation",id:1}})).toMatchObject({resultCode:200});
+  });
+  it("allows platform-wide registration to omit pillarId on a pillar route", async () => {
+    expect(await request({path:"/pillars/wros",routeTemplate:"/pillars/:pillar",query:{table:"organisation"},method:"POST",body:{name:"Platform registration",legal_form:"ngo"}})).toMatchObject({resultCode:201});
+  });
+  it.each([["counselling_session","vawg"],["training_enrollment","skilling"],["activity_session","srhr"]])("addresses %s by ID on its pillar", async (table,pillar) => {
+    expect(await request({path:`/pillars/${pillar}`,routeTemplate:"/pillars/:pillar",query:{table,id:1}})).toMatchObject({resultCode:200,data:{id:1}});
+  });
+  it("registers a scoped participant using non-persisted pillarId then creates its enrollment", async () => {
+    const body = {first_name:"New",last_name:"Participant"};
+    const count = getMockStore().participant.length;
+    for (const query of [undefined,{pillarId:1}]) expect(await request({token:"mock-user-3",method:"POST",body,query})).toMatchObject({resultCode:403});
+    expect(getMockStore().participant).toHaveLength(count);
+    const enrollments = getMockStore().enrollment.length;
+    const created = await request({token:"mock-user-3",method:"POST",body,query:{pillarId:2}});
+    expect(created.resultCode).toBe(201);
+    const id = (created.data as {id:number}).id;
+    expect(getMockStore().participant.at(-1)).not.toHaveProperty("pillarId");
+    expect(getMockStore().participant.at(-1)).not.toHaveProperty("pillar_id");
+    expect(getMockStore().enrollment).toHaveLength(enrollments);
+    expect(await request({token:"mock-user-3",method:"POST",query:{table:"enrollment"},body:{participant_id:id,pillar_id:2,entry_category:"Grant applicant"}})).toMatchObject({resultCode:201});
+    expect(await request({token:"mock-user-3",path:`/participants/${id}`,routeTemplate:"/participants/:id"})).toMatchObject({resultCode:200});
+  });
+  it("registers a scoped organisation without persisting its authorization context", async () => {
+    const store = getMockStore();
+    const permission = store.permission.find((row) => row.code === "ORGANISATION_EDIT")!;
+    store.role_permission.push({...store.role_permission[0],id:9999,role_id:3,permission_id:permission.id});
+    const target = {token:"mock-user-8",path:"/assessments",routeTemplate:"/assessments" as const,method:"POST" as const,body:{name:"New WRO",legal_form:"ngo"}};
+    expect(await request({...target,query:{table:"organisation"}})).toMatchObject({resultCode:403});
+    const created = await request({...target,query:{table:"organisation",pillarId:5}});
+    expect(created.resultCode).toBe(201);
+    const id = (created.data as {id:number}).id;
+    expect(store.organisation.at(-1)).not.toHaveProperty("pillarId");
+    expect(await request({token:"mock-user-8",method:"POST",query:{table:"enrollment"},body:{organisation_id:id,pillar_id:5,entry_category:"Sub-grant applicant"}})).toMatchObject({resultCode:201});
+  });
+  it.each(["POST","PATCH"] as const)("detaches nested JSON request values before %s persistence", async (method) => {
+    const comments = { governance:{findings:["Reviewed"]} };
+    const path = method === "POST" ? "/assessments" : "/assessments/3";
+    const body = method === "POST" ? {organisation_id:3,instrument_id:1,section_comments:comments} : {section_comments:comments};
+    const result = await request({path,routeTemplate:method === "POST" ? "/assessments" : "/assessments/:id",method,body});
+    expect(result.resultCode).toBe(method === "POST" ? 201 : 200);
+    const id = (result.data as {id:number}).id;
+    const auditCount = getMockStore().audit_logs.length;
+    comments.governance.findings[0] = "Changed without an audited request";
+    expect(getMockStore().organisation_assessment.find((row) => row.id === id)?.section_comments).toEqual({governance:{findings:["Reviewed"]}});
+    expect(getMockStore().audit_logs).toHaveLength(auditCount);
+  });
 });

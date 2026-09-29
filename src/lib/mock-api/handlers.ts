@@ -59,6 +59,9 @@ function scopes(store: MockStore, table: TableName, row: Row, depth = 0): number
   return [];
 }
 function allowed(store: MockStore, grants: EffectiveGrant[], code: string, table: TableName, row: Row): boolean {
+  if (table === "referral" && (code === "REFERRAL_CREATE" || code === "REFERRAL_ACCEPT")) {
+    return hasPermission(grants, code, { pillarId: Number(code === "REFERRAL_CREATE" ? row.from_pillar_id : row.to_pillar_id) });
+  }
   if (code === "DASHBOARD_VIEW" && lookups.includes(table) && grants.some((grant) => grant.permissionCode === code)) return true;
   return hasPermission(grants, code) || scopes(store, table, row).some((pillarId) => hasPermission(grants, code, { pillarId }));
 }
@@ -147,12 +150,13 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     if (!relatedTables[family]?.includes(selected)) return envelope(422);
     table = selected;
   }
-  const idText = family === "lookups" || parts[0] === "admin" ? parts[2] : family === "pillars" ? undefined : parts[1];
+  const idText = family === "lookups" || parts[0] === "admin" ? parts[2] : family === "pillars" ? query.get("id") ?? undefined : parts[1];
   if (idText !== undefined && (!/^\d+$/.test(idText) || Number(idText) < 1)) return envelope(404);
   const id = idText ? Number(idText) : undefined;
   const rows = rowsFor(store, table);
   const existing = id === undefined ? undefined : rows.find((row) => row.id === id && visible(row));
   if (id !== undefined && !existing) return envelope(404);
+  if (pillar && existing && !scopes(store, table, existing).includes(pillar.id)) return envelope(404);
   let permission = permissionCodes[table]?.[request.method === "GET" ? 0 : 1] ?? (request.method === "GET" ? "DASHBOARD_VIEW" : "LOOKUP_MANAGE");
   if (table === "referral" && request.method === "POST") permission = "REFERRAL_CREATE";
   if (table === "grant_application" && request.method !== "GET" && request.body && typeof request.body === "object" && "status" in request.body) {
@@ -160,7 +164,9 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     if (status !== existing?.status) permission = ({ PREPARED: "GRANT_APPLICATION_PREPARE", REVIEWED: "GRANT_APPLICATION_REVIEW", APPROVED: "GRANT_APPLICATION_APPROVE" } as Record<string, string>)[String(status)] ?? permission;
   }
   if (table === "grant_award" && request.method === "POST") permission = "GRANT_APPLICATION_APPROVE";
+  if (table === "organisation_assessment" && request.method === "PATCH" && request.body && typeof request.body === "object" && "overall_recommendation" in request.body && request.body.overall_recommendation !== existing?.overall_recommendation) permission = "ORG_ASSESSMENT_APPROVE";
   if (!permission || !grants.some((grant) => grant.permissionCode === permission)) return envelope(403);
+  if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   if (request.method === "GET") {
     if (existing) {
       if (!allowed(store, grants, permission, table, existing)) return envelope(403);
@@ -168,7 +174,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
       if (query.has("reveal")) {
         const field = query.get("reveal")!;
         if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
-        if (!allowed(store, grants, "SENSITIVE_REVEAL", table, existing)) return envelope(403);
+        if (!allowed(store, grants, "SENSITIVE_REVEAL", table, existing) || pillar && !hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: pillar.id })) return envelope(403);
         result[field] = existing[field];
         auditWrite(store, request, userId, table, existing, existing, "REVEAL");
       }
@@ -197,7 +203,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     filtered.sort((a, b) => (typeof a[sortBy] === "number" && typeof b[sortBy] === "number" ? Number(a[sortBy]) - Number(b[sortBy]) : String(a[sortBy] ?? "").localeCompare(String(b[sortBy] ?? ""))) * (sortOrder === "desc" ? -1 : 1));
     if (query.has("format")) {
       if (query.get("format") !== "csv") return envelope(422);
-      if (!grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") || filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))) return envelope(403);
+      if (!grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") || pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id }) || filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))) return envelope(403);
       const columns = Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
       const csvCell = (value: unknown) => {
         const text = value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
@@ -220,10 +226,25 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   const input = table === "user" && !existing ? { ...body, password_hash: "mock-only:no-real-password-hash" } : body;
   try { next = existing ? { ...existing, ...body, updated_at: now } : makeRow(table, input, Math.max(0, ...rows.map((row) => row.id)) + 1, now) as unknown as Row; } catch { return envelope(422); }
   if (!validate(store, table, next)) return envelope(422);
+  const registration = !existing && (table === "participant" || table === "organisation");
+  let mayWriteNext: boolean;
+  if (registration) {
+    // Registration precedes enrollment. The requested pillar supplies only the
+    // authorization context; it never becomes an invented identity-table column.
+    const pillarId = query.has("pillarId") ? Number(query.get("pillarId")) : undefined;
+    if (pillarId !== undefined && (!Number.isSafeInteger(pillarId) || !store.pillar.some((row) => row.id === pillarId && !row.is_deleted && row.status === "ACTIVE"))) return envelope(422);
+    if (pillar && pillarId !== undefined && pillarId !== pillar.id) return envelope(422);
+    mayWriteNext = hasPermission(grants, permission, { pillarId });
+  } else {
+    if (pillar && !scopes(store, table, next).includes(pillar.id)) return envelope(403);
+    mayWriteNext = allowed(store, grants, permission, table, next);
+  }
   // Check both sides of a mutation to prevent moving records into/out of scope.
-  if (existing && !allowed(store, grants, permission, table, existing) || !allowed(store, grants, permission, table, next)) return envelope(403);
-  if (table === "referral" && request.method === "PATCH" && !hasPermission(grants, "REFERRAL_ACCEPT", { pillarId: Number(existing!.to_pillar_id) })) return envelope(403);
+  if (existing && !allowed(store, grants, permission, table, existing) || !mayWriteNext) return envelope(403);
   if (table === "role" && existing?.is_system_role) return envelope(403, null, "Built-in roles cannot be edited");
+  // Match a network boundary: request-owned nested JSON must never become a
+  // mutable reference into storage, including when only part of a row changes.
+  try { next = structuredClone(next); } catch { return envelope(422); }
   const before = existing ? structuredClone(existing) : null;
   if (existing) Object.assign(existing, next); else rows.push(next);
   auditWrite(store, request, userId, table, before, next);
