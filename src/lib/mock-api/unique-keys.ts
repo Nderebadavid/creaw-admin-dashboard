@@ -1,0 +1,128 @@
+import type { TableName } from "@/types/db";
+// SQL unique indexes apply even to soft-deleted rows; nullable keys follow MySQL semantics.
+export const uniqueKeys: Partial<Record<TableName, string[][]>> = {
+  "user": [
+    [
+      "username"
+    ],
+    [
+      "email"
+    ]
+  ],
+  "pillar": [
+    [
+      "code"
+    ]
+  ],
+  "county": [
+    [
+      "name"
+    ]
+  ],
+  "sub_county": [
+    [
+      "county_id",
+      "name"
+    ]
+  ],
+  "ward": [
+    [
+      "sub_county_id",
+      "name"
+    ]
+  ],
+  "donor": [
+    [
+      "name"
+    ]
+  ],
+  "business_sector": [
+    [
+      "name"
+    ]
+  ],
+  "case_type": [
+    [
+      "name"
+    ]
+  ],
+  "activity_type_definition": [
+    [
+      "pillar_id",
+      "name"
+    ]
+  ],
+  "role": [
+    [
+      "code"
+    ]
+  ],
+  "user_role": [
+    [
+      "user_id",
+      "role_id",
+      "pillar_id"
+    ]
+  ],
+  "permission": [
+    [
+      "code"
+    ]
+  ],
+  "role_permission": [
+    [
+      "role_id",
+      "permission_id"
+    ]
+  ],
+  "participant": [
+    [
+      "sync_ref"
+    ]
+  ],
+  "assessment_instrument": [
+    [
+      "code"
+    ]
+  ],
+  "organisation_assessment_score": [
+    [
+      "assessment_id",
+      "criterion_id"
+    ]
+  ],
+  "pipeline_definition": [
+    [
+      "pillar_id",
+      "version"
+    ]
+  ],
+  "stage_definition": [
+    [
+      "pipeline_id",
+      "step_no"
+    ]
+  ],
+  "participant_stage_event": [
+    [
+      "local_ref"
+    ]
+  ],
+  "counselling_session": [
+    [
+      "enrollment_id",
+      "session_no"
+    ]
+  ],
+  "activity_attendance": [
+    [
+      "session_id",
+      "participant_id"
+    ]
+  ],
+  "grant_award": [
+    [
+      "application_id"
+    ]
+  ]
+};
