@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
@@ -12,12 +13,6 @@ import {
   stageRenameSchema,
 } from "./schemas";
 
-const result = (resultCode: number, message: string, id?: number) => ({
-  resultCode,
-  success: resultCode < 400,
-  message,
-  data: id ? { id } : null,
-});
 function api() {
   return withSessionApi(createAdminApi);
 }
@@ -36,9 +31,9 @@ function refresh() {
 export async function createPipelineAction(input: unknown) {
   const session = await requireSession();
   const parsed = pipelineInputSchema.safeParse(input);
-  if (!parsed.success) return result(422, "Check pipeline details");
+  if (!parsed.success) return actionResult(422, "Check pipeline details");
   if (!hasPermission(session.grants, "PILLAR_CONFIG_MANAGE", { pillarId: parsed.data.pillarId }))
-    return result(403, "Permission denied");
+    return actionResult(403, "Permission denied");
   try {
     const response = await (
       await api()
@@ -49,17 +44,17 @@ export async function createPipelineAction(input: unknown) {
       last_stage: parsed.data.lastStage,
     });
     if (response.success) refresh();
-    return result(response.resultCode, response.message, response.data?.id);
+    return actionResult(response.resultCode, response.message, response.data?.id);
   } catch {
-    return result(500, "Could not create pipeline");
+    return actionResult(500, "Could not create pipeline");
   }
 }
 export async function addStageAction(input: unknown) {
   const session = await requireSession();
   const parsed = stageAddSchema.safeParse(input);
-  if (!parsed.success) return result(422, "Check stage details");
+  if (!parsed.success) return actionResult(422, "Check stage details");
   if (!hasModulePermission(session.grants, "PILLAR_CONFIG_MANAGE"))
-    return result(403, "Permission denied");
+    return actionResult(403, "Permission denied");
   try {
     const client = await api();
     const pipelineResponse = await client.pipeline(parsed.data.pipelineId);
@@ -69,16 +64,16 @@ export async function addStageAction(input: unknown) {
       !pipeline ||
       !hasPermission(session.grants, "PILLAR_CONFIG_MANAGE", { pillarId: pipeline.pillar_id })
     )
-      return result(403, "Permission denied");
+      return actionResult(403, "Permission denied");
     const response = await client.stageCommand(pipeline.id, {
       action: "add",
       name: parsed.data.name,
       position: parsed.data.position,
     });
     if (response.success) refresh();
-    return result(response.resultCode, response.message, response.data?.id);
+    return actionResult(response.resultCode, response.message, response.data?.id);
   } catch {
-    return result(500, "Could not add stage");
+    return actionResult(500, "Could not add stage");
   }
 }
 async function changeStage(
@@ -88,9 +83,9 @@ async function changeStage(
 ) {
   const session = await requireSession();
   const parsed = schema.safeParse(input);
-  if (!parsed.success) return result(422, "Check stage details");
+  if (!parsed.success) return actionResult(422, "Check stage details");
   if (!hasModulePermission(session.grants, "PILLAR_CONFIG_MANAGE"))
-    return result(403, "Permission denied");
+    return actionResult(403, "Permission denied");
   try {
     const context = await stageContext(parsed.data.stageId);
     if (
@@ -99,7 +94,7 @@ async function changeStage(
         pillarId: context.pipeline.pillar_id,
       })
     )
-      return result(403, "Permission denied");
+      return actionResult(403, "Permission denied");
     const values = parsed.data as { stageId: number; name?: string; direction?: "up" | "down" };
     const response = await context.client.stageCommand(context.pipeline.id, {
       action: command,
@@ -108,9 +103,9 @@ async function changeStage(
       ...(command === "move" ? { direction: values.direction } : {}),
     });
     if (response.success) refresh();
-    return result(response.resultCode, response.message, response.data?.id);
+    return actionResult(response.resultCode, response.message, response.data?.id);
   } catch {
-    return result(500, "Could not update stage");
+    return actionResult(500, "Could not update stage");
   }
 }
 export async function renameStageAction(input: unknown) {

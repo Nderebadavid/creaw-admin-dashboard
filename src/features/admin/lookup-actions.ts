@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session-server";
@@ -51,12 +52,6 @@ const shapes = {
     description: z.string().trim().max(1000).nullable().optional(),
   }),
 } as const;
-const outcome = (resultCode: number, message: string, rowId?: number) => ({
-  resultCode,
-  success: resultCode < 400,
-  message,
-  data: rowId ? { id: rowId } : null,
-});
 function api() {
   return withSessionApi(createAdminApi);
 }
@@ -71,52 +66,55 @@ export async function createLookupAction(input: unknown) {
   const session = await requireSession();
   const parsed = lookupActionSchema.safeParse(input);
   if (!parsed.success)
-    return outcome(
+    return actionResult(
       lookupTableSchema.safeParse((input as { table?: unknown } | null)?.table).success ? 422 : 404,
       "Unknown lookup or invalid details"
     );
-  if (!hasPermission(session.grants, "LOOKUP_MANAGE")) return outcome(403, "Permission denied");
+  if (!hasPermission(session.grants, "LOOKUP_MANAGE"))
+    return actionResult(403, "Permission denied");
   const values = validateValues(parsed.data.table, parsed.data.values);
-  if (!values.success) return outcome(422, "Check lookup details");
+  if (!values.success) return actionResult(422, "Check lookup details");
   try {
     const response = await (await api()).createLookup(parsed.data.table, values.data);
     if (response.success) refresh(parsed.data.table);
-    return outcome(response.resultCode, response.message, response.data?.id);
+    return actionResult(response.resultCode, response.message, response.data?.id);
   } catch {
-    return outcome(500, "Could not create lookup");
+    return actionResult(500, "Could not create lookup");
   }
 }
 export async function updateLookupAction(input: unknown) {
   const session = await requireSession();
   const parsed = lookupUpdateActionSchema.safeParse(input);
   if (!parsed.success)
-    return outcome(
+    return actionResult(
       lookupTableSchema.safeParse((input as { table?: unknown } | null)?.table).success ? 422 : 404,
       "Unknown lookup or invalid details"
     );
-  if (!hasPermission(session.grants, "LOOKUP_MANAGE")) return outcome(403, "Permission denied");
+  if (!hasPermission(session.grants, "LOOKUP_MANAGE"))
+    return actionResult(403, "Permission denied");
   const values = validateValues(parsed.data.table, parsed.data.values, true);
   if (!values.success || Object.keys(values.data).length === 0)
-    return outcome(422, "Check lookup details");
+    return actionResult(422, "Check lookup details");
   try {
     const response = await (
       await api()
     ).updateLookup(parsed.data.table, parsed.data.id, values.data);
     if (response.success) refresh(parsed.data.table);
-    return outcome(response.resultCode, response.message, response.data?.id);
+    return actionResult(response.resultCode, response.message, response.data?.id);
   } catch {
-    return outcome(500, "Could not update lookup");
+    return actionResult(500, "Could not update lookup");
   }
 }
 export async function setLookupActiveAction(input: unknown) {
   const session = await requireSession();
   const parsed = lookupActiveActionSchema.safeParse(input);
   if (!parsed.success)
-    return outcome(
+    return actionResult(
       lookupTableSchema.safeParse((input as { table?: unknown } | null)?.table).success ? 422 : 404,
       "Unknown lookup or invalid details"
     );
-  if (!hasPermission(session.grants, "LOOKUP_MANAGE")) return outcome(403, "Permission denied");
+  if (!hasPermission(session.grants, "LOOKUP_MANAGE"))
+    return actionResult(403, "Permission denied");
   try {
     const response = await (
       await api()
@@ -125,9 +123,9 @@ export async function setLookupActiveAction(input: unknown) {
       is_deleted: !parsed.data.active,
     });
     if (response.success) refresh(parsed.data.table);
-    return outcome(response.resultCode, response.message, response.data?.id);
+    return actionResult(response.resultCode, response.message, response.data?.id);
   } catch {
-    return outcome(500, "Could not update lookup");
+    return actionResult(500, "Could not update lookup");
   }
 }
 export async function exportLookupAction(

@@ -1,15 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { createReportingApi, type ReportQuery } from "./api";
 import { deadlineInputSchema, submitInputSchema } from "./schemas";
-const result = (resultCode: number, message: string) => ({
-  resultCode,
-  success: resultCode < 400,
-  message,
-});
 function api() {
   return withSessionApi(createReportingApi);
 }
@@ -19,40 +15,40 @@ export async function listReportsAction(query: ReportQuery) {
     !hasModulePermission(session.grants, "NARRATIVE_REPORT_MANAGE") &&
     !hasModulePermission(session.grants, "GRANT_REPORT_VIEW")
   )
-    return { ...result(403, "Permission denied"), data: null };
+    return { ...actionResult(403, "Permission denied"), data: null };
   try {
-    return { ...result(200, "OK"), data: await (await api()).list(query) };
+    return { ...actionResult(200, "OK"), data: await (await api()).list(query) };
   } catch {
-    return { ...result(500, "Could not load reports"), data: null };
+    return { ...actionResult(500, "Could not load reports"), data: null };
   }
 }
 export async function addDeadlineAction(input: unknown) {
   const session = await requireSession();
   const parsed = deadlineInputSchema.safeParse(input);
-  if (!parsed.success) return result(422, "Check the deadline details");
+  if (!parsed.success) return actionResult(422, "Check the deadline details");
   try {
     const client = await api();
     const project = (await client.catalog()).projects.find(
       (item) => item.id === parsed.data.projectId
     );
-    if (!project) return result(404, "Project not found");
+    if (!project) return actionResult(404, "Project not found");
     if (!hasPermission(session.grants, "NARRATIVE_REPORT_MANAGE", { pillarId: project.pillar_id }))
-      return result(403, "Permission denied");
+      return actionResult(403, "Permission denied");
     const response = await client.addDeadline(parsed.data);
     if (response.success) revalidatePath("/reporting");
-    return result(response.resultCode, response.message);
+    return actionResult(response.resultCode, response.message);
   } catch {
-    return result(500, "Could not add deadline");
+    return actionResult(500, "Could not add deadline");
   }
 }
 export async function submitReportAction(input: unknown) {
   const session = await requireSession();
   const parsed = submitInputSchema.safeParse(input);
-  if (!parsed.success) return result(422, "Check the submission details");
+  if (!parsed.success) return actionResult(422, "Check the submission details");
   try {
     const client = await api();
     const report = await client.get(parsed.data.type, parsed.data.id);
-    if (!report) return result(404, "Report not found");
+    if (!report) return actionResult(404, "Report not found");
     const permission =
       parsed.data.type === "grant" ? "GRANT_REPORT_MANAGE" : "NARRATIVE_REPORT_MANAGE";
     if (
@@ -60,7 +56,7 @@ export async function submitReportAction(input: unknown) {
       (parsed.data.fileUrl &&
         !hasPermission(session.grants, "DOCUMENT_UPLOAD", { pillarId: report.pillarId }))
     )
-      return result(403, "Permission denied");
+      return actionResult(403, "Permission denied");
     const response = await client.submit(
       parsed.data.type,
       parsed.data.id,
@@ -68,9 +64,9 @@ export async function submitReportAction(input: unknown) {
       parsed.data.fileUrl
     );
     if (response.success) revalidatePath("/reporting");
-    return result(response.resultCode, response.message);
+    return actionResult(response.resultCode, response.message);
   } catch {
-    return result(500, "Could not submit report");
+    return actionResult(500, "Could not submit report");
   }
 }
 export async function exportReportsAction(query: ReportQuery) {
@@ -93,11 +89,11 @@ export async function exportReportsAction(query: ReportQuery) {
 export async function viewReportDocumentAction(type: "narrative" | "grant", id: number) {
   const session = await requireSession();
   if (!Number.isSafeInteger(id) || id < 1 || !["narrative", "grant"].includes(type))
-    return result(422, "Invalid report");
+    return actionResult(422, "Invalid report");
   try {
     const client = await api();
     const report = await client.get(type, id);
-    if (!report || !report.documentId) return result(404, "Document not found");
+    if (!report || !report.documentId) return actionResult(404, "Document not found");
     if (
       !hasPermission(
         session.grants,
@@ -106,10 +102,10 @@ export async function viewReportDocumentAction(type: "narrative" | "grant", id: 
       ) ||
       !hasPermission(session.grants, "DOCUMENT_DOWNLOAD", { pillarId: report.pillarId })
     )
-      return result(403, "Permission denied");
+      return actionResult(403, "Permission denied");
     const response = await client.viewDocument(report.documentId);
-    return result(response.resultCode, response.message);
+    return actionResult(response.resultCode, response.message);
   } catch {
-    return result(500, "Could not open document");
+    return actionResult(500, "Could not open document");
   }
 }
