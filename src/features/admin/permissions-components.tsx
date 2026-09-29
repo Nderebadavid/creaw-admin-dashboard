@@ -19,16 +19,16 @@ export function PermissionsContent({ roles, permissions, grants, canManageRoles,
   const authoritativeKey = grants.filter(row => row.status === "ACTIVE" && !row.is_deleted).map(row => key(row.role_id, row.permission_id)).sort().join("|");
   const [matrix, setMatrix] = useState(() => {
     const initial = new Set(authoritativeKey ? authoritativeKey.split("|") : []);
-    return { source: authoritativeKey, saved: initial, draft: new Set(initial) };
+    return { source: grants, saved: initial, draft: new Set(initial) };
   });
   let { saved, draft } = matrix;
-  if (matrix.source !== authoritativeKey) {
+  if (matrix.source !== grants) {
     const authoritative = new Set(authoritativeKey ? authoritativeKey.split("|") : []);
     const unresolved = new Set([...matrix.saved, ...matrix.draft].filter(entry => matrix.saved.has(entry) !== matrix.draft.has(entry)));
     const nextDraft = new Set(authoritative);
     for (const entry of unresolved) if (matrix.draft.has(entry)) nextDraft.add(entry); else nextDraft.delete(entry);
     saved = authoritative; draft = nextDraft;
-    setMatrix({ source: authoritativeKey, saved, draft });
+    setMatrix({ source: grants, saved, draft });
   }
   const selected = roles.find(role => role.id === selectedId) ?? roles[0];
   const systemGrant = (role: RoleView) => role.is_system_role && role.code === "SYSTEM_ADMIN";

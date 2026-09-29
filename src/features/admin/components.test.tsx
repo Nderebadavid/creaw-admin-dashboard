@@ -62,4 +62,19 @@ describe("administration screens", () => {
     expect(screen.getByRole("button", { name: /view audit log/i })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: /manage roles/i })).toHaveAttribute("aria-pressed", "true");
   });
+  it("accepts a fresh empty authoritative snapshot after a locally saved grant", async () => {
+    const item = permission(1, "AUDIT_LOG_VIEW", "View audit log");
+    vi.mocked(setRolePermissionAction).mockResolvedValue({ resultCode: 200, success: true, message: "OK", data: { id: 10 } });
+    const props = { roles: [editableRole], permissions: [item], canManageRoles: true, canManagePermissions: true };
+    const view = render(<PermissionsContent {...props} grants={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: /view audit log/i }));
+    fireEvent.click(screen.getByRole("button", { name: /review & save/i }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /save changes/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /view audit log/i })).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/permission changes saved/i));
+
+    view.rerender(<PermissionsContent {...props} grants={[]} />);
+    expect(screen.getByRole("button", { name: /view audit log/i })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByText("1 unsaved change")).not.toBeInTheDocument();
+  });
 });
