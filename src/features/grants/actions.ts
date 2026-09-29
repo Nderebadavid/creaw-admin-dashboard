@@ -1,0 +1,74 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { requireSession } from "@/lib/auth/session-server";
+import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
+import { createPortalApiClient } from "@/lib/api/portal-client";
+import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { createGrantsApi, type GrantQuery } from "./api";
+import { advanceInputSchema, disburseInputSchema } from "./schemas";
+const result = (resultCode: number, message: string) => ({ resultCode, success: resultCode < 400, message });
+async function api() { const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value; if (!token) throw new Error("Sign in required"); return createGrantsApi(createPortalApiClient(), token); }
+
+export async function listGrantsAction(query: GrantQuery) {
+  const session = await requireSession();
+  if (!hasModulePermission(session.grants, "GRANT_APPLICATION_VIEW")) return { ...result(403, "Permission denied"), data: null };
+  try { return { ...result(200, "OK"), data: await (await api()).list(query) }; } catch { return { ...result(500, "Could not load grants"), data: null }; }
+}
+export async function advanceGrantAction(input: unknown) {
+  const session = await requireSession(); const parsed = advanceInputSchema.safeParse(input);
+  if (!parsed.success) return result(422, "Invalid sign-off request");
+  try {
+    const client = await api(); const grant = await client.get(parsed.data.id);
+    if (!grant) return result(404, "Application not found");
+    const code = { PREPARED: "GRANT_APPLICATION_PREPARE", REVIEWED: "GRANT_APPLICATION_REVIEW", APPROVED: "GRANT_APPLICATION_APPROVE" }[parsed.data.status];
+    if (!hasPermission(session.grants, code, { pillarId: grant.pillarId })) return result(403, "You cannot perform this sign-off step");
+    if (grant.nextStatus !== parsed.data.status) return result(422, "Complete the preceding sign-off step first");
+    const response = await client.advance(grant.id, parsed.data.status);
+    if (response.success) { revalidatePath("/grants"); revalidatePath(`/grants/${grant.id}`); }
+    return result(response.resultCode, response.message);
+  } catch { return result(500, "Could not record sign-off"); }
+}
+export async function recordDisbursementAction(input: unknown) {
+  const session = await requireSession(); const parsed = disburseInputSchema.safeParse(input);
+  if (!parsed.success) return result(422, "Check the payment details");
+  try {
+    const client = await api(); const grant = await client.get(parsed.data.applicationId);
+    if (!grant) return result(404, "Application not found");
+    if (!hasPermission(session.grants, "GRANT_DISBURSEMENT_RECORD", { pillarId: grant.pillarId })) return result(403, "You cannot record this payment");
+    if (grant.status !== "APPROVED" || !grant.award) return result(422, "The application must be approved first");
+    const response = await client.recordDisbursement(grant.award.id, parsed.data.amount, parsed.data.date, parsed.data.notes);
+    if (response.success) revalidatePath(`/grants/${grant.id}`);
+    return result(response.resultCode, response.message);
+  } catch { return result(500, "Could not record payment"); }
+}
+export async function downloadGrantPackAction(id: number) {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(id) || id < 1) return result(422, "Invalid application");
+  try {
+    const client = await api(); const grant = await client.get(id);
+    if (!grant) return result(404, "Application not found");
+    if (!hasPermission(session.grants, "GRANT_APPLICATION_VIEW", { pillarId: grant.pillarId }) || !hasPermission(session.grants, "DOCUMENT_DOWNLOAD", { pillarId: grant.pillarId })) return result(403, "Permission denied");
+    const response = await client.downloadPack(id);
+    return result(response.resultCode, response.message);
+  } catch { return result(500, "Could not prepare application pack"); }
+}
+export async function viewGrantDocumentAction(applicationId: number, documentId: number) {
+  const session = await requireSession();
+  if (![applicationId, documentId].every(id => Number.isSafeInteger(id) && id > 0)) return result(422, "Invalid document");
+  try {
+    const client = await api(); const grant = await client.get(applicationId);
+    if (!grant || !grant.documents.some(document => document.id === documentId)) return result(404, "Document not found");
+    if (!hasPermission(session.grants, "DOCUMENT_DOWNLOAD", { pillarId: grant.pillarId }) || !hasPermission(session.grants, "GRANT_APPLICATION_VIEW", { pillarId: grant.pillarId })) return result(403, "Permission denied");
+    const response = await client.viewDocument(documentId);
+    return result(response.resultCode, response.message);
+  } catch { return result(500, "Could not open document"); }
+}
+export async function exportGrantsAction(query: GrantQuery) {
+  const session = await requireSession();
+  if (!hasModulePermission(session.grants, "GRANT_APPLICATION_VIEW") || !hasModulePermission(session.grants, "REPORT_EXPORT_CSV")) return { success: false as const, error: "Permission denied" };
+  try {
+    const response = await (await api()).export(query);
+    return response.success && response.data ? { success: true as const, filename: response.data.filename, content: response.data.content } : { success: false as const, error: response.message };
+  } catch { return { success: false as const, error: "Could not export grants" }; }
+}

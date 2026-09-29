@@ -34,7 +34,7 @@ const lookups: TableName[] = ["pillar", "county", "sub_county", "ward", "donor",
 // existing closed route-template catalogue intact and logs free of row IDs.
 const relatedTables: Record<string, TableName[]> = {
   participants: ["enrollment", "document"], grants: ["grant_award", "grant_disbursement", "grant_report", "document"],
-  assessments: ["organisation", "organisation_assessment_score", "assessment_document_check", "document"],
+  assessments: ["organisation", "organisation_assessment_score", "assessment_document_check", "assessment_criterion", "assessment_instrument", "document"],
   reports: ["grant_report", "project", "document"], "admin/users": ["user_role"], "admin/permissions": ["role_permission"], "admin/pipelines": ["stage_definition"],
   pillars: ["enrollment", "legal_case", "counselling_session", "training_enrollment", "activity_session", "activity_attendance", "organisation", "grant_application", "participant_stage_event", "pipeline_definition", "stage_definition"],
 };
@@ -43,6 +43,7 @@ const permissionCodes: Partial<Record<TableName, [string, string]>> = {
   referral: ["REFERRAL_VIEW", "REFERRAL_ACCEPT"], grant_application: ["GRANT_APPLICATION_VIEW", "GRANT_APPLICATION_EDIT"], grant_award: ["GRANT_AWARD_VIEW", "GRANT_AWARD_MANAGE"],
   grant_disbursement: ["GRANT_AWARD_VIEW", "GRANT_DISBURSEMENT_RECORD"], grant_report: ["GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"],
   organisation_assessment: ["ORG_ASSESSMENT_VIEW", "ORG_ASSESSMENT_EDIT"], organisation_assessment_score: ["ORG_ASSESSMENT_VIEW", "ORG_ASSESSMENT_EDIT"], assessment_document_check: ["ORG_ASSESSMENT_VIEW", "DUE_DILIGENCE_MANAGE"],
+  assessment_criterion: ["ORG_ASSESSMENT_VIEW", "ORG_ASSESSMENT_EDIT"], assessment_instrument: ["ORG_ASSESSMENT_VIEW", "ORG_ASSESSMENT_EDIT"],
   narrative_report: ["NARRATIVE_REPORT_MANAGE", "NARRATIVE_REPORT_MANAGE"], project: ["DASHBOARD_VIEW", "NARRATIVE_REPORT_MANAGE"], participant_stage_event: ["FIELD_SUBMISSION_VIEW", "FIELD_SUBMISSION_REVIEW"],
   user: ["USER_MANAGE", "USER_MANAGE"], role: ["ROLE_MANAGE", "ROLE_MANAGE"], permission: ["PERMISSION_MANAGE", "PERMISSION_MANAGE"], user_role: ["ROLE_MANAGE", "ROLE_MANAGE"], role_permission: ["PERMISSION_MANAGE", "PERMISSION_MANAGE"],
   pipeline_definition: ["DASHBOARD_VIEW", "PILLAR_CONFIG_MANAGE"], stage_definition: ["DASHBOARD_VIEW", "PILLAR_CONFIG_MANAGE"], document: ["DOCUMENT_VIEW", "DOCUMENT_UPLOAD"],
@@ -169,6 +170,36 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   const grants = getEffectiveGrants(userId);
   if (!grants.length) return envelope(403);
   if (url.pathname === "/auth/me") return request.method === "GET" ? envelope(200, { user: masked("user", store.user.find((row) => row.id === userId)! as unknown as Row), grants }) : envelope(422);
+  if (url.pathname === "/reports" && query.get("owners") === "true") {
+    if (request.method !== "GET" || [...query.keys()].some(key => key !== "owners")) return envelope(422);
+    const owners = [...new Set(store.project.filter(project => !project.is_deleted && (hasPermission(grants, "NARRATIVE_REPORT_MANAGE", { pillarId: project.pillar_id }) || hasPermission(grants, "GRANT_REPORT_VIEW", { pillarId: project.pillar_id }))).map(project => store.pillar.find(pillar => pillar.id === project.pillar_id)?.lead_user_id).filter((id): id is number => typeof id === "number"))]
+      .map(id => store.user.find(user => user.id === id && !user.is_deleted))
+      .filter((user): user is NonNullable<typeof user> => Boolean(user))
+      .map(user => ({ id: user.id, name: `${user.first_name} ${user.last_name}` }));
+    return envelope(200, owners);
+  }
+  if (url.pathname === "/reports" && query.get("calendar") === "true") {
+    if (request.method !== "GET" || query.get("format") !== "csv" || [...query.keys()].some(key => !["calendar", "format", "pillarId", "ownerId", "status", "search"].includes(key))) return envelope(422);
+    if (!grants.some(grant => grant.permissionCode === "REPORT_EXPORT_CSV")) return envelope(403);
+    const pillarId = query.has("pillarId") ? Number(query.get("pillarId")) : undefined;
+    const ownerId = query.has("ownerId") ? Number(query.get("ownerId")) : undefined;
+    if (pillarId !== undefined && (!Number.isSafeInteger(pillarId) || pillarId < 1) || ownerId !== undefined && (!Number.isSafeInteger(ownerId) || ownerId < 1)) return envelope(422);
+    const projects = new Map(store.project.map(row => [row.id, row]));
+    const projectForGrant = (row: typeof store.grant_report[number]) => {
+      const award = store.grant_award.find(item => item.id === row.grant_award_id && !item.is_deleted);
+      const application = store.grant_application.find(item => item.id === award?.application_id && !item.is_deleted);
+      return application && projects.get(application.project_id);
+    };
+    const records = [
+      ...store.narrative_report.filter(row => !row.is_deleted).map(row => ({ table: "narrative_report" as const, id: row.id, title: row.notes ?? `Narrative report #${row.id}`, project: projects.get(row.project_id), due: row.reporting_period_end, status: row.report_status === "submitted" || row.report_status === "overdue" ? row.report_status : row.reporting_period_end < new Date().toISOString().slice(0, 10) ? "overdue" : "pending" })),
+      ...store.grant_report.filter(row => !row.is_deleted).map(row => ({ table: "grant_report" as const, id: row.id, title: row.notes ?? `Grant report #${row.id}`, project: projectForGrant(row), due: row.due_date, status: row.submitted_date ? "submitted" : row.due_date < new Date().toISOString().slice(0, 10) ? "overdue" : "pending" })),
+    ].filter(item => item.project && allowed(store, grants, item.table === "grant_report" ? "GRANT_REPORT_VIEW" : "NARRATIVE_REPORT_MANAGE", item.table, rowsFor(store, item.table).find(row => row.id === item.id)!) && hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: item.project.pillar_id }) && (pillarId === undefined || item.project.pillar_id === pillarId) && (ownerId === undefined || store.pillar.find(pillar => pillar.id === item.project!.pillar_id)?.lead_user_id === ownerId) && (!query.get("status") || item.status === query.get("status")) && (!query.get("search") || `${item.title} ${item.project.name} ${store.pillar.find(pillar => pillar.id === item.project!.pillar_id)?.name ?? ""}`.toLowerCase().includes(query.get("search")!.toLowerCase())));
+    const cell = (value: unknown) => '"' + (/^[=+\-@\t\r\n]/.test(String(value)) ? "'" : "") + String(value ?? "").replaceAll('"', '""') + '"';
+    const content = ["type,id,title,programme,pillar_id,owner_id,due_date,status", ...records.map(item => [item.table, item.id, item.title, item.project!.name, item.project!.pillar_id, store.pillar.find(pillar => pillar.id === item.project!.pillar_id)?.lead_user_id ?? "", item.due, item.status].map(cell).join(","))].join("\r\n");
+    const now = new Date().toISOString();
+    store.audit_logs.push(makeRow("audit_logs", { entity_type: "narrative_report", action: "EXPORT", source: "HTTP", performed_by: userId, performed_at: now, endpoint: request.routeTemplate }, Math.max(0, ...store.audit_logs.map(row => row.id)) + 1, now));
+    return envelope(200, { filename: "reporting-calendar.csv", content, totalItems: records.length });
+  }
   if (url.pathname === "/dashboard") {
     if (request.method !== "GET") return envelope(422);
     const pillars = store.pillar.filter((pillar) => !pillar.is_deleted && hasPermission(grants, "DASHBOARD_VIEW", { pillarId: pillar.id }));
@@ -193,12 +224,20 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (id !== undefined && !existing) return envelope(404);
   if (pillar && existing && !scopes(store, table, existing).includes(pillar.id)) return envelope(404);
   let permission = permissionCodes[table]?.[request.method === "GET" ? 0 : 1] ?? (request.method === "GET" ? "DASHBOARD_VIEW" : "LOOKUP_MANAGE");
+  if (family === "assessments" && table === "organisation" && request.method === "GET") permission = "ORG_ASSESSMENT_VIEW";
   if (table === "referral" && request.method === "POST") permission = "REFERRAL_CREATE";
   if (table === "grant_application" && request.method !== "GET" && request.body && typeof request.body === "object" && "status" in request.body) {
     const status = request.body.status;
     if (status !== existing?.status) permission = ({ PREPARED: "GRANT_APPLICATION_PREPARE", REVIEWED: "GRANT_APPLICATION_REVIEW", APPROVED: "GRANT_APPLICATION_APPROVE" } as Record<string, string>)[String(status)] ?? permission;
   }
+  if (table === "grant_application" && request.method === "PATCH" && existing && request.body && typeof request.body === "object" && "status" in request.body) {
+    const change = request.body as unknown as Row;
+    const order = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"];
+    if (Object.keys(change).some(key => key !== "status" && key !== "status_description") || order.indexOf(String(change.status)) !== order.indexOf(String(existing.status)) + 1) return envelope(422, null, "Grant sign-off must follow prepared, reviewed, approved order");
+    if (change.status === "APPROVED" && store.grant_award.some(award => !award.is_deleted && award.application_id === existing.id)) return envelope(422, null, "Application already has an award");
+  }
   if (table === "grant_award" && request.method === "POST") permission = "GRANT_APPLICATION_APPROVE";
+  if (table === "grant_award" && request.method === "POST") return envelope(422, null, "Awards are created by application approval");
   if (table === "organisation_assessment" && request.body && typeof request.body === "object" && "overall_recommendation" in request.body) {
     const recommendation = request.body.overall_recommendation;
     const requiresApproval = request.method === "POST" ? recommendation != null : request.method === "PATCH" && recommendation !== existing?.overall_recommendation;
@@ -219,6 +258,11 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!permission || !grants.some((grant) => grant.permissionCode === permission) && !(request.method === "GET" && ["pillar", "county", "sub_county", "ward"].includes(table) && grants.some((grant) => ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode)))) return envelope(403);
   if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   if (request.method === "GET") {
+    if (table === "grant_application" && existing && query.get("pack") === "true") {
+      if (!allowed(store, grants, "GRANT_APPLICATION_VIEW", table, existing) || !allowed(store, grants, "DOCUMENT_DOWNLOAD", table, existing)) return envelope(403);
+      auditWrite(store, request, userId, table, existing, existing, "DOWNLOAD");
+      return envelope(200, { application_id: existing.id, simulated: true }, "Mock application pack metadata only");
+    }
     if (table === "referral" && id === undefined && query.has("catalog")) {
       if (query.get("catalog") !== "destinations") return envelope(422);
       if (!grants.some((grant) => grant.permissionCode === "REFERRAL_CREATE")) return envelope(403);
@@ -302,6 +346,17 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   try { next = existing ? { ...existing, ...body, updated_at: now } : makeRow(table, input, Math.max(0, ...rows.map((row) => row.id)) + 1, now) as unknown as Row; } catch { return envelope(422); }
   if (!validate(store, table, next)) return envelope(422);
   if (table === "participant" && !existing && typeof next.id_number === "string" && next.id_number && store.participant.some((row) => row.id_number?.toLowerCase() === String(next.id_number).toLowerCase())) return envelope(422, null, "A participant with this ID number is already registered");
+  if (table === "grant_disbursement") {
+    const award = store.grant_award.find(row => row.id === next.grant_id && !row.is_deleted);
+    const application = award && store.grant_application.find(row => row.id === award.application_id && !row.is_deleted);
+    const paid = store.grant_disbursement.filter(row => !row.is_deleted && row.grant_id === next.grant_id && row.id !== next.id).reduce((sum, row) => sum + row.amount, 0);
+    if (!award || application?.status !== "APPROVED" || typeof next.amount !== "number" || next.amount <= 0 || paid + next.amount > award.amount_awarded) return envelope(422, null, "Payment exceeds the approved award or the application is not approved");
+  }
+  if (table === "assessment_document_check" && next.document_id !== null) {
+    const document = store.document.find(row => row.id === next.document_id && !row.is_deleted);
+    if (!document || document.owner_type !== "organisation_assessment" || document.owner_id !== next.assessment_id || next.document_check_status !== "obtained") return envelope(422);
+  }
+  if (table === "narrative_report" && next.report_status === "submitted" && !next.submitted_date || table === "grant_report" && next.submitted_date && !next.document_id) return envelope(422);
   const registration = !existing && (table === "participant" || table === "organisation");
   let mayWriteNext: boolean;
   if (registration) {
@@ -324,6 +379,11 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   const before = existing ? structuredClone(existing) : null;
   if (existing) Object.assign(existing, next); else rows.push(next);
   auditWrite(store, request, userId, table, before, next);
+  if (table === "grant_application" && existing && before?.status === "REVIEWED" && next.status === "APPROVED") {
+    const award = makeRow("grant_award", { application_id: next.id, amount_awarded: Number(next.requested_amount) }, Math.max(0, ...store.grant_award.map(row => row.id)) + 1, now);
+    store.grant_award.push(award);
+    auditWrite(store, request, userId, "grant_award", null, award as unknown as Row);
+  }
   if (registration && table === "participant" && query.get("enroll") === "true") {
     const enrollment = makeRow("enrollment", { participant_id: next.id, pillar_id: Number(query.get("pillarId")), entry_category: "Intake" }, Math.max(0, ...store.enrollment.map((row) => row.id)) + 1, now);
     store.enrollment.push(enrollment);
