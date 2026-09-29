@@ -12,7 +12,8 @@ export interface ParticipantQuery { page?: number; pageSize?: number; pillarId?:
 export interface ParticipantView {
   id: number; name: string; idNumber: string | null; phoneNumber: string | null; gender: string | null;
   county: string; countyId: number | null; ward: string; pillarIds: number[];
-  enrollments: { id: number; pillarId: number; category: string; status: string; date: string }[];
+  enrollments: { id: number; pillarId: number; category: string; currentStage: string | null; status: string; date: string }[];
+  currentStage: string;
   consentGiven: boolean; registered: string; status: string; remarks: string | null;
 }
 export interface ParticipantPage { items: ParticipantView[]; page: number; pageSize: number; totalItems: number; totalPages: number }
@@ -39,10 +40,13 @@ export function createParticipantsApi(client: ApiClient, token: string) {
     const ward = locations.wards.find(item => item.id === row.ward_id);
     const county = locations.counties.find(item => item.id === ward?.countyId);
     const linked = enrollments.filter(item => item.participant_id === row.id);
+    const latestStage = linked.filter(item => item.current_stage_date !== null && item.current_stage !== null)
+      .sort((a, b) => (a.current_stage_date ?? "").localeCompare(b.current_stage_date ?? "") || a.id - b.id).at(-1);
     return { id: row.id, name: [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" "), idNumber: row.id_number,
       phoneNumber: row.phone_number, gender: row.gender, county: county?.name ?? "Not recorded", countyId: county?.id ?? null,
       ward: ward?.name ?? "Not recorded", pillarIds: linked.map(item => item.pillar_id),
-      enrollments: linked.map(item => ({ id: item.id, pillarId: item.pillar_id, category: item.entry_category, status: item.status, date: item.created_at })),
+      enrollments: linked.map(item => ({ id: item.id, pillarId: item.pillar_id, category: item.entry_category, currentStage: item.current_stage, status: item.status, date: item.created_at })),
+      currentStage: latestStage?.current_stage ?? "Not started",
       consentGiven: row.is_consent_given, registered: row.created_at, status: row.status, remarks: row.remarks };
   }
   return {

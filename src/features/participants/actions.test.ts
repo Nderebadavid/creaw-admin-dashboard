@@ -4,6 +4,7 @@ import { createApiClient } from "@/lib/api/client";
 import { MockApiTransport } from "@/lib/api/mock-transport";
 import { handleMockRequest } from "@/lib/mock-api/handlers";
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
+import { makeRow } from "@/lib/mock-api/rows";
 import { createParticipantsApi } from "./api";
 
 beforeEach(() => resetMockStore());
@@ -54,4 +55,46 @@ describe("participant workflows", () => {
     expect(getMockStore().audit_logs.at(-1)?.action).toBe("REVEAL");
     expect(JSON.stringify(getMockStore().audit_logs)).not.toContain("29481172");
   });
+
+  it("does not reveal identity data to a viewer without reveal permission", async () => {
+    const audits = getMockStore().audit_logs.length;
+    expect((await apiFor(13).reveal(1, "id_number")).resultCode).toBe(403);
+    expect(getMockStore().audit_logs).toHaveLength(audits);
+  });
+
+  it("shows the latest pipeline stage instead of the enrollment entry category", async () => {
+    const store = getMockStore();
+    const enrollment = store.enrollment.find(row => row.participant_id === 1)!;
+    const pipeline = store.pipeline_definition.find(row => row.pillar_id === enrollment.pillar_id)!;
+    const laterStage = store.stage_definition.find(row => row.pipeline_id === pipeline.id && row.step_no === 2)!;
+    store.participant_stage_event.push(makeRow("participant_stage_event", {
+      enrollment_id: enrollment.id, stage_definition_id: laterStage.id, event_date: "2026-09-29T09:00:00.000Z",
+    }, 10000, "2026-09-29T09:00:00.000Z"));
+    const participant = await apiFor(1).get(1);
+    expect(participant?.currentStage).toBe(laterStage.name);
+    expect(participant?.currentStage).not.toBe(enrollment.entry_category);
+  });
+
+  it("joins enrollments beyond the first API page", async () => {
+    const store = getMockStore();
+    const enrolled = store.enrollment.find(row => row.participant_id === 1)!;
+    for (let index = 0; index < 101; index++) store.enrollment.push({ ...enrolled, id: 1000 + index, participant_id: null, organisation_id: 1 });
+    store.enrollment.push({ ...enrolled, id: 1200, pillar_id: 2 });
+    const participant = await apiFor(1).get(1);
+    expect(participant?.enrollments.map(row => row.id)).toContain(1200);
+  });
+
+  it("exports only the filtered participant set with masked identity values", async () => {
+    const response = await handleMockRequest({ method: "GET", path: "/participants", routeTemplate: "/participants", correlationId: "filtered-export", token: issueMockToken(1), query: { pillarId: 2, format: "csv" } });
+    expect(response.resultCode).toBe(200);
+    const content = (response.data as { content: string }).content;
+    expect(content).not.toContain("29481172");
+    expect(content).not.toContain("Faith Njeri");
+    expect(content.split("\r\n")).toHaveLength(getMockStore().participant.filter(row => storeHasEnrollmentInPillar(row.id, 2)).length + 1);
+    expect(getMockStore().audit_logs.at(-1)?.action).toBe("EXPORT");
+  });
 });
+
+function storeHasEnrollmentInPillar(participantId: number, pillarId: number) {
+  return getMockStore().enrollment.some(row => row.participant_id === participantId && row.pillar_id === pillarId && !row.is_deleted);
+}

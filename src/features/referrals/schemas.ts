@@ -8,11 +8,19 @@ export const referralDtoSchema = z.object({
   trigger_reason: z.string().nullable(), notes: z.string().nullable(),
   status: z.string(), created_at: z.string(), updated_at: z.string(), is_deleted: z.boolean(),
 });
-export const referralListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(referralDtoSchema), z.null()]));
-export const referralDetailSchema = createEnvelopeSchema(z.union([referralDtoSchema, z.null()]));
-export const referralMutationSchema = referralDetailSchema;
-export const referralCreateSchema = z.object({ enrollmentId: positive, fromPillarId: positive, toPillarId: positive, reason: z.string().trim().min(2), notes: z.string().trim().optional() });
+export const referralReadDtoSchema = referralDtoSchema.extend({
+  participant_summary: z.object({ id: positive, name: z.string() }).nullable(),
+  destination_name: z.string().nullable(),
+});
+export const referralListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(referralReadDtoSchema), z.null()]));
+export const referralDetailSchema = createEnvelopeSchema(z.union([referralReadDtoSchema, z.null()]));
+export const referralMutationSchema = createEnvelopeSchema(z.union([referralDtoSchema, z.null()]));
+export const referralDestinationCatalogSchema = createEnvelopeSchema(z.union([z.object({
+  internalPillarIds: z.array(positive), partnerInstitutions: z.array(z.object({ id: positive, name: z.string() })),
+}), z.null()]));
+export const referralCreateSchema = z.object({ enrollmentId: positive, fromPillarId: positive, toPillarId: positive, partnerInstitutionId: positive.optional(), reason: z.string().trim().min(2), notes: z.string().trim().optional() });
 export const referralDecisionSchema = z.object({ id: positive, decision: z.enum(["ACCEPTED", "DECLINED"]), note: z.string().trim().optional() });
 export const referralEditSchema = z.object({ id: positive, reason: z.string().trim().min(2) });
-export type ReferralDto = z.infer<typeof referralDtoSchema>;
+export type ReferralDto = z.infer<typeof referralReadDtoSchema>;
 export type ReferralCreate = z.infer<typeof referralCreateSchema>;
+export type ReferralDestinationCatalog = NonNullable<z.infer<typeof referralDestinationCatalogSchema>["data"]>;

@@ -20,6 +20,26 @@ describe("referral workflows", () => {
     expect(getMockStore().enrollment.filter(row => row.participant_id === 6 && row.pillar_id === 2)).toHaveLength(before + 1);
   });
 
+  it("shows a masked participant summary to the receiving lead without source enrollment access", async () => {
+    const api = apiFor(3); // WEE can view the incoming VAWG referral, not its VAWG enrollment
+    expect(await api.getOrigin(7)).toBeNull();
+    const referral = await api.get(4);
+    expect(referral?.participantId).toBe(6);
+    expect(referral?.participant).not.toMatch(/unknown|Aisha|Mohamed/i);
+    expect(referral?.participant).toContain("•");
+  });
+
+  it("names the external institution in list and detail view models", async () => {
+    const api = apiFor(1);
+    expect((await api.get(1))?.destinationName).toBe("Nairobi Women's Shelter");
+    expect((await api.list({ page: 1, pageSize: 1 })).items[0].destinationName).toBe("Nairobi Women's Shelter");
+  });
+
+  it("preserves a historic external destination label after its institution is retired", async () => {
+    getMockStore().partner_institution.find(row => row.name === "Nairobi Women's Shelter")!.is_deleted = true;
+    expect((await apiFor(1).get(1))?.destinationName).toBe("Nairobi Women's Shelter");
+  });
+
   it("shows a disabled decision and returns 403 when destination scope mismatches", async () => {
     const api = apiFor(5); // VAWG scoped lead, referral 4 goes to WEE
     const referral = await api.get(4);
@@ -43,5 +63,40 @@ describe("referral workflows", () => {
     expect(result.data).toMatchObject({ enrollment_id: 1, from_pillar_id: 1, to_pillar_id: 2, status: "NEW" });
     expect(result.data?.to_project_id).toBeTypeOf("number");
     expect((await api.create({ enrollmentId: 2, fromPillarId: 2, toPillarId: 1, reason: "Wrong origin" })).resultCode).toBe(403);
+  });
+
+  it("creates an external referral with only its partner institution destination", async () => {
+    const institutionId = getMockStore().partner_institution.find(row => row.name === "Nairobi Women's Shelter")!.id;
+    const result = await apiFor(5).create({ enrollmentId: 1, fromPillarId: 1, toPillarId: 1, partnerInstitutionId: institutionId, reason: "Shelter placement" });
+    expect(result).toMatchObject({ resultCode: 201, data: { to_project_id: null, to_partner_institution_id: institutionId } });
+    expect((await apiFor(5).get(result.data!.id))?.destinationName).toBe("Nairobi Women's Shelter");
+  });
+
+  it("accepts an external hand-off without creating a destination enrollment", async () => {
+    const store = getMockStore();
+    const before = store.enrollment.filter(row => row.participant_id === 1).length;
+    expect((await apiFor(5).respond(1, "ACCEPTED")).resultCode).toBe(200);
+    expect(store.enrollment.filter(row => row.participant_id === 1)).toHaveLength(before);
+    expect(store.referral[0].status).toBe("ACCEPTED");
+  });
+
+  it("offers referral destination choices without granting lookup management", async () => {
+    const destinations = await apiFor(5).destinations();
+    expect(destinations.partnerInstitutions).toContainEqual(expect.objectContaining({ name: "Nairobi Women's Shelter" }));
+    expect(destinations.internalPillarIds).toContain(2);
+    expect(destinations.internalPillarIds).not.toContain(4); // Leadership has no project
+  });
+
+  it("does not duplicate an existing destination enrollment and rejects repeated acceptance", async () => {
+    const store = getMockStore();
+    const destinationEnrollment = { ...store.enrollment.find(row => row.participant_id === 6)!, id: 1000, pillar_id: 2 };
+    store.enrollment.push(destinationEnrollment);
+    const api = apiFor(1);
+    expect((await api.respond(4, "ACCEPTED")).resultCode).toBe(200);
+    expect(store.enrollment.filter(row => row.participant_id === 6 && row.pillar_id === 2)).toEqual([destinationEnrollment]);
+    const auditCount = store.audit_logs.length;
+    expect((await api.respond(4, "ACCEPTED")).resultCode).toBe(422);
+    expect(store.enrollment.filter(row => row.participant_id === 6 && row.pillar_id === 2)).toHaveLength(1);
+    expect(store.audit_logs).toHaveLength(auditCount);
   });
 });

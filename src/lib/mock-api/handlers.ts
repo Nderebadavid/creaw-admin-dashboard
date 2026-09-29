@@ -78,6 +78,27 @@ function allowed(store: MockStore, grants: EffectiveGrant[], code: string, table
 function masked(table: TableName, row: Row, audit = false): Row {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, key === "password_hash" ? "[REDACTED]" : isSensitiveField(table, key) && value !== null ? audit ? "[REDACTED]" : maskSensitiveValue(value) : value])) as Row;
 }
+function referralRead(store: MockStore, row: Row): Row {
+  const enrollment = store.enrollment.find((item) => item.id === row.enrollment_id && !item.is_deleted);
+  const participant = store.participant.find((item) => item.id === enrollment?.participant_id && !item.is_deleted);
+  const safeParticipant = participant ? masked("participant", participant as unknown as Row) : null;
+  const partner = store.partner_institution.find((item) => item.id === row.to_partner_institution_id);
+  return {
+    ...masked("referral", row),
+    participant_summary: safeParticipant ? {
+      id: safeParticipant.id,
+      name: [safeParticipant.first_name, safeParticipant.middle_name, safeParticipant.last_name].filter(Boolean).join(" "),
+    } : null,
+    destination_name: partner?.name ?? null,
+  };
+}
+function enrollmentRead(store: MockStore, row: Row): Row {
+  const latestEvent = store.participant_stage_event
+    .filter((item) => item.enrollment_id === row.id && !item.is_deleted)
+    .sort((a, b) => a.event_date.localeCompare(b.event_date) || a.id - b.id).at(-1);
+  const stage = store.stage_definition.find((item) => item.id === latestEvent?.stage_definition_id);
+  return { ...masked("enrollment", row), current_stage: stage?.name ?? null, current_stage_date: latestEvent?.event_date ?? null };
+}
 function auditWrite(store: MockStore, request: ApiRequest<unknown>, userId: number, table: TableName, before: Row | null, after: Row, action?: string) {
   const now = new Date().toISOString();
   store.audit_logs.push(makeRow("audit_logs", {
@@ -198,9 +219,17 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!permission || !grants.some((grant) => grant.permissionCode === permission) && !(request.method === "GET" && ["pillar", "county", "sub_county", "ward"].includes(table) && grants.some((grant) => ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode)))) return envelope(403);
   if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   if (request.method === "GET") {
+    if (table === "referral" && id === undefined && query.has("catalog")) {
+      if (query.get("catalog") !== "destinations") return envelope(422);
+      if (!grants.some((grant) => grant.permissionCode === "REFERRAL_CREATE")) return envelope(403);
+      return envelope(200, {
+        internalPillarIds: [...new Set(store.project.filter((item) => !item.is_deleted).map((item) => item.pillar_id))],
+        partnerInstitutions: store.partner_institution.filter((item) => !item.is_deleted).map((item) => ({ id: item.id, name: item.name })),
+      });
+    }
     if (existing) {
       if (!allowed(store, grants, permission, table, existing)) return envelope(403);
-      const result = masked(table, existing);
+      const result = table === "referral" ? referralRead(store, existing) : table === "enrollment" ? enrollmentRead(store, existing) : masked(table, existing);
       if (query.has("reveal")) {
         const field = query.get("reveal")!;
         if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
@@ -255,7 +284,7 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
       store.audit_logs.push(makeRow("audit_logs", { entity_type: table, action: "EXPORT", source: "HTTP", performed_by: userId, performed_at: now, endpoint: request.routeTemplate }, Math.max(0, ...store.audit_logs.map((row) => row.id)) + 1, now));
       return envelope(200, { filename: `${table}.csv`, content, totalItems: filtered.length });
     }
-    const data: PaginatedData<Row> = { items: filtered.slice((page - 1) * pageSize, page * pageSize).map((row) => masked(table, row)), page, pageSize, totalItems: filtered.length, totalPages: Math.ceil(filtered.length / pageSize) };
+    const data: PaginatedData<Row> = { items: filtered.slice((page - 1) * pageSize, page * pageSize).map((row) => table === "referral" ? referralRead(store, row) : table === "enrollment" ? enrollmentRead(store, row) : masked(table, row)), page, pageSize, totalItems: filtered.length, totalPages: Math.ceil(filtered.length / pageSize) };
     return envelope(200, data);
   }
   if (request.method !== "POST" && request.method !== "PATCH" || request.method === "PATCH" && !existing || request.method === "POST" && id !== undefined || table === "audit_logs") return envelope(422);
@@ -266,7 +295,9 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   let next: Row;
   const now = new Date().toISOString();
   const input = table === "user" && !existing ? { ...body, password_hash: "mock-only:no-real-password-hash" }
-    : table === "referral" && !existing ? { ...body, status: "NEW", to_project_id: body.to_project_id ?? store.project.find((project) => !project.is_deleted && project.pillar_id === body.to_pillar_id)?.id ?? null }
+    : table === "referral" && !existing ? { ...body, status: "NEW", to_project_id: body.to_partner_institution_id == null
+      ? body.to_project_id ?? store.project.find((project) => !project.is_deleted && project.pillar_id === body.to_pillar_id)?.id ?? null
+      : body.to_project_id ?? null }
     : body;
   try { next = existing ? { ...existing, ...body, updated_at: now } : makeRow(table, input, Math.max(0, ...rows.map((row) => row.id)) + 1, now) as unknown as Row; } catch { return envelope(422); }
   if (!validate(store, table, next)) return envelope(422);

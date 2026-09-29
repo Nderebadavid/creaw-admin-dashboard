@@ -12,11 +12,12 @@ export const enrollmentDtoSchema = z.object({
   id: positive, participant_id: positive.nullable(), pillar_id: positive, entry_category: z.string(),
   status: z.string(), created_at: z.string(), updated_at: z.string(),
 });
+export const enrollmentReadDtoSchema = enrollmentDtoSchema.extend({ current_stage: z.string().nullable(), current_stage_date: z.string().nullable() });
 export const lookupDtoSchema = z.object({ id: positive, name: z.string(), county_id: positive.optional(), sub_county_id: positive.optional(), code: z.string().optional() });
 export const participantListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(participantDtoSchema), z.null()]));
 export const participantDetailSchema = createEnvelopeSchema(z.union([participantDtoSchema, z.null()]));
-export const enrollmentListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(enrollmentDtoSchema), z.null()]));
-export const enrollmentDetailSchema = createEnvelopeSchema(z.union([enrollmentDtoSchema, z.null()]));
+export const enrollmentListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(enrollmentReadDtoSchema), z.null()]));
+export const enrollmentDetailSchema = createEnvelopeSchema(z.union([enrollmentReadDtoSchema, z.null()]));
 export const lookupListSchema = createEnvelopeSchema(z.union([createPaginatedSchema(lookupDtoSchema), z.null()]));
 export const participantMutationSchema = participantDetailSchema;
 export const enrollmentMutationSchema = createEnvelopeSchema(z.union([enrollmentDtoSchema, z.null()]));
@@ -36,4 +37,4 @@ export const participantUpdateSchema = z.object({
 export type ParticipantRegistration = z.infer<typeof participantRegistrationSchema>;
 export type ParticipantUpdate = z.infer<typeof participantUpdateSchema>;
 export type ParticipantDto = z.infer<typeof participantDtoSchema>;
-export type EnrollmentDto = z.infer<typeof enrollmentDtoSchema>;
+export type EnrollmentDto = z.infer<typeof enrollmentReadDtoSchema>;
