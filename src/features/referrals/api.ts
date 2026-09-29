@@ -1,9 +1,7 @@
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
+import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/permissions";
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { enrollmentDetailSchema, lookupListSchema } from "@/features/participants/schemas";
 import {
@@ -253,18 +251,12 @@ export function createReferralsApi(client: ApiClient, token: string) {
 
 export const referralsApi = {
   async list(query: ReferralQuery = {}) {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createReferralsApi(createPortalApiClient(), token).list(query);
+    return (await withSessionApi(createReferralsApi)).list(query);
   },
   async pillars() {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createReferralsApi(createPortalApiClient(), token).pillars();
+    return (await withSessionApi(createReferralsApi)).pillars();
   },
   async destinations() {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createReferralsApi(createPortalApiClient(), token).destinations();
+    return (await withSessionApi(createReferralsApi)).destinations();
   },
 };

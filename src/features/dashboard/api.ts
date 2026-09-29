@@ -1,7 +1,5 @@
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
 import type { ApiEnvelope, PaginatedData } from "@/types/api";
 import {
@@ -264,8 +262,6 @@ export function createDashboardApi(client: ApiClient, token: string) {
 
 export const dashboardApi = {
   async getOverview(period: string) {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createDashboardApi(createPortalApiClient(), token).getOverview(period);
+    return (await withSessionApi(createDashboardApi)).getOverview(period);
   },
 };

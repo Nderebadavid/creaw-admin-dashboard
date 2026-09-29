@@ -1,10 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createAssessmentsApi } from "./api";
 import { assessmentCreateSchema, attachSchema, recommendationSchema } from "./schemas";
 const result = (resultCode: number, message: string) => ({
@@ -12,10 +10,8 @@ const result = (resultCode: number, message: string) => ({
   success: resultCode < 400,
   message,
 });
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createAssessmentsApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createAssessmentsApi);
 }
 export async function listAssessmentsAction(page: number, pageSize: number) {
   const session = await requireSession();

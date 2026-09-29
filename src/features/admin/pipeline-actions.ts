@@ -1,10 +1,8 @@
 "use server";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import { createPortalApiClient } from "@/lib/api/portal-client";
 import { createAdminApi } from "./api";
 import {
   pipelineInputSchema,
@@ -20,10 +18,8 @@ const result = (resultCode: number, message: string, id?: number) => ({
   message,
   data: id ? { id } : null,
 });
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createAdminApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createAdminApi);
 }
 async function stageContext(stageId: number) {
   const client = await api();

@@ -1,9 +1,8 @@
 "use server";
-import { cookies } from "next/headers";
 import { z } from "zod";
+import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { API_ROUTE_TEMPLATES, type ApiRouteTemplate } from "@/lib/api/transport";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import type { RevealResult } from "@/components/ui/masked-field";
 import type { ExportResult } from "@/components/ui/export-button";
 
@@ -30,7 +29,7 @@ function validTarget(target: PortalDataTarget) {
 }
 async function read(target: PortalDataTarget, extra: Record<string, string>) {
   if (!validTarget(target)) throw new Error("Invalid resource");
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const token = await readSessionToken();
   if (!token) throw new Error("Sign in required");
   return createPortalApiClient().request(
     {

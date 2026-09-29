@@ -1,8 +1,6 @@
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
+import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import { cookies } from "next/headers";
 import {
   enrollmentListSchema,
   lookupListSchema,
@@ -247,13 +245,9 @@ export function createParticipantsApi(client: ApiClient, token: string) {
 
 export const participantsApi = {
   async list(query: ParticipantQuery = {}) {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createParticipantsApi(createPortalApiClient(), token).list(query);
+    return (await withSessionApi(createParticipantsApi)).list(query);
   },
   async catalog() {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createParticipantsApi(createPortalApiClient(), token).catalog();
+    return (await withSessionApi(createParticipantsApi)).catalog();
   },
 };

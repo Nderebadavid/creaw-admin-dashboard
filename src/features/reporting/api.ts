@@ -1,7 +1,5 @@
-import { cookies } from "next/headers";
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { withSessionApi } from "@/lib/api/session-api";
 import {
   reportPageSchema,
   catalogSchema,
@@ -193,10 +191,8 @@ export function createReportingApi(client: ApiClient, token: string) {
     },
   };
 }
-async function bound() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createReportingApi(createPortalApiClient(), token);
+function bound() {
+  return withSessionApi(createReportingApi);
 }
 export const reportingApi = {
   async list(query?: ReportQuery) {

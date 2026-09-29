@@ -1,11 +1,9 @@
 "use server";
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { withSessionApi } from "@/lib/api/session-api";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
-import { createPortalApiClient } from "@/lib/api/portal-client";
 import { createAdminApi } from "./api";
 import {
   lookupActionSchema,
@@ -59,10 +57,8 @@ const outcome = (resultCode: number, message: string, rowId?: number) => ({
   message,
   data: rowId ? { id: rowId } : null,
 });
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createAdminApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createAdminApi);
 }
 function refresh(table: LookupTable) {
   revalidatePath(`/admin/lookups/${table}`);

@@ -1,11 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
-import { createPortalApiClient } from "@/lib/api/portal-client";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { createReferralsApi, type ReferralQuery } from "./api";
 import { referralCreateSchema, referralDecisionSchema, referralEditSchema } from "./schemas";
@@ -16,10 +14,8 @@ const result = (resultCode: number, message: string) => ({
   message,
   data: null,
 });
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createReferralsApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createReferralsApi);
 }
 
 export async function listReferralsAction(query: ReferralQuery) {

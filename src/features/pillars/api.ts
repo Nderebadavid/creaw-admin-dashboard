@@ -1,7 +1,6 @@
 import type { ApiClient } from "@/lib/api/client";
+import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
-import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { collectPages } from "@/lib/api/pagination";
 import {
   pillarCodeSchema,
@@ -276,7 +275,7 @@ export function createPillarsApi(client: ApiClient, token: string) {
 
 export const pillarsApi = {
   async get(code: string) {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+    const token = await readSessionToken();
     if (!token) throw new PillarApiError("Sign in required", 403);
     return createPillarsApi(createPortalApiClient(), token).get(code);
   },

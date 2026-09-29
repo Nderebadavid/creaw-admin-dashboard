@@ -1,10 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createReportingApi, type ReportQuery } from "./api";
 import { deadlineInputSchema, submitInputSchema } from "./schemas";
 const result = (resultCode: number, message: string) => ({
@@ -12,10 +10,8 @@ const result = (resultCode: number, message: string) => ({
   success: resultCode < 400,
   message,
 });
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createReportingApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createReportingApi);
 }
 export async function listReportsAction(query: ReportQuery) {
   const session = await requireSession();

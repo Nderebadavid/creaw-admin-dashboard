@@ -1,10 +1,9 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { readSessionToken, withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { createPortalApiClient } from "@/lib/api/portal-client";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createGrantsApi, type GrantQuery } from "./api";
 import { createReportingApi } from "@/features/reporting/api";
 import { advanceInputSchema, disburseInputSchema, grantPeriodInputSchema } from "./schemas";
@@ -13,10 +12,8 @@ const result = (resultCode: number, message: string) => ({
   success: resultCode < 400,
   message,
 });
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createGrantsApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createGrantsApi);
 }
 
 export async function listGrantsAction(query: GrantQuery) {
@@ -97,7 +94,7 @@ export async function logGrantReportAction(input: unknown) {
   const parsed = grantPeriodInputSchema.safeParse(input);
   if (!parsed.success) return result(422, "Check the reporting period dates");
   try {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+    const token = await readSessionToken();
     if (!token) return result(403, "Sign in required");
     const award = (await createReportingApi(createPortalApiClient(), token).catalog()).awards.find(
       (item) => item.applicationId === parsed.data.applicationId

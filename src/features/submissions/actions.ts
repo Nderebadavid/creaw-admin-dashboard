@@ -1,10 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { requireSession } from "@/lib/auth/session-server";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { createSubmissionsApi } from "./api";
 import { reviewInputSchema } from "./schemas";
@@ -18,7 +17,7 @@ export async function reviewSubmissionAction(
   if (!parsed.success) return { success: false, message: "Invalid submission review." };
   if (!session.grants.some((grant) => grant.permissionCode === "FIELD_SUBMISSION_REVIEW"))
     return { success: false, message: "You cannot review field submissions." };
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const token = await readSessionToken();
   if (!token) return { success: false, message: "Sign in required." };
   const api = createSubmissionsApi(createPortalApiClient(), token);
   try {

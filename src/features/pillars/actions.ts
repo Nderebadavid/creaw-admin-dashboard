@@ -1,10 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { readSessionToken } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import {
   createDomainSchema,
@@ -23,7 +22,7 @@ export async function createPillarRecordAction(
   const input = createPillarRecordSchema.safeParse({ code, participantId, entryCategory });
   if (!input.success)
     return { success: false, message: "Enter a participant ID and programme category." };
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const token = await readSessionToken();
   if (!token) return { success: false, message: "Sign in required." };
   const api = createPillarsApi(createPortalApiClient(), token);
   try {
@@ -54,7 +53,7 @@ export async function updatePillarRecordAction(
   const session = await requireSession();
   const input = updatePillarRecordSchema.safeParse({ code, id, entryCategory });
   if (!input.success) return { success: false, message: "Invalid pillar record." };
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const token = await readSessionToken();
   if (!token) return { success: false, message: "Sign in required." };
   const api = createPillarsApi(createPortalApiClient(), token);
   try {
@@ -80,7 +79,7 @@ export async function createPillarDomainAction(
   const input = createDomainSchema.safeParse({ ...values, code });
   if (!input.success)
     return { success: false, message: "Complete the required fields with valid values." };
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const token = await readSessionToken();
   if (!token) return { success: false, message: "Sign in required." };
   const api = createPillarsApi(createPortalApiClient(), token);
   try {

@@ -1,8 +1,6 @@
-import { cookies } from "next/headers";
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
+import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createReportingApi, type ReportView } from "@/features/reporting/api";
 import {
   applicationListSchema,
@@ -340,10 +338,8 @@ export function createGrantsApi(client: ApiClient, token: string) {
     },
   };
 }
-async function bound() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createGrantsApi(createPortalApiClient(), token);
+function bound() {
+  return withSessionApi(createGrantsApi);
 }
 export const grantsApi = {
   async list(query?: GrantQuery) {

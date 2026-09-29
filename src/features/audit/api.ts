@@ -1,7 +1,5 @@
-import { cookies } from "next/headers";
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { withSessionApi } from "@/lib/api/session-api";
 import {
   auditDetailSchema,
   auditExportSchema,
@@ -79,10 +77,8 @@ export function createAuditApi(client: ApiClient, token: string) {
     },
   };
 }
-async function bound() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createAuditApi(createPortalApiClient(), token);
+function bound() {
+  return withSessionApi(createAuditApi);
 }
 export const auditApi = {
   async list(query?: AuditQuery) {

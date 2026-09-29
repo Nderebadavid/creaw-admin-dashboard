@@ -1,16 +1,12 @@
 "use server";
-import { cookies } from "next/headers";
 import { requireSession } from "@/lib/auth/session-server";
+import { withSessionApi } from "@/lib/api/session-api";
 import { hasPermission } from "@/lib/auth/permissions";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { createAuditApi } from "./api";
 import { auditQuerySchema, type AuditQuery } from "./schemas";
 
-async function api() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createAuditApi(createPortalApiClient(), token);
+function api() {
+  return withSessionApi(createAuditApi);
 }
 export async function listAuditAction(query: AuditQuery) {
   const session = await requireSession();

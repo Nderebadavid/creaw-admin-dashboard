@@ -1,7 +1,5 @@
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
-import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
 import { dashboardDtoSchema } from "@/features/dashboard/schemas";
 import {
@@ -167,13 +165,9 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
 
 export const submissionsApi = {
   async list(query: SubmissionQuery = {}) {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createSubmissionsApi(createPortalApiClient(), token).list(query);
+    return (await withSessionApi(createSubmissionsApi)).list(query);
   },
   async listAll() {
-    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-    if (!token) throw new Error("Sign in required");
-    return createSubmissionsApi(createPortalApiClient(), token).listAll();
+    return (await withSessionApi(createSubmissionsApi)).listAll();
   },
 };

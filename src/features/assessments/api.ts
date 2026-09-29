@@ -1,8 +1,6 @@
-import { cookies } from "next/headers";
 import type { ApiClient } from "@/lib/api/client";
-import { createPortalApiClient } from "@/lib/api/portal-client";
+import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import {
   assessmentListSchema,
   assessmentDetailSchema,
@@ -253,10 +251,8 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
   };
 }
 const createEnvelopeSchemaWrapper = createEnvelopeSchema(checkSchema.nullable());
-async function bound() {
-  const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
-  if (!token) throw new Error("Sign in required");
-  return createAssessmentsApi(createPortalApiClient(), token);
+function bound() {
+  return withSessionApi(createAssessmentsApi);
 }
 export const assessmentsApi = {
   async list(page?: number, pageSize?: number) {
