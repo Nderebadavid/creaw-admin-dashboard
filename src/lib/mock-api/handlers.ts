@@ -72,7 +72,7 @@ function allowed(store: MockStore, grants: EffectiveGrant[], code: string, table
   if (table === "referral" && (code === "REFERRAL_CREATE" || code === "REFERRAL_ACCEPT")) {
     return hasPermission(grants, code, { pillarId: Number(code === "REFERRAL_CREATE" ? row.from_pillar_id : row.to_pillar_id) });
   }
-  if (code === "DASHBOARD_VIEW" && lookups.includes(table) && grants.some((grant) => grant.permissionCode === code)) return true;
+  if (code === "DASHBOARD_VIEW" && lookups.includes(table) && (grants.some((grant) => grant.permissionCode === code) || ["pillar", "county", "sub_county", "ward"].includes(table) && grants.some((grant) => ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode)))) return true;
   return hasPermission(grants, code) || scopes(store, table, row).some((pillarId) => hasPermission(grants, code, { pillarId }));
 }
 function masked(table: TableName, row: Row, audit = false): Row {
@@ -183,7 +183,19 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const requiresApproval = request.method === "POST" ? recommendation != null : request.method === "PATCH" && recommendation !== existing?.overall_recommendation;
     if (requiresApproval) permission = "ORG_ASSESSMENT_APPROVE";
   }
-  if (!permission || !grants.some((grant) => grant.permissionCode === permission)) return envelope(403);
+  if (table === "referral" && request.method === "PATCH" && request.body && typeof request.body === "object" && !Array.isArray(request.body)) {
+    const change = request.body as Row;
+    const keys = Object.keys(change);
+    if (!existing || existing.status !== "NEW" || !keys.length || keys.some((key) => !["status", "trigger_reason", "notes"].includes(key))) return envelope(422);
+    if (change.status === "ACCEPTED" || change.status === "DECLINED") {
+      if (keys.some((key) => key !== "status" && key !== "notes")) return envelope(422);
+      permission = "REFERRAL_ACCEPT";
+    } else if (change.status === "WITHDRAWN" || change.status === undefined) {
+      if (change.status === "WITHDRAWN" && keys.some((key) => key !== "status")) return envelope(422);
+      permission = "REFERRAL_CREATE";
+    } else return envelope(422);
+  }
+  if (!permission || !grants.some((grant) => grant.permissionCode === permission) && !(request.method === "GET" && ["pillar", "county", "sub_county", "ward"].includes(table) && grants.some((grant) => ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode)))) return envelope(403);
   if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   if (request.method === "GET") {
     if (existing) {
@@ -209,9 +221,15 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const pillarFilter = pillar?.id ?? (query.has("pillarId") ? Number(query.get("pillarId")) : undefined);
     if (pillarFilter !== undefined && (!Number.isInteger(pillarFilter) || pillarFilter < 1)) return envelope(422);
     const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
-    const reserved = new Set(["page", "pageSize", "pillarId", "table", "search", "q", "sortBy", "sortOrder", "format"]);
+    const countyId = query.has("countyId") ? Number(query.get("countyId")) : undefined;
+    if (countyId !== undefined && (table !== "participant" || !Number.isSafeInteger(countyId) || countyId < 1)) return envelope(422);
+    const reserved = new Set(["page", "pageSize", "pillarId", "countyId", "table", "search", "q", "sortBy", "sortOrder", "format"]);
     for (const [key] of query) if (!reserved.has(key) && (!Object.hasOwn(tableDefinitions[table], key) || isSensitiveField(table, key))) return envelope(422);
     let filtered = rows.filter((row) => visible(row) && allowed(store, grants, permission, table, row) && (pillarFilter === undefined || scopes(store, table, row).includes(pillarFilter)));
+    if (countyId !== undefined) filtered = filtered.filter((row) => {
+      const ward = store.ward.find((item) => item.id === row.ward_id);
+      return store.sub_county.some((item) => item.id === ward?.sub_county_id && item.county_id === countyId);
+    });
     for (const [key, value] of query) if (!reserved.has(key)) filtered = filtered.filter((row) => String(row[key]) === value);
     // Search uses the visible representation so it cannot become an oracle for
     // masked identity numbers or other hidden data.
@@ -244,11 +262,15 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   if (!request.body || typeof request.body !== "object" || Array.isArray(request.body)) return envelope(422);
   const body = request.body as Row;
   if (Object.keys(body).some((key) => ["id", "created_at", "updated_at", "password_hash"].includes(key))) return envelope(422);
+  if (query.has("enroll") && (table !== "participant" || request.method !== "POST" || query.get("enroll") !== "true" || !query.has("pillarId"))) return envelope(422);
   let next: Row;
   const now = new Date().toISOString();
-  const input = table === "user" && !existing ? { ...body, password_hash: "mock-only:no-real-password-hash" } : body;
+  const input = table === "user" && !existing ? { ...body, password_hash: "mock-only:no-real-password-hash" }
+    : table === "referral" && !existing ? { ...body, status: "NEW", to_project_id: body.to_project_id ?? store.project.find((project) => !project.is_deleted && project.pillar_id === body.to_pillar_id)?.id ?? null }
+    : body;
   try { next = existing ? { ...existing, ...body, updated_at: now } : makeRow(table, input, Math.max(0, ...rows.map((row) => row.id)) + 1, now) as unknown as Row; } catch { return envelope(422); }
   if (!validate(store, table, next)) return envelope(422);
+  if (table === "participant" && !existing && typeof next.id_number === "string" && next.id_number && store.participant.some((row) => row.id_number?.toLowerCase() === String(next.id_number).toLowerCase())) return envelope(422, null, "A participant with this ID number is already registered");
   const registration = !existing && (table === "participant" || table === "organisation");
   let mayWriteNext: boolean;
   if (registration) {
@@ -271,5 +293,18 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
   const before = existing ? structuredClone(existing) : null;
   if (existing) Object.assign(existing, next); else rows.push(next);
   auditWrite(store, request, userId, table, before, next);
+  if (registration && table === "participant" && query.get("enroll") === "true") {
+    const enrollment = makeRow("enrollment", { participant_id: next.id, pillar_id: Number(query.get("pillarId")), entry_category: "Intake" }, Math.max(0, ...store.enrollment.map((row) => row.id)) + 1, now);
+    store.enrollment.push(enrollment);
+    auditWrite(store, request, userId, "enrollment", null, enrollment as unknown as Row);
+  }
+  if (table === "referral" && existing && next.status === "ACCEPTED" && before?.status === "NEW" && next.to_partner_institution_id === null) {
+    const origin = store.enrollment.find((item) => item.id === next.enrollment_id);
+    if (origin?.participant_id && !store.enrollment.some((item) => !item.is_deleted && item.participant_id === origin.participant_id && item.pillar_id === next.to_pillar_id)) {
+      const enrollment = makeRow("enrollment", { participant_id: origin.participant_id, pillar_id: Number(next.to_pillar_id), entry_category: "Referral intake" }, Math.max(0, ...store.enrollment.map((row) => row.id)) + 1, now);
+      store.enrollment.push(enrollment);
+      auditWrite(store, request, userId, "enrollment", null, enrollment as unknown as Row);
+    }
+  }
   return envelope(existing ? 200 : 201, masked(table, next));
 }

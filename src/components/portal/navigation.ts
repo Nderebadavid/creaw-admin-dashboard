@@ -12,6 +12,7 @@ export interface NavigationItem {
 export const implementedPortalRoutes: readonly string[] = [
   "/dashboard", "/field-submissions", "/pillars/vawg", "/pillars/wee", "/pillars/srhr",
   "/pillars/leadership", "/pillars/wros", "/pillars/skilling",
+  "/participants", "/referrals",
 ];
 export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   { label: "Overview", items: [

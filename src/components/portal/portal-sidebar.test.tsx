@@ -32,3 +32,8 @@ it("does not advertise a pillar page to a grant that the page cannot serve", () 
   render(<PortalSidebar pathname="/field-submissions" grants={[{permissionCode:"COUNSELLING_VIEW",pillarId:1}]} />);
   expect(screen.queryByRole("link", {name:"VAWG"})).not.toBeInTheDocument();
 });
+it("shows completed participant and referral routes to permitted users", () => {
+  render(<PortalSidebar pathname="/participants" grants={[{permissionCode:"PARTICIPANT_VIEW",pillarId:2},{permissionCode:"REFERRAL_VIEW",pillarId:2}]} />);
+  expect(screen.getByRole("link", {name:"Participants"})).toHaveAttribute("href", "/participants");
+  expect(screen.getByRole("link", {name:"Referral queue"})).toHaveAttribute("href", "/referrals");
+});
