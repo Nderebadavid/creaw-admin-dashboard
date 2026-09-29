@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("./actions", () => ({ createUserAction: vi.fn(), updateUserAction: vi.fn(), setUserRoleAction: vi.fn(), createRoleAction: vi.fn(), updateRoleAction: vi.fn(), createPermissionAction: vi.fn(), setRolePermissionAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { UsersContent } from "./users-components";
 import { PermissionsContent } from "./permissions-components";
+import { setRolePermissionAction } from "./actions";
+
+const editableRole = { id: 3, code: "PILLAR_LEAD", name: "Pillar Lead", description: null, status: "ACTIVE", is_deleted: false, is_system_role: false };
+const permission = (id: number, code: string, name: string) => ({ id, code, name, module: "ADMIN", description: null, status: "ACTIVE", is_deleted: false });
+const grant = (id: number, permissionId: number) => ({ id, role_id: 3, permission_id: permissionId, status: "ACTIVE", is_deleted: false });
+afterEach(() => { cleanup(); vi.mocked(setRolePermissionAction).mockReset(); });
 
 describe("administration screens", () => {
   it("shows masked staff contacts, role scope and user controls", () => {
@@ -17,5 +23,43 @@ describe("administration screens", () => {
     render(<PermissionsContent roles={[{ id: 1, code: "SYSTEM_ADMIN", name: "System Administrator", description: null, status: "ACTIVE", is_deleted: false, is_system_role: true }]} permissions={[{ id: 1, code: "AUDIT_LOG_VIEW", name: "View audit log", module: "ADMIN", description: null, status: "ACTIVE", is_deleted: false }]} grants={[{ id: 1, role_id: 1, permission_id: 1, status: "ACTIVE", is_deleted: false }]} canManageRoles canManagePermissions />);
     expect(screen.getByText(/built-in roles cannot be edited/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /view audit log/i })).toBeDisabled();
+  });
+  it("reconciles refreshed authoritative grants while retaining only unresolved drafts", async () => {
+    const first = permission(1, "AUDIT_LOG_VIEW", "View audit log"), second = permission(2, "USER_MANAGE", "Manage users");
+    const props = { roles: [editableRole], permissions: [first, second], canManageRoles: true, canManagePermissions: true };
+    const view = render(<PermissionsContent {...props} grants={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: /view audit log/i }));
+    expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+
+    view.rerender(<PermissionsContent {...props} grants={[grant(10, second.id)]} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /manage users/i })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: /view audit log/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+
+    view.rerender(<PermissionsContent {...props} grants={[grant(10, second.id), grant(11, first.id)]} />);
+    await waitFor(() => expect(screen.queryByText("1 unsaved change")).not.toBeInTheDocument());
+  });
+  it("reports partial saves by successful operations, even when grant and revoke counts cancel", async () => {
+    const add = permission(2, "USER_MANAGE", "Manage users"), remove = permission(1, "AUDIT_LOG_VIEW", "View audit log"), fail = permission(3, "ROLE_MANAGE", "Manage roles");
+    const action = vi.mocked(setRolePermissionAction);
+    action.mockResolvedValueOnce({ resultCode: 200, success: true, message: "OK", data: { id: 20 } })
+      .mockResolvedValueOnce({ resultCode: 200, success: true, message: "OK", data: { id: 21 } })
+      .mockResolvedValueOnce({ resultCode: 403, success: false, message: "Denied", data: null });
+    const props = { roles: [editableRole], permissions: [add, remove, fail], canManageRoles: true, canManagePermissions: true };
+    const view = render(<PermissionsContent {...props} grants={[grant(10, remove.id)]} />);
+    fireEvent.click(screen.getByRole("button", { name: /manage users/i }));
+    fireEvent.click(screen.getByRole("button", { name: /view audit log/i }));
+    fireEvent.click(screen.getByRole("button", { name: /manage roles/i }));
+    fireEvent.click(screen.getByRole("button", { name: /review & save/i }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /save changes/i }));
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(3));
+    expect(screen.getByText(/some changes were saved/i)).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+
+    view.rerender(<PermissionsContent {...props} grants={[grant(11, add.id)]} />);
+    await waitFor(() => expect(screen.getByText("1 unsaved change")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /manage users/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /view audit log/i })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /manage roles/i })).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -47,7 +47,7 @@ export async function setUserRoleAction(input: unknown) {
   try {
     const client = await admin();
     const existing = (await client.userRoles()).find(row => row.user_id === parsed.data.userId && row.role_id === parsed.data.roleId && row.pillar_id === parsed.data.pillarId);
-    if (existing && existing.is_deleted === !parsed.data.enabled) return outcome(200, "No change", { id: existing.id });
+    if (existing && existing.is_deleted === !parsed.data.enabled && existing.status === (parsed.data.enabled ? "ACTIVE" : "INACTIVE")) return outcome(200, "No change", { id: existing.id });
     if (!existing && !parsed.data.enabled) return outcome(200, "No change");
     const response = await client.setUserRole(parsed.data, existing?.id);
     if (response.success) refresh(); return outcome(response.success ? 200 : response.resultCode, response.message, response.data ? { id: response.data.id } : null);
@@ -76,7 +76,7 @@ export async function setRolePermissionAction(input: unknown) {
   const parsed = rolePermissionInputSchema.safeParse(input); if (!parsed.success) return outcome(422, "Check the permission grant");
   try {
     const client = await admin(); const existing = (await client.rolePermissions()).find(row => row.role_id === parsed.data.roleId && row.permission_id === parsed.data.permissionId);
-    if (existing && existing.is_deleted === !parsed.data.enabled) return outcome(200, "No change", { id: existing.id });
+    if (existing && existing.is_deleted === !parsed.data.enabled && existing.status === (parsed.data.enabled ? "ACTIVE" : "INACTIVE")) return outcome(200, "No change", { id: existing.id });
     if (!existing && !parsed.data.enabled) return outcome(200, "No change");
     const response = await client.setRolePermission(parsed.data, existing?.id);
     if (response.success) refresh(); return outcome(response.success ? 200 : response.resultCode, response.message, response.data ? { id: response.data.id } : null);

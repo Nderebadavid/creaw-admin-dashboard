@@ -41,4 +41,25 @@ describe("audit log boundary", () => {
     expect(raw.resultCode).toBeGreaterThanOrEqual(400);
     await expect(audit(11).export()).rejects.toThrow();
   });
+
+  it("redacts primitive strings in array and top-level metadata across reads, export and new writes", async () => {
+    const store = getMockStore();
+    const id = store.audit_logs[0].id;
+    store.audit_logs[0].input_payload = JSON.stringify(["secret-in-array", { status: "APPROVED", details: ["nested-secret"] }]);
+    store.audit_logs[0].previous_state = JSON.stringify("top-level-secret");
+    store.audit_logs[0].new_state = JSON.stringify({ status: "APPROVED", comments: ["private-comment"] });
+    const listRow = (await audit().list({ page: 1, pageSize: 100 })).items.find(row => row.id === id)!;
+    const detail = await audit().get(id);
+    const csv = await audit().export();
+    for (const output of [JSON.stringify(listRow), JSON.stringify(detail), csv.content]) {
+      for (const secret of ["secret-in-array", "nested-secret", "top-level-secret", "private-comment"]) expect(output).not.toContain(secret);
+      expect(output).toContain("APPROVED");
+    }
+
+    const assessment = store.organisation_assessment[0];
+    const write = await handleMockRequest({ method: "PATCH", path: `/assessments/${assessment.id}`, routeTemplate: "/assessments/:id", correlationId: "audit-array-write", token: issueMockToken(1), body: { section_comments: ["new-write-secret"] } });
+    expect(write.resultCode).toBe(200);
+    const recorded = store.audit_logs.at(-1)!;
+    expect(JSON.stringify(recorded)).not.toContain("new-write-secret");
+  });
 });

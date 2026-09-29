@@ -16,7 +16,7 @@ Compared against `CREAW Admin Dashboard v3.dc.html`. The three screens retain it
 ## Evidence
 
 - TDD: focused tests were first run red; the security regression for inactive grant reactivation failed with `200` vs expected `403`, then passed after handler enforcement.
-- `yarn test:run --silent`: 51 files, 233 tests passed, including direct Server Action tests, handler permission/masking tests and component interaction tests.
+- `yarn test:run --silent`: 51 files, 241 tests passed, including direct Server Action tests, handler permission/masking tests and component interaction tests.
 - `yarn tsc --noEmit --incremental false`: passed.
 - `yarn lint`: passed.
 - `yarn build`: passed on Next.js 16.3.3; production manifest includes the three dynamic routes.
@@ -27,3 +27,7 @@ Compared against `CREAW Admin Dashboard v3.dc.html`. The three screens retain it
 - This task uses the repository's in-memory mock transport; a deployed backend contract and persistence were not available for end-to-end verification.
 - Matrix changes are saved as individual audited role-permission operations. A failed item can leave prior successful items applied; the UI reports partial completion and reloads the authoritative state. An atomic bulk endpoint would be needed for all-or-nothing saves.
 - Contact reveal was not added: masked values remain masked in staff views, consistent with the rule that a future reveal must be separately authorized and audited.
+
+## Review hardening
+
+The follow-up review identified five edge cases. Regression tests were observed failing before these fixes: primitive strings in audit arrays/top-level metadata; inactive role and account activation restoring grants beyond the actor; a last-management check that counted multiple scopes from one revoked link; inactive-but-not-deleted grants treated as no-ops by Server Actions; and a permission matrix retaining stale local state across refreshed server props. Audit redaction now requires an explicit safe field context for strings, including for newly written audit entries. Role and account activation compare hypothetical effective grants against the actor; permission-link removal recomputes the post-mutation grants and requires surviving global `PERMISSION_MANAGE`. Server Actions reactivate both link status and soft-delete state. Matrix reconciliation accepts refreshed authoritative grants while preserving only unresolved drafts, and partial-save messaging counts successful operations rather than net grant count.

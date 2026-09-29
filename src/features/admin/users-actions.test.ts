@@ -5,6 +5,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => ({ value: st
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session-server", () => ({ requireSession: async () => ({ user: { id: state.userId }, grants: (await import("@/lib/auth/permissions")).getEffectiveGrants(state.userId) }) }));
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
+import { getEffectiveGrants } from "@/lib/auth/permissions";
 import { createUserAction, updateUserAction, setUserRoleAction } from "./actions";
 
 beforeEach(() => { resetMockStore(); state.userId = 1; state.token = issueMockToken(1); });
@@ -45,5 +46,15 @@ describe("staff administration Server Actions", () => {
     expect((await setUserRoleAction({ userId: 4, roleId: 4, pillarId: 2, enabled: true })).resultCode).toBe(200);
     expect(original.is_deleted).toBe(false);
     expect(getMockStore().user_role.filter(row => row.user_id === 4 && row.role_id === 4 && row.pillar_id === 2)).toHaveLength(1);
+  });
+
+  it("reactivates an inactive nondeleted role grant and restores its effective permissions", async () => {
+    const link = getMockStore().user_role.find(row => row.user_id === 4 && row.role_id === 4 && row.pillar_id === 2)!;
+    link.status = "INACTIVE";
+    expect(getEffectiveGrants(4).some(grant => grant.permissionCode === "CASE_CLOSE" && grant.pillarId === 2)).toBe(false);
+    const response = await setUserRoleAction({ userId: 4, roleId: 4, pillarId: 2, enabled: true });
+    expect(response.resultCode).toBe(200);
+    expect(link.status).toBe("ACTIVE");
+    expect(getEffectiveGrants(4).some(grant => grant.permissionCode === "CASE_CLOSE" && grant.pillarId === 2)).toBe(true);
   });
 });

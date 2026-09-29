@@ -1,11 +1,10 @@
-import type { StandardColumns } from "@/types/db";
+import type { MockStore, StandardColumns } from "@/types/db";
 import { getMockStore } from "../mock-api/store";
 
 export interface EffectiveGrant { permissionCode: string; pillarId: number | null }
 const active = (row: StandardColumns) => !row.is_deleted && row.status === "ACTIVE";
 
-export function getEffectiveGrants(userId: number): EffectiveGrant[] {
-  const store = getMockStore();
+export function getEffectiveGrants(userId: number, store: MockStore = getMockStore()): EffectiveGrant[] {
   if (!store.user.some((row) => row.id === userId && active(row))) return [];
   const grants = new Map<string, EffectiveGrant>();
   for (const assignment of store.user_role.filter((row) => row.user_id === userId && active(row))) {

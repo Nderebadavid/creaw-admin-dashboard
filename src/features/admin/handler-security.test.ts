@@ -55,4 +55,50 @@ describe("direct admin handler requests", () => {
     expect(store.user_role.find(row => row.id === 10001)?.is_deleted).toBe(true);
     expect(store.role_permission.find(row => row.id === 10002)?.is_deleted).toBe(true);
   });
+
+  it("rejects activating an inactive role whose assigned users would gain permissions the actor lacks", async () => {
+    const store = getMockStore();
+    store.user[12].status = "ACTIVE";
+    const manage = store.permission.find(row => row.code === "ROLE_MANAGE")!;
+    const audit = store.permission.find(row => row.code === "AUDIT_LOG_VIEW")!;
+    store.role.push({ ...store.role[2], id: 100, code: "LIMITED_MANAGER", name: "Limited manager", is_system_role: false });
+    store.role_permission.push({ ...store.role_permission[0], id: 10000, role_id: 100, permission_id: manage.id });
+    store.user_role.push({ ...store.user_role[0], id: 10000, user_id: 13, role_id: 100, pillar_id: null });
+    store.role.push({ ...store.role[2], id: 101, code: "DORMANT_AUDITOR", name: "Dormant auditor", status: "INACTIVE", is_system_role: false });
+    store.role_permission.push({ ...store.role_permission[0], id: 10001, role_id: 101, permission_id: audit.id });
+    store.user_role.push({ ...store.user_role[0], id: 10001, user_id: 4, role_id: 101, pillar_id: null });
+
+    const response = await request(13, "PATCH", "/admin/roles/101", "/admin/roles/:id", { status: "ACTIVE" });
+    expect(response.resultCode).toBe(403);
+    expect(store.role.find(row => row.id === 101)?.status).toBe("INACTIVE");
+  });
+
+  it("rejects activating a user with dormant grants beyond the actor's scope", async () => {
+    const store = getMockStore();
+    store.user[12].status = "ACTIVE";
+    const manage = store.permission.find(row => row.code === "USER_MANAGE")!;
+    store.role.push({ ...store.role[2], id: 100, code: "USER_OPERATOR", name: "User operator", is_system_role: false });
+    store.role_permission.push({ ...store.role_permission[0], id: 10000, role_id: 100, permission_id: manage.id });
+    store.user_role.push({ ...store.user_role[0], id: 10000, user_id: 13, role_id: 100, pillar_id: null });
+    store.user[3].status = "INACTIVE";
+    store.user_role.push({ ...store.user_role[0], id: 10001, user_id: 4, role_id: 1, pillar_id: null });
+
+    const response = await request(13, "PATCH", "/admin/users/4", "/admin/users/:id", { status: "ACTIVE" });
+    expect(response.resultCode).toBe(403);
+    expect(store.user[3].status).toBe("INACTIVE");
+  });
+
+  it("requires a surviving global permission-management grant after a link is revoked", async () => {
+    const store = getMockStore();
+    store.user[12].status = "ACTIVE";
+    const manage = store.permission.find(row => row.code === "PERMISSION_MANAGE")!;
+    store.role.push({ ...store.role[2], id: 100, code: "PERMISSION_OPERATOR", name: "Permission operator", is_system_role: false });
+    store.role_permission.push({ ...store.role_permission[0], id: 10000, role_id: 100, permission_id: manage.id });
+    store.user_role.push({ ...store.user_role[0], id: 10000, user_id: 13, role_id: 100, pillar_id: null });
+    store.user_role.push({ ...store.user_role[0], id: 10001, user_id: 13, role_id: 100, pillar_id: 2 });
+
+    const response = await request(13, "PATCH", "/admin/permissions/10000", "/admin/permissions/:id", { is_deleted: true, status: "INACTIVE" }, { table: "role_permission" });
+    expect(response.resultCode).toBe(403);
+    expect(store.role_permission.find(row => row.id === 10000)?.is_deleted).toBe(false);
+  });
 });

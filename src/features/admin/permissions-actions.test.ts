@@ -36,6 +36,17 @@ describe("role and permission Server Actions", () => {
     expect(getMockStore().role_permission.filter(row => row.role_id === 3 && row.permission_id === permission.id)).toHaveLength(1);
   });
 
+  it("reactivates an inactive nondeleted permission link and updates effective access", async () => {
+    const permission = getMockStore().permission.find(row => row.code === "CASE_VIEW")!;
+    const link = getMockStore().role_permission.find(row => row.role_id === 4 && row.permission_id === permission.id)!;
+    link.status = "INACTIVE";
+    expect(getEffectiveGrants(4).some(grant => grant.permissionCode === permission.code && grant.pillarId === 2)).toBe(false);
+    const response = await setRolePermissionAction({ roleId: 4, permissionId: permission.id, enabled: true });
+    expect(response.resultCode).toBe(200);
+    expect(link.status).toBe("ACTIVE");
+    expect(getEffectiveGrants(4).some(grant => grant.permissionCode === permission.code && grant.pillarId === 2)).toBe(true);
+  });
+
   it("denies permission management without PERMISSION_MANAGE and validates new role/permission", async () => {
     asUser(3);
     expect((await createPermissionAction({ code: "NEW_SECRET", module: "ADMIN", name: "New secret" })).resultCode).toBe(403);

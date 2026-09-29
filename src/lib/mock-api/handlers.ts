@@ -85,10 +85,11 @@ function masked(table: TableName, row: Row, audit = false): Row {
 }
 const secretMetadataKey = /(?:password|token|secret|credential|authorization|cookie|email|phone|contact|id_number|first_name|middle_name|last_name|salary|amount|notes?|payload|file_url|address|date_of_birth)/i;
 const safeAuditStringKey = /^(?:status|stage_event_status|code|module|action|source|entity_type|type|kind|role_code|permission_code)$/i;
-function redactAuditValue(table: string | null, value: unknown): unknown {
+function redactAuditValue(table: string | null, value: unknown, field?: string): unknown {
   if (Array.isArray(value)) return value.map(item => redactAuditValue(table, item));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
-    secretMetadataKey.test(key) || table && isSensitiveField(table, key) || typeof item === "string" && !safeAuditStringKey.test(key) ? "[REDACTED]" : redactAuditValue(table, item)]));
+    secretMetadataKey.test(key) || table && isSensitiveField(table, key) ? "[REDACTED]" : redactAuditValue(table, item, key)]));
+  if (typeof value === "string" && (!field || !safeAuditStringKey.test(field))) return "[REDACTED]";
   return value;
 }
 function redactAuditText(table: string | null, text: string | null): string | null {
@@ -102,6 +103,10 @@ function safeAuditRow(store: MockStore, row: MockStore["audit_logs"][number]) {
     input_payload: redactAuditText(row.entity_type, row.input_payload),
     previous_state: redactAuditText(row.entity_type, row.previous_state),
     new_state: redactAuditText(row.entity_type, row.new_state) };
+}
+function addsGrantsBeyondActor(store: MockStore, hypothetical: MockStore, targetUserId: number, actorGrants: EffectiveGrant[]): boolean {
+  const current = new Set(getEffectiveGrants(targetUserId, store).map(grant => `${grant.permissionCode}:${grant.pillarId}`));
+  return getEffectiveGrants(targetUserId, hypothetical).some(grant => !current.has(`${grant.permissionCode}:${grant.pillarId}`) && !hasPermission(actorGrants, grant.permissionCode, { pillarId: grant.pillarId }));
 }
 function referralRead(store: MockStore, row: Row): Row {
   const enrollment = store.enrollment.find((item) => item.id === row.enrollment_id && !item.is_deleted);
@@ -449,11 +454,23 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     const permitted = request.method === "POST" ? ["first_name", "middle_name", "last_name", "username", "phone_number", "email"] : ["first_name", "middle_name", "last_name", "phone_number", "email", "status", "status_description", "is_deleted"];
     if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
     if (request.method === "PATCH" && existing?.id === userId && (body.is_deleted === true || body.status && body.status !== "ACTIVE")) return envelope(403, null, "You cannot disable your own account");
+    if (existing && existing.status !== "ACTIVE" && body.status === "ACTIVE") {
+      const hypothetical = { ...store, user: store.user.map(row => row.id === existing.id
+        ? { ...row, status: "ACTIVE", is_deleted: body.is_deleted === undefined ? row.is_deleted : body.is_deleted as boolean }
+        : row) };
+      if (addsGrantsBeyondActor(store, hypothetical, existing.id, grants)) return envelope(403, null, "Account grants exceed your grants");
+    }
   }
   if (table === "role") {
     const permitted = request.method === "POST" ? ["code", "name", "description"] : ["name", "description", "status", "status_description", "is_deleted"];
     if (Object.keys(body).some(key => !permitted.includes(key))) return envelope(422);
     if (existing?.is_system_role) return envelope(403, null, "Built-in roles cannot be edited");
+    if (existing && existing.status !== "ACTIVE" && body.status === "ACTIVE") {
+      const hypothetical = { ...store, role: store.role.map(row => row.id === existing.id
+        ? { ...row, status: "ACTIVE", is_deleted: body.is_deleted === undefined ? row.is_deleted : body.is_deleted as boolean }
+        : row) };
+      if (store.user_role.some(link => link.role_id === existing.id && addsGrantsBeyondActor(store, hypothetical, link.user_id, grants))) return envelope(403, null, "Role exceeds your grants");
+    }
   }
   if (table === "permission") {
     const permitted = request.method === "POST" ? ["code", "module", "name", "description"] : ["name", "description"];
@@ -487,9 +504,11 @@ export async function handleMockRequest(request: ApiRequest<unknown>): Promise<A
     if (!targetPermission) return envelope(422);
     const becomingActive = request.method === "POST" || !!existing && (existing.is_deleted || existing.status !== "ACTIVE") && (body.is_deleted ?? existing.is_deleted) === false && (body.status ?? existing.status) === "ACTIVE";
     if (becomingActive && !hasPermission(grants, targetPermission.code)) return envelope(403, null, "Permission exceeds your grants");
-    if (request.method === "PATCH" && (body.is_deleted === true || body.status && body.status !== "ACTIVE") && targetPermission.code === "PERMISSION_MANAGE" && store.user_role.some(assignment => assignment.user_id === userId && assignment.role_id === targetRole.id && !assignment.is_deleted && assignment.status === "ACTIVE")) {
-      const remaining = grants.filter(grant => grant.permissionCode === "PERMISSION_MANAGE");
-      if (remaining.length <= 1) return envelope(403, null, "You cannot remove your last permission-management grant");
+    if (request.method === "PATCH" && (body.is_deleted === true || body.status && body.status !== "ACTIVE") && targetPermission.code === "PERMISSION_MANAGE") {
+      const hypothetical = { ...store, role_permission: store.role_permission.map(link => link.id === existing?.id
+        ? { ...link, is_deleted: body.is_deleted === undefined ? link.is_deleted : body.is_deleted as boolean, status: body.status === undefined ? link.status : body.status as string }
+        : link) };
+      if (!hasPermission(getEffectiveGrants(userId, hypothetical), "PERMISSION_MANAGE")) return envelope(403, null, "You cannot remove your last global permission-management grant");
     }
   }
   if (query.has("enroll") && (table !== "participant" || request.method !== "POST" || query.get("enroll") !== "true" || !query.has("pillarId"))) return envelope(422);
