@@ -35,7 +35,7 @@ const legalCaseUpdateSchema = z.object({
   caseTypeId: id,
   court: nullableText(160),
   courtFileNumber: nullableText(80),
-  obNumber: nullableText(80),
+  obNumber: nullableText(80).refine((value) => !value?.includes("•")),
   assignedOfficer: nullableText(160),
   counsellor: nullableText(160),
   nextCourtDate: z

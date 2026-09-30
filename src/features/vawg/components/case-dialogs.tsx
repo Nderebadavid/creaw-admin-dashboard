@@ -74,7 +74,7 @@ export function EditCaseDialog({
           <select
             name="caseTypeId"
             required
-            defaultValue={caseTypes.find((type) => type.name === legalCase?.caseType)?.id}
+            defaultValue={legalCase?.caseTypeId}
             className={fieldClass}
           >
             {caseTypes.map((type) => (

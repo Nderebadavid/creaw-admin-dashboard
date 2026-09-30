@@ -139,6 +139,7 @@ export function createVawgApi(client: ApiClient, token: string) {
           participantId: enrollment?.participant_id ?? null,
           enrollmentId: row.enrollment_id,
           caseType: type?.name ?? `Case type #${row.case_type_id}`,
+          caseTypeId: row.case_type_id,
           route: type?.default_route === "court_direct" ? "Court, direct" : "Mediation/ADR first",
           courtStatus: row.court_status,
           court: row.court_name,

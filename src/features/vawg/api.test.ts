@@ -14,6 +14,7 @@ describe("VAWG legal case register", () => {
   it("maps the court record fields used by the register and drawer", async () => {
     const { cases } = await apiFor(1).workspace();
     expect(cases[0]).toMatchObject({
+      caseTypeId: getMockStore().legal_case[0].case_type_id,
       court: "Kibera Law Courts",
       assignedOfficer: "Cynthia Chelimo",
       nextCourtDate: "2026-10-03",

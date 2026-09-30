@@ -29,6 +29,7 @@ export interface LegalCaseView {
   participantId: number | null;
   enrollmentId: number;
   caseType: string;
+  caseTypeId: number;
   /** "Mediation/ADR first" or "Court, direct", from the case type. */
   route: string;
   /** Raw court_status, e.g. "in_hearing"; null before the case reaches court. */

@@ -84,6 +84,13 @@ describe("VAWG case actions", () => {
     expect(getMockStore().legal_case[0].ob_number).toBe("OB/44/2026");
   });
 
+  it("rejects a masked OB token without changing the stored number", async () => {
+    const original = { ...getMockStore().legal_case[0] };
+    const result = await updateLegalCaseAction({ ...editableCase, obNumber: "••••2026" });
+    expect(result.resultCode).toBe(422);
+    expect(getMockStore().legal_case[0]).toEqual(original);
+  });
+
   it("rejects a malformed court date without changing the case", async () => {
     const original = { ...getMockStore().legal_case[0] };
     const result = await updateLegalCaseAction({ ...editableCase, nextCourtDate: "03/10/2026" });
@@ -108,6 +115,7 @@ it("shows the editable case fields with current court details", () => {
     number: "CRW-VAWG-0001",
     survivor: "F. N.",
     caseType: "IPV",
+    caseTypeId: 2,
     court: "Kibera Law Courts",
     courtFileNumber: "CR 2210/26",
     obNumber: "••••2026",
@@ -131,4 +139,26 @@ it("shows the editable case fields with current court details", () => {
   expect(screen.getByRole("textbox", { name: "Assigned officer" })).toHaveValue("Cynthia Chelimo");
   expect(screen.getByRole("textbox", { name: "Counsellor" })).toHaveValue("Mary Achola");
   expect(screen.getByLabelText("Next court date")).toHaveValue("2026-10-03");
+});
+
+it("selects the case type by ID when labels are duplicated", () => {
+  const legalCase = {
+    id: 1,
+    number: "CRW-VAWG-0001",
+    survivor: "F. N.",
+    caseType: "IPV",
+    caseTypeId: 3,
+  } as LegalCaseView;
+  render(
+    createElement(EditCaseDialog, {
+      legalCase,
+      caseTypes: [
+        { id: 2, name: "IPV" },
+        { id: 3, name: "IPV" },
+      ],
+      onClose: vi.fn(),
+      onDone: vi.fn(),
+    })
+  );
+  expect(screen.getByRole("combobox", { name: "Case type" })).toHaveValue("3");
 });
