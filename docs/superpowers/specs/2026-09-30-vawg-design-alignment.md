@@ -19,7 +19,7 @@ Extend each legal-case record with the reference fields that are not represented
 - OB number
 - counsellor
 
-These are nullable string fields except for the two dates, which are nullable ISO dates. The fields must be carried end to end through the database types, mock schema, seed records, API validation, and the VAWG view model. Optional fields render a consistent fallback such as `—`, `Pending`, or `Not assigned`; the UI must not invent values at render time.
+These are nullable string fields except for the next court date, which is a nullable ISO date. The fields must be carried end to end through the database types, mock schema, seed records, API validation, and the VAWG view model. Optional fields render a consistent fallback such as `—`, `Pending`, or `Not assigned`; the UI must not invent values at render time.
 
 Existing fields and behavior remain authoritative for survivor identity, case type, mediation, court status, opened/ruling/closed dates, counselling sessions, and attached documents.
 
