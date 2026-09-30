@@ -200,6 +200,7 @@ export function createSessionsApi(client: ApiClient, token: string) {
       const people = participants as z.infer<typeof participantSchema>[];
       const liveAttendance = attendance.filter((row) => !row.is_deleted);
       const views: SessionView[] = sessions
+        .filter((row) => row.pillar_id === SESSION_PILLAR_IDS[pillar])
         .map((row) => {
           const topic = topics.find((item) => item.id === row.activity_topic_id);
           const freeTopic = row.topic?.trim() ? row.topic : null;

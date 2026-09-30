@@ -7,8 +7,9 @@ import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/sto
 import { createSessionsApi } from "./api";
 
 beforeEach(() => resetMockStore());
-const apiFor = (userId: number) =>
-  createSessionsApi(createApiClient(new MockApiTransport(handleMockRequest)), issueMockToken(userId));
+const clientFor = () => createApiClient(new MockApiTransport(handleMockRequest));
+const apiFor = (userId: number, client = clientFor()) =>
+  createSessionsApi(client, issueMockToken(userId));
 const today = new Date(2026, 8, 30);
 
 describe("sessions workspace", () => {
@@ -46,15 +47,39 @@ describe("sessions workspace", () => {
     Object.assign(topic, { is_deleted: true, status: "INACTIVE" });
     const workspace = await apiFor(1).workspace("srhr", "all", today);
     expect(workspace.sessions.some((row) => row.topic === "Menstrual health")).toBe(true);
-    expect(workspace.topics.find((row) => row.id === topic.id)?.active ?? false).toBe(false);
+    const retired = workspace.topics.find((row) => row.id === topic.id);
+    expect(retired).toBeDefined();
+    expect(retired!.active).toBe(false);
   });
 
   it("loads with no planned topics when the topic lookup fails", async () => {
-    const api = apiFor(1);
-    const store = getMockStore();
-    store.activity_topic.splice(0);
-    const workspace = await api.workspace("srhr", "quarter", today);
+    const client = clientFor();
+    const request = client.request.bind(client);
+    const spy = vi.spyOn(client, "request").mockImplementation(((req: { path: string }, schema: never) =>
+      req.path === "/lookups/activity_topic"
+        ? Promise.reject(new Error("topic lookup down"))
+        : request(req as never, schema)) as typeof client.request);
+    const workspace = await apiFor(1, client).workspace("srhr", "quarter", today);
+    expect(spy.mock.calls.some(([req]) => req.path === "/lookups/activity_topic")).toBe(true);
     expect(workspace.summary.topicsPlanned).toBe(0);
     expect(workspace.sessions.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("excludes sessions of another pillar that the route returns", async () => {
+    const client = clientFor();
+    const request = client.request.bind(client);
+    vi.spyOn(client, "request").mockImplementation((async (
+      req: { query?: Record<string, unknown> },
+      schema: never
+    ) => {
+      const result = (await request(req as never, schema)) as {
+        data: { items: Record<string, unknown>[] } | null;
+      };
+      if (req.query?.table === "activity_session" && result.data)
+        result.data.items.push({ ...result.data.items[0], id: 9999, pillar_id: 6, topic: "Foreign" });
+      return result;
+    }) as typeof client.request);
+    const workspace = await apiFor(1, client).workspace("srhr", "all", today);
+    expect(workspace.sessions.some((row) => row.id === 9999 || row.topic === "Foreign")).toBe(false);
   });
 });
