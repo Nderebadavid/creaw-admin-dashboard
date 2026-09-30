@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { vi, describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PillarContent } from "./components";
 import type { PillarView } from "./api";
+// Grant rows navigate to their sign-off page with the app router.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 describe("pillar screen", () => {
   it("explains a pillar with no configured pipeline", () => {

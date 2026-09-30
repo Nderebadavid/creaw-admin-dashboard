@@ -2,7 +2,17 @@
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, KeyRound, Shield, UserPlus, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  KeyRound,
+  Pencil,
+  Shield,
+  ShieldPlus,
+  UserCheck,
+  UserPlus,
+  Users,
+  UserX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
@@ -11,12 +21,20 @@ import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { listUsersAction } from "./actions";
+import type { SortState } from "@/components/data-table/sorting";
 import type { AdminPage, RoleView, UserRoleView, UserView } from "./api";
 import { staffColumns, statusLabel } from "./users/columns";
+import { staffLookups } from "./users/sort-values";
 import { AccountStatusDialog, RoleGrantsDialog, StaffDialog } from "./users/user-dialogs";
 
 type Pillar = { id: number; name: string };
-type UserQuery = { page: number; pageSize: number; search?: string; status?: string };
+type UserQuery = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: string;
+  sort?: SortState;
+};
 type Modal = { kind: "add" } | { kind: "edit" | "roles" | "status"; user: UserView } | null;
 
 const statuses = ["ACTIVE", "INACTIVE", "DISABLED"];
@@ -57,17 +75,8 @@ export function UsersContent({
   const [modal, setModal] = useState<Modal>(null);
   const [feedback, setFeedback] = useState("");
 
-  const grantsOf = (userId: number) =>
-    assignments.filter(
-      (row) => row.user_id === userId && !row.is_deleted && row.status === "ACTIVE"
-    );
-  const roleName = (roleId: number) =>
-    roles.find((role) => role.id === roleId)?.name ?? `Role #${roleId}`;
-  const scopeOf = (grant: UserRoleView) =>
-    grant.pillar_id === null
-      ? "System-wide"
-      : (pillars.find((pillar) => pillar.id === grant.pillar_id)?.name ??
-        `Pillar #${grant.pillar_id}`);
+  const lookups = staffLookups(assignments, roles, pillars);
+  const { grantsOf, roleName, scopeOf } = lookups;
   const multiRole = new Set(
     assignments
       .filter((row) => !row.is_deleted && row.status === "ACTIVE")
@@ -90,7 +99,7 @@ export function UsersContent({
       title={!canManageUsers ? "User management permission required" : undefined}
       onClick={() => setModal({ kind: "add" })}
     >
-      <UserPlus size={16} />
+      <UserPlus />
       Add user
     </Button>
   );
@@ -104,18 +113,18 @@ export function UsersContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={addButton} /> : addButton}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
         {stats.map(({ icon: Icon, value, label }) => (
           <div
             key={label}
-            className="flex items-center gap-3 rounded-2xl border border-creaw-line bg-white p-4"
+            className="flex items-center gap-4 rounded-2xl border border-creaw-line bg-white p-5"
           >
-            <span className="rounded-xl bg-[#F7E6DC] p-3 text-creaw-orange">
-              <Icon size={22} aria-hidden="true" />
+            <span className="flex size-[46px] shrink-0 items-center justify-center rounded-xl bg-[#F7E6DC] text-creaw-orange">
+              <Icon size={23} aria-hidden="true" />
             </span>
-            <div>
-              <strong className="font-heading text-2xl">{value}</strong>
-              <p className="text-xs text-creaw-faint">{label}</p>
+            <div className="flex flex-col">
+              <strong className="font-heading text-[28px] leading-[1.05]">{value}</strong>
+              <p className="text-[13.5px] text-creaw-faint">{label}</p>
             </div>
           </div>
         ))}
@@ -157,7 +166,9 @@ export function UsersContent({
         <DataTable
           framed={false}
           label="Staff"
-          columns={staffColumns({ grantsOf, roleName, scopeOf })}
+          columns={staffColumns(lookups)}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
           rows={list.data.items}
           getRowId={(user) => user.id}
           loading={list.loading}
@@ -167,17 +178,20 @@ export function UsersContent({
               label={`${user.first_name} ${user.last_name}`}
               actions={[
                 {
-                  label: "Edit details",
+                  label: "Edit user",
+                  icon: Pencil,
                   disabled: !canManageUsers,
                   onSelect: () => setModal({ kind: "edit", user }),
                 },
                 {
-                  label: "Manage roles",
+                  label: "Grant role",
+                  icon: ShieldPlus,
                   disabled: !canManageRoles,
                   onSelect: () => setModal({ kind: "roles", user }),
                 },
                 {
-                  label: user.status === "ACTIVE" ? "Disable account" : "Reactivate account",
+                  label: user.status === "ACTIVE" ? "Deactivate" : "Reactivate",
+                  icon: user.status === "ACTIVE" ? UserX : UserCheck,
                   destructive: user.status === "ACTIVE",
                   // Users cannot lock themselves out.
                   disabled: !canManageUsers || user.id === currentUserId,

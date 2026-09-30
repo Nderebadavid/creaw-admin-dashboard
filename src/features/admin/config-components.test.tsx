@@ -135,6 +135,7 @@ describe("configuration controls", () => {
     rerender(<LookupContent {...props} canExport />);
     fireEvent.change(within(container).getByRole("searchbox"), { target: { value: "Kibra" } });
     fireEvent.click(within(container).getByRole("button", { name: "Export CSV" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
     await waitFor(() =>
       expect(exportLookupAction).toHaveBeenCalledWith({
         table: "sub_county",

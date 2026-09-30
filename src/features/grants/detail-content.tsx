@@ -1,19 +1,21 @@
 "use client";
-import { grantTone } from "./status";
+import { grantTone, stageLabel } from "./status";
 import { FormBanner } from "@/components/ui/form-banner";
-import { initials } from "@/lib/format";
+import { initials, titleCase } from "@/lib/format";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CircleCheck, FolderArchive } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleX, Eye, FolderArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DocumentPanel } from "@/components/ui/document-panel";
+import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import type { GrantDetail } from "./api";
 import { downloadGrantPackAction, viewGrantDocumentAction } from "./actions";
 import {
   AdvanceDialog,
+  DeclineDialog,
   PaymentDialog,
   ReportPeriodDialog,
   advanceLabel,
@@ -34,17 +36,21 @@ export function GrantDetailContent({
 }: {
   heading?: PageHeadingText;
   detail: GrantDetail;
-  /** The user holds the next step's permission and has not signed an earlier step. */
+  /**
+   * The user may decide the next step, by signing or declining it: they hold
+   * that step's permission and (maker-checker) have not signed an earlier step.
+   */
   canAdvance: boolean;
   canDisburse: boolean;
   canDownload: boolean;
   canLogReport: boolean;
 }) {
   const router = useRouter();
-  const [modal, setModal] = useState<"advance" | "payment" | "report" | null>(null);
+  const [modal, setModal] = useState<"advance" | "decline" | "payment" | "report" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [viewing, setViewing] = useState<ViewedDocument | null>(null);
 
   const done = (message: string) => {
     setModal(null);
@@ -61,6 +67,19 @@ export function GrantDetailContent({
     if (response.success) setFeedback(note);
     else setError(response.message);
   }
+
+  /** Opens a document in the viewer; the action writes the access to the audit log. */
+  async function openDocument(documentId: number) {
+    setBusy(true);
+    setError("");
+    const response = await viewGrantDocumentAction(detail.id, documentId);
+    setBusy(false);
+    if (response.success && response.document) setViewing(response.document);
+    else setError(response.message);
+  }
+
+  const decideBlocked =
+    "Needs this step's permission, and an officer who has not signed an earlier step";
 
   const packButton = (
     <Button
@@ -100,18 +119,29 @@ export function GrantDetailContent({
           <div>
             <h2 className="font-heading text-2xl font-bold">{detail.applicant}</h2>
             <p className="text-sm text-creaw-faint">
-              {detail.project} · {detail.grantType.replaceAll("_", " ")} · {detail.requestedAmount}{" "}
-              requested
+              Application #{detail.id} · {detail.project} · {titleCase(detail.grantType)} ·{" "}
+              {detail.requestedAmount} requested
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <StatusBadge tone={grantTone(detail.status)}>{detail.status}</StatusBadge>
+          <StatusBadge tone={grantTone(detail.status)}>{stageLabel(detail.status)}</StatusBadge>
           {!heading && packButton}
           {detail.nextStatus && (
             <Button
+              variant="destructive"
               disabled={!canAdvance || busy}
-              title={!canAdvance ? "Permission required for this sign-off step" : undefined}
+              title={!canAdvance ? decideBlocked : undefined}
+              onClick={() => setModal("decline")}
+            >
+              <CircleX size={16} />
+              Decline application
+            </Button>
+          )}
+          {detail.nextStatus && (
+            <Button
+              disabled={!canAdvance || busy}
+              title={!canAdvance ? decideBlocked : undefined}
               onClick={() => setModal("advance")}
             >
               <CircleCheck size={16} />
@@ -122,7 +152,24 @@ export function GrantDetailContent({
       </section>
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{error}</FormBanner>}
-      <SignoffChain stage={detail.stage} />
+      {detail.declineReason !== null && (
+        <section className="rounded-2xl border border-[#F3CCC6] bg-creaw-danger-soft p-6">
+          <h2 className="font-heading text-[22px] font-bold text-[#6E2019]">
+            Application declined
+          </h2>
+          <p className="mt-1 text-[15px] text-[#6E2019]">
+            {detail.declineReason || "No reason was recorded."}
+          </p>
+          <p className="mt-2 text-xs text-creaw-body">
+            This decision is final. Who declined it and when is in the audit trail.
+          </p>
+        </section>
+      )}
+      <SignoffChain
+        stage={detail.stage}
+        declined={detail.declineReason !== null}
+        history={detail.history}
+      />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <DocumentPanel
           title="Documents & photos"
@@ -136,13 +183,9 @@ export function GrantDetailContent({
                 size="sm"
                 variant="outline"
                 disabled={!canDownload || busy}
-                onClick={() =>
-                  void audited(
-                    viewGrantDocumentAction(detail.id, doc.id),
-                    "Document access audited. Mock mode provides metadata only."
-                  )
-                }
+                onClick={() => void openDocument(doc.id)}
               >
+                <Eye />
                 View
               </Button>
             ),
@@ -162,8 +205,15 @@ export function GrantDetailContent({
         busy={busy}
         onLog={() => setModal("report")}
       />
+      <DocumentViewer document={viewing} onClose={() => setViewing(null)} />
       <AdvanceDialog
         open={modal === "advance"}
+        detail={detail}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
+      <DeclineDialog
+        open={modal === "decline"}
         detail={detail}
         onClose={() => setModal(null)}
         onDone={done}

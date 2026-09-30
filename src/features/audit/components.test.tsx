@@ -85,9 +85,9 @@ describe("audit screen", () => {
       "aria-pressed",
       "false"
     );
-    expect(screen.queryByText("Input")).not.toBeInTheDocument();
+    expect(screen.queryByText("input_payload")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("cell", { name: "Judy Mwangi" }));
-    expect(screen.getByText("Input")).toBeInTheDocument();
+    expect(screen.getByText("input_payload")).toBeInTheDocument();
     expect(screen.getByText(/"field": "id_number"/)).toBeInTheDocument();
     expect(screen.getByText(/\/participants\/:id/)).toBeInTheDocument();
   });

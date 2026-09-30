@@ -22,7 +22,7 @@ export function StageList({
       <ol className="divide-y divide-[#F7F2EC]">
         {stages.map((stage, index) => (
           <li key={stage.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-creaw-orange-soft text-sm font-bold text-creaw-orange">
+            <span className="flex size-[30px] shrink-0 items-center justify-center rounded-lg bg-creaw-orange-soft text-[13px] font-bold text-creaw-orange">
               {index + 1}
             </span>
             <div className="min-w-36 flex-1">
@@ -32,7 +32,7 @@ export function StageList({
             </div>
             <div className="flex gap-1">
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="outline"
                 aria-label={`Move ${stage.name} up`}
                 disabled={index === 0}
@@ -41,7 +41,7 @@ export function StageList({
                 <ArrowUp />
               </Button>
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="outline"
                 aria-label={`Move ${stage.name} down`}
                 disabled={index === last}
@@ -50,7 +50,7 @@ export function StageList({
                 <ArrowDown />
               </Button>
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="outline"
                 aria-label={`Rename ${stage.name}`}
                 onClick={() => onRename(stage)}
@@ -58,7 +58,7 @@ export function StageList({
                 <Pencil />
               </Button>
               <Button
-                size="icon"
+                size="icon-sm"
                 variant="outline"
                 aria-label={`Remove ${stage.name}`}
                 // A pipeline needs at least one stage.

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, History, LogOut, User, UserCog } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { fieldClass } from "@/components/ui/form-styles";
+import { titleCase } from "@/lib/format";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { usePopover } from "./use-popover";
 
@@ -17,10 +19,13 @@ export function UserMenu({
   user,
   canManageUsers,
   canViewAudit,
+  scope = "—",
 }: {
   user: SessionUser;
   canManageUsers: boolean;
   canViewAudit: boolean;
+  /** Where the user's grants apply, e.g. "System-wide" or "VAWG, WEE". */
+  scope?: string;
 }) {
   const router = useRouter();
   const { ref: popoverRef, open: menuOpen, toggle: toggleMenu, close: closeMenu } = usePopover();
@@ -57,7 +62,7 @@ export function UserMenu({
         disabled={signingOut}
         className="flex items-center gap-3 border-l border-creaw-line pl-3 text-left"
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-[15px] font-bold text-white">
           {user.initials}
         </span>
         <span className="hidden min-w-0 max-w-[130px] flex-col leading-tight xl:flex">
@@ -70,7 +75,7 @@ export function UserMenu({
         <div
           role="menu"
           aria-label="Account"
-          className="absolute right-0 top-12 z-30 w-64 rounded-2xl border border-creaw-line bg-white p-1.5 shadow-xl"
+          className="absolute right-0 top-[54px] z-30 w-[min(310px,calc(100vw-2rem))] rounded-[14px] border border-creaw-line bg-white p-1.5 shadow-[0_16px_40px_-12px_rgba(34,28,24,.25)]"
         >
           <div className="mb-1 border-b border-creaw-divider px-3 pb-3 pt-2.5">
             <p className="font-semibold">{user.name}</p>
@@ -103,16 +108,56 @@ export function UserMenu({
         open={dialog === "profile"}
         onClose={() => setDialog(null)}
         title="My profile"
-        description="Your account details. Ask a system administrator to change them."
+        description={[user.name, user.username].filter(Boolean).join(" · ")}
+        className="sm:max-w-[640px]"
       >
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="text-creaw-faint">Name</dt>
-          <dd>{user.name}</dd>
-          <dt className="text-creaw-faint">Email</dt>
-          <dd>{user.email || "—"}</dd>
-          <dt className="text-creaw-faint">Roles</dt>
-          <dd>{user.roles.join(", ") || "—"}</dd>
-        </dl>
+        <div className="flex items-center gap-3.5">
+          <span className="flex size-[52px] shrink-0 items-center justify-center rounded-full bg-primary text-[17px] font-bold text-white">
+            {user.initials}
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <span className="font-heading text-xl font-bold">{user.name}</span>
+            <span className="text-[13px] text-creaw-faint">{roleLine}</span>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["First name", user.firstName],
+              ["Middle name", user.middleName || "—"],
+              ["Last name", user.lastName],
+              ["Username", user.username ?? "—"],
+              ["Work email", user.email || "—"],
+              ["Phone number", user.phone || "—"],
+              ["Roles", user.roles.join(", ") || "—"],
+              ["Pillar scope", scope],
+              ["Status", user.status ? titleCase(user.status) : "—"],
+            ] as const
+          ).map(([label, value]) => (
+            <label key={label} className="block text-sm">
+              {label}
+              <input readOnly value={value} className={`${fieldClass} bg-creaw-surface`} />
+            </label>
+          ))}
+        </div>
+        <div>
+          <span className="mr-auto flex items-center gap-1.5 text-[12.5px] text-creaw-faint">
+            <History size={16} aria-hidden="true" />
+            {canManageUsers
+              ? "Change account details in Users & roles"
+              : "Ask a system administrator to change these details"}
+          </span>
+          {canManageUsers && (
+            <Link
+              href="/admin/users"
+              onClick={() => setDialog(null)}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Open Users &amp; roles
+            </Link>
+          )}
+          <Button onClick={() => setDialog(null)}>Close</Button>
+        </div>
       </ActionDialog>
       <ActionDialog
         open={dialog === "sign-out"}

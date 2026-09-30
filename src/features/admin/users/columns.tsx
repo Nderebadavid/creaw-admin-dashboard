@@ -1,7 +1,9 @@
 import { titleCase } from "@/lib/format";
 import type { DataColumn } from "@/components/data-table/data-table";
+import { withSortValues } from "@/components/data-table/sorting";
 import { StatusBadge } from "@/components/ui/status-badge";
-import type { UserRoleView, UserView } from "../api";
+import type { UserView } from "../api";
+import { scopesOf, staffSortValues, type StaffLookups } from "./sort-values";
 
 export const statusLabel = titleCase;
 
@@ -9,30 +11,23 @@ export const statusLabel = titleCase;
  * Staff columns from the design. Contacts arrive masked; revealing them is an
  * audited action elsewhere. Roles and scope come from active user_role rows.
  */
-export function staffColumns({
-  grantsOf,
-  roleName,
-  scopeOf,
-}: {
-  grantsOf: (userId: number) => UserRoleView[];
-  roleName: (roleId: number) => string;
-  scopeOf: (grant: UserRoleView) => string;
-}): DataColumn<UserView>[] {
-  return [
+export function staffColumns(lookups: StaffLookups): DataColumn<UserView>[] {
+  const { grantsOf, roleName } = lookups;
+  return withSortValues(staffSortValues(lookups), [
     {
       id: "staff",
       header: "Staff member",
       cell: (user) => (
         <div className="flex items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FDEFD9] text-xs font-bold text-[#8C4A0E]">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FDEFD9] text-[13px] font-bold text-[#8C4A0E]">
             {user.first_name[0]}
             {user.last_name[0]}
           </span>
           <div>
-            <strong className="whitespace-nowrap">
+            <strong className="whitespace-nowrap font-semibold">
               {user.first_name} {user.last_name}
             </strong>
-            <div className="font-mono text-xs text-creaw-faint">{user.username}</div>
+            <div className="font-mono text-[12.5px] text-creaw-faint">{user.username}</div>
           </div>
         </div>
       ),
@@ -41,9 +36,13 @@ export function staffColumns({
       id: "contact",
       header: "Contact",
       cell: (user) => (
-        <div className="space-y-0.5 text-xs text-creaw-body">
-          <div>{user.email ?? "—"}</div>
-          <div className="font-mono">{user.phone_number ?? "—"}</div>
+        <div className="flex flex-col gap-0.5">
+          <span className="whitespace-nowrap text-[13.5px] text-creaw-ink-soft">
+            {user.email ?? "—"}
+          </span>
+          <span className="font-mono text-[12.5px] text-creaw-faint">
+            {user.phone_number ?? "—"}
+          </span>
         </div>
       ),
     },
@@ -51,11 +50,11 @@ export function staffColumns({
       id: "roles",
       header: "Roles",
       cell: (user) => (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex max-w-[280px] flex-wrap gap-1.5">
           {grantsOf(user.id).map((grant) => (
             <span
               key={grant.id}
-              className="rounded-[7px] bg-creaw-canvas px-2 py-0.5 text-xs font-semibold"
+              className="whitespace-nowrap rounded-[7px] border border-creaw-line bg-creaw-canvas px-2.5 py-1 text-[12.5px] font-semibold text-creaw-ink-soft"
             >
               {roleName(grant.role_id)}
             </span>
@@ -67,19 +66,17 @@ export function staffColumns({
       id: "scope",
       header: "Pillar scope",
       cell: (user) => (
-        <span className="text-sm text-creaw-ink-soft">
-          {[...new Set(grantsOf(user.id).map(scopeOf))].join(", ") || "No role"}
-        </span>
+        <span className="text-sm text-creaw-ink-soft">{scopesOf(user, lookups)}</span>
       ),
     },
     {
       id: "status",
       header: "Status",
       cell: (user) => (
-        <StatusBadge tone={user.status === "ACTIVE" ? "success" : "warning"}>
+        <StatusBadge dot tone={user.status === "ACTIVE" ? "success" : "warning"}>
           {statusLabel(user.status)}
         </StatusBadge>
       ),
     },
-  ];
+  ]);
 }

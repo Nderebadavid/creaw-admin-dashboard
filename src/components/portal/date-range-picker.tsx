@@ -82,7 +82,7 @@ export function DateRangePicker({
         aria-label={`Date range ${formatRangeDate(value.from)} – ${formatRangeDate(value.to)}`}
         aria-expanded={open}
         onClick={openPanel}
-        className="flex h-11 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm font-semibold hover:border-[#E2C7B6]"
+        className="flex h-11 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm font-semibold text-creaw-ink-soft hover:border-[#E2C7B6]"
       >
         <CalendarRange size={18} aria-hidden="true" className="shrink-0 text-primary" />
         <span className="truncate">
@@ -91,7 +91,7 @@ export function DateRangePicker({
         <ChevronDown size={18} aria-hidden="true" className="shrink-0 text-creaw-faint" />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-30 flex w-[min(340px,calc(100vw-2rem))] flex-col gap-3.5 rounded-2xl border border-creaw-line bg-white p-4 shadow-xl">
+        <div className="absolute right-0 top-[54px] z-30 flex w-[min(340px,calc(100vw-2rem))] flex-col gap-3.5 rounded-[14px] border border-creaw-line bg-white p-4 shadow-[0_16px_40px_-12px_rgba(34,28,24,.25)]">
           <div className="flex flex-wrap gap-1.5">
             {presets(today).map(([label, range]) => {
               const on = draft.from === range.from && draft.to === range.to;
@@ -127,10 +127,11 @@ export function DateRangePicker({
             {spanLabel} · filters records by their created date
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={close}>
+            <Button variant="outline" size="sm" onClick={close}>
               Cancel
             </Button>
             <Button
+              size="sm"
               disabled={days < 1}
               onClick={() => {
                 onChange(draft);

@@ -4,7 +4,6 @@ import { useClientPaging } from "@/components/data-table/use-client-paging";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
 import { Pagination } from "@/components/data-table/pagination";
 import { auditedExportAction } from "@/components/portal/data-actions";
@@ -46,7 +45,6 @@ export function SubmissionsContent({
 }) {
   const router = useRouter();
   const [active, setActive] = useState<"All" | SubmissionStatus>("All");
-  const [search, setSearch] = useState("");
   const [reviewing, setReviewing] = useState<SubmissionRow | null>(null);
   const [approving, setApproving] = useState<SubmissionRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,8 +52,8 @@ export function SubmissionsContent({
   // Decisions update the cards immediately; router.refresh() reconciles with the server.
   const [localRows, setLocalRows] = useState(rows);
   const filtered = useMemo(
-    () => filterSubmissionRows(localRows, { status: active, search }),
-    [localRows, active, search]
+    () => filterSubmissionRows(localRows, { status: active }),
+    [localRows, active]
   );
   const { pageRows: visible, pager, resetPage } = useClientPaging(filtered);
   const isReviewable = (row: SubmissionRow) =>
@@ -94,7 +92,6 @@ export function SubmissionsContent({
           path: "/field-submissions",
           routeTemplate: "/field-submissions",
           query: {
-            search: search || undefined,
             stage_event_status: active === "All" ? undefined : stageStatusOf[active],
           },
         })
@@ -105,8 +102,8 @@ export function SubmissionsContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Submission status">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Submission status">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -116,10 +113,10 @@ export function SubmissionsContent({
                 resetPage();
               }}
               aria-pressed={active === tab}
-              className={`rounded-[9px] border px-3 py-[7px] text-[13px] font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "border-creaw-line-strong bg-white text-creaw-body"}`}
+              className={`flex items-center gap-2 rounded-[10px] border px-4 py-[9px] text-sm font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "border-creaw-line-strong bg-white text-creaw-body"}`}
             >
               {tab}{" "}
-              <span className="ml-1 text-xs">
+              <span className="rounded-full border border-creaw-line bg-white px-2 py-px text-xs text-creaw-body">
                 {tab === "All"
                   ? localRows.length
                   : localRows.filter((row) => row.status === tab).length}
@@ -127,20 +124,6 @@ export function SubmissionsContent({
             </button>
           ))}
         </div>
-        <label className="flex h-10 w-60 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm">
-          <Search size={18} aria-hidden="true" className="text-creaw-faint" />
-          <span className="sr-only">Search submissions</span>
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              resetPage();
-            }}
-            placeholder="Filter this list"
-            className="min-w-0 flex-1 bg-transparent outline-none"
-          />
-        </label>
       </div>
       <FormBanner tone="success">{feedback}</FormBanner>
       {visible.length === 0 ? (
@@ -148,7 +131,7 @@ export function SubmissionsContent({
           No submissions match these filters.
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-[18px] [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
           {visible.map((row) => (
             <SubmissionCard
               key={row.id}
@@ -160,9 +143,11 @@ export function SubmissionsContent({
           ))}
         </div>
       )}
-      <Pagination {...pager} />
+      {/* The design lists every card; paging only appears once there is more than a page. */}
+      {filtered.length > pager.pageSize && <Pagination {...pager} />}
       <ReviewDialog
         submission={reviewing}
+        reviewable={reviewing ? isReviewable(reviewing) : false}
         busy={busy}
         onClose={() => setReviewing(null)}
         onDecide={(decision) => reviewing && void decide(reviewing, decision)}

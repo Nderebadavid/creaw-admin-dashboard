@@ -173,3 +173,35 @@
     @apply font-sans;
   }
 }
+
+/* The welcome screen's bar, filling while the portal opens. */
+@keyframes auth-progress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/*
+ * Dialog bodies (ActionDialog): field labels, and the closing row of buttons
+ * drawn as the design's footer band across the dialog's full width.
+ */
+[data-dialog-body] label:not(:has(> input[type="checkbox"], > input[type="radio"])) {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--creaw-ink-soft);
+}
+[data-dialog-body] > :last-child:not(form):has(> button),
+[data-dialog-body] > form > :last-child:has(> button) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  grid-column: 1 / -1;
+  margin: 6px -24px -22px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--creaw-divider);
+  background: var(--creaw-surface);
+}

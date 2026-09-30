@@ -6,7 +6,11 @@ import { AssessmentsContent } from "@/features/assessments/components";
 export default async function AssessmentsPage() {
   const session = await requireSession();
   if (!hasModulePermission(session.grants, "ORG_ASSESSMENT_VIEW")) notFound();
-  const initial = await assessmentsApi.list(1, 25);
+  const canCreate = hasPermission(session.grants, "ORG_ASSESSMENT_EDIT", { pillarId: 5 });
+  const [initial, createOptions] = await Promise.all([
+    assessmentsApi.list(1, 25),
+    canCreate ? assessmentsApi.options() : undefined,
+  ]);
   return (
     <AssessmentsContent
       heading={{
@@ -15,7 +19,8 @@ export default async function AssessmentsPage() {
         description: "WRO partner capacity scoring and due diligence",
       }}
       initial={initial}
-      canRecommend={hasPermission(session.grants, "ORG_ASSESSMENT_EDIT", { pillarId: 5 })}
+      createOptions={createOptions}
+      canRecommend={canCreate}
       canApprove={hasPermission(session.grants, "ORG_ASSESSMENT_APPROVE", { pillarId: 5 })}
       canAttach={
         hasPermission(session.grants, "DUE_DILIGENCE_MANAGE", { pillarId: 5 }) &&

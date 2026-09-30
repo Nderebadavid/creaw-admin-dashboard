@@ -56,7 +56,7 @@ export const projectSchema = z.object({
   name: z.string(),
   donor_id: id.nullable(),
 });
-export const pillarSchema = z.object({ id, name: z.string() });
+export const pillarSchema = z.object({ id, code: z.string(), name: z.string() });
 export const applicationListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(applicationSchema), z.null()])
 );
@@ -88,7 +88,21 @@ export const packSchema = createEnvelopeSchema(
 );
 export const signoffSchema = createEnvelopeSchema(
   z.union([
-    z.object({ preparedBy: id.nullable(), reviewedBy: id.nullable(), approvedBy: id.nullable() }),
+    z.object({
+      preparedBy: id.nullable(),
+      reviewedBy: id.nullable(),
+      approvedBy: id.nullable(),
+      /** Each recorded decision, oldest first. */
+      history: z
+        .array(
+          z.object({
+            event: z.enum(["PREPARED", "REVIEWED", "APPROVED", "DECLINED"]),
+            byName: z.string().nullable(),
+            at: z.string(),
+          })
+        )
+        .default([]),
+    }),
     z.null(),
   ])
 );
@@ -101,6 +115,21 @@ export const exportSchema = createEnvelopeSchema(
 export const advanceInputSchema = z.object({
   id,
   status: z.enum(["PREPARED", "REVIEWED", "APPROVED"]),
+});
+/** `grant_application.grant_type` values from the database schema. */
+export const GRANT_TYPES = ["one_off", "staggered_by_milestone", "asset_grant"] as const;
+export const applicationCreateSchema = z.object({
+  projectId: id,
+  participantId: id,
+  requestedAmount: z.number().positive().max(1_000_000_000),
+  grantType: z.enum(GRANT_TYPES),
+  /** The business or purpose, shown to the officers who sign off. */
+  notes: z.string().trim().max(500).optional(),
+});
+export const declineInputSchema = z.object({
+  id,
+  /** Stored in `status_description`, which holds 255 characters. */
+  reason: z.string().trim().min(1).max(255),
 });
 export const disburseInputSchema = z.object({
   applicationId: id,

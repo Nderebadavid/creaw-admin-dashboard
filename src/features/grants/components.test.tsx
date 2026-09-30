@@ -1,15 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("./actions", () => ({
   listGrantsAction: vi.fn(),
   advanceGrantAction: vi.fn(),
+  createGrantApplicationAction: vi.fn(),
+  declineGrantAction: vi.fn(),
   recordDisbursementAction: vi.fn(),
   downloadGrantPackAction: vi.fn(),
   exportGrantsAction: vi.fn(),
   logGrantReportAction: vi.fn(),
   viewGrantDocumentAction: vi.fn(),
 }));
+vi.mock("@/features/participants/actions", () => ({ listParticipantsAction: vi.fn() }));
+import { declineGrantAction } from "./actions";
 import { GrantDetailContent } from "./components";
 describe("grant detail", () => {
   afterEach(cleanup);
@@ -30,6 +34,8 @@ describe("grant detail", () => {
           organisationId: null,
           stage: 2,
           nextStatus: "APPROVED",
+          declineReason: null,
+          history: [],
           signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: null },
           award: { id: 1, amountAwarded: "••••", currency: "KES", lifecycle: "active" },
           reportingAwardId: null,
@@ -64,6 +70,8 @@ describe("grant detail", () => {
           organisationId: null,
           stage: 3,
           nextStatus: null,
+          declineReason: null,
+          history: [],
           signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: 1 },
           award: { id: 1, amountAwarded: "••••", currency: "KES", lifecycle: "active" },
           reportingAwardId: 1,
@@ -97,6 +105,8 @@ describe("grant detail", () => {
     organisationId: null,
     stage: 3,
     nextStatus: null,
+    declineReason: null,
+    history: [],
     signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: 1 },
     award: { id: 1, amountAwarded: "100000", currency: "KES", lifecycle: "active" },
     reportingAwardId: 1,
@@ -171,5 +181,110 @@ describe("grant detail", () => {
     expect(
       screen.getByText("Disbursement opens once the application is approved.")
     ).toBeInTheDocument();
+  });
+
+  const inReview = {
+    ...approvedDetail,
+    status: "PREPARED",
+    stage: 1,
+    nextStatus: "REVIEWED" as const,
+    signoffs: { preparedBy: 4, reviewedBy: null, approvedBy: null },
+    award: null,
+    reportingAwardId: null,
+    disbursements: [],
+    reports: [],
+    documents: [],
+  };
+  const permissions = {
+    canAdvance: true,
+    canDisburse: true,
+    canDownload: true,
+    canLogReport: true,
+  };
+
+  it("declines an application in its sign-off chain once a reason is given", async () => {
+    vi.mocked(declineGrantAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+      data: null,
+    });
+    render(<GrantDetailContent detail={inReview} {...permissions} />);
+    fireEvent.click(screen.getByRole("button", { name: "Decline application" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("This cannot be undone");
+    expect(within(dialog).getByLabelText("Reason for declining")).toBeRequired();
+    fireEvent.change(within(dialog).getByLabelText("Reason for declining"), {
+      target: { value: "Business plan not viable" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Decline application" }));
+    await waitFor(() =>
+      expect(declineGrantAction).toHaveBeenCalledWith({
+        id: 1,
+        reason: "Business plan not viable",
+      })
+    );
+    expect(await screen.findByText("Application declined.")).toBeInTheDocument();
+  });
+
+  it("disables declining for an officer who cannot decide the next step", () => {
+    render(<GrantDetailContent detail={inReview} {...permissions} canAdvance={false} />);
+    expect(screen.getByRole("button", { name: "Decline application" })).toBeDisabled();
+  });
+
+  it("shows a declined application as closed, with its reason and no further actions", () => {
+    render(
+      <GrantDetailContent
+        detail={{
+          ...inReview,
+          status: "DECLINED",
+          nextStatus: null,
+          declineReason: "Business plan not viable",
+        }}
+        {...permissions}
+      />
+    );
+    expect(screen.getByRole("heading", { name: "Application declined" })).toBeInTheDocument();
+    expect(screen.getByText("Business plan not viable")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Decline application" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /mark as|approve/i })).not.toBeInTheDocument();
+    // The step that was pending is shown as never reached, not as the current step.
+    expect(screen.queryByText("Current step")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Not reached")).toHaveLength(2);
+  });
+
+  it("offers no decline once an application is approved", () => {
+    render(
+      <GrantDetailContent
+        detail={{ ...approvedDetail, disbursements: [], reports: [], documents: [] }}
+        {...permissions}
+      />
+    );
+    expect(screen.queryByRole("button", { name: "Decline application" })).not.toBeInTheDocument();
+  });
+
+  it("shows who decided each step when the history is opened", () => {
+    render(
+      <GrantDetailContent
+        detail={{
+          ...inReview,
+          history: [
+            { event: "SUBMITTED", byName: null, at: "2026-09-01T08:00:00.000Z" },
+            { event: "PREPARED", byName: "Daniel Kiprono", at: "2026-09-12T09:30:00.000Z" },
+          ],
+        }}
+        {...permissions}
+      />
+    );
+    expect(screen.queryByRole("list", { name: "Sign-off history" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View history" }));
+    const entries = within(screen.getByRole("list", { name: "Sign-off history" })).getAllByRole(
+      "listitem"
+    );
+    // Newest first.
+    expect(entries[0]).toHaveTextContent("Marked as prepared · Daniel Kiprono");
+    expect(entries[1]).toHaveTextContent("Application received");
+    fireEvent.click(screen.getByRole("button", { name: "Hide history" }));
+    expect(screen.queryByRole("list", { name: "Sign-off history" })).not.toBeInTheDocument();
   });
 });

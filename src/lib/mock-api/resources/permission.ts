@@ -4,6 +4,9 @@ import { envelope, permissionCodes, type Row, readableAsReference } from "../cor
 import { signoffActors } from "../reporting";
 import { type ApiEnvelope } from "@/types/api";
 
+/** Grant sign-off statuses in order. DECLINED sits outside the chain and is final. */
+const GRANT_CHAIN = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"];
+
 /** Chooses the permission a resource request needs and enforces workflow rules (grant sign-off order, referral responses, award changes). Returns the permission code or an error envelope. */
 export function resolvePermission(
   ctx: MockContext & ResourceTarget
@@ -29,15 +32,16 @@ export function resolvePermission(
     "status" in request.body
   ) {
     const status = request.body.status;
+    const stepPermission: Record<string, string> = {
+      PREPARED: "GRANT_APPLICATION_PREPARE",
+      REVIEWED: "GRANT_APPLICATION_REVIEW",
+      APPROVED: "GRANT_APPLICATION_APPROVE",
+    };
+    // Declining belongs to the officer whose turn it is: it needs the
+    // permission of the step that would otherwise come next.
+    const nextStep = GRANT_CHAIN[GRANT_CHAIN.indexOf(String(existing?.status)) + 1];
     if (status !== existing?.status)
-      permission =
-        (
-          {
-            PREPARED: "GRANT_APPLICATION_PREPARE",
-            REVIEWED: "GRANT_APPLICATION_REVIEW",
-            APPROVED: "GRANT_APPLICATION_APPROVE",
-          } as Record<string, string>
-        )[String(status)] ?? permission;
+      permission = stepPermission[status === "DECLINED" ? nextStep : String(status)] ?? permission;
   }
   if (
     table === "grant_application" &&
@@ -48,9 +52,37 @@ export function resolvePermission(
     "status" in request.body
   ) {
     const change = request.body as unknown as Row;
-    const order = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"];
+    const order = GRANT_CHAIN;
+    const onlyStatus = Object.keys(change).every(
+      (key) => key === "status" || key === "status_description"
+    );
+    if (existing.status === "DECLINED")
+      return envelope(422, null, "A declined application is final");
+    if (change.status === "DECLINED") {
+      const reason = change.status_description;
+      if (
+        !onlyStatus ||
+        existing.status === "APPROVED" ||
+        !order.includes(String(existing.status)) ||
+        typeof reason !== "string" ||
+        !reason.trim()
+      )
+        return envelope(
+          422,
+          null,
+          "Declining needs a reason and an application that is not yet approved"
+        );
+      // Maker-checker: whoever signed an earlier step cannot also decide this one.
+      const signed = signoffActors(store, existing.id);
+      if (
+        (existing.status === "PREPARED" && signed.preparedBy === userId) ||
+        (existing.status === "REVIEWED" && [signed.preparedBy, signed.reviewedBy].includes(userId))
+      )
+        return envelope(403, null, "A different officer must decide this sign-off step");
+      return permission;
+    }
     if (
-      Object.keys(change).some((key) => key !== "status" && key !== "status_description") ||
+      !onlyStatus ||
       order.indexOf(String(change.status)) !== order.indexOf(String(existing.status)) + 1
     )
       return envelope(422, null, "Grant sign-off must follow prepared, reviewed, approved order");

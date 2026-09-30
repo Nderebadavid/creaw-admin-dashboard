@@ -1,7 +1,7 @@
 "use client";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export type PageSize = 10 | 25 | 50 | 100;
+export type PageSize = 10 | 25 | 30 | 50 | 100;
 
 const pageButton =
   "flex size-[34px] items-center justify-center rounded-lg border border-creaw-line-strong bg-white text-creaw-ink-soft disabled:opacity-40";
@@ -42,7 +42,7 @@ export function Pagination({
             }}
             className="h-[34px] rounded-lg border border-creaw-line-strong bg-white px-2 font-semibold text-creaw-ink-soft"
           >
-            {[10, 25, 50, 100].map((size) => (
+            {[10, 25, 30, 50, 100].map((size) => (
               <option key={size}>{size}</option>
             ))}
           </select>

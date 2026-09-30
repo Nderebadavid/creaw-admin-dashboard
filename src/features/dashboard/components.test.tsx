@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+// The chart's pillar and year pickers navigate with the app router.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import { DashboardContent } from "./components";
 import type { DashboardOverview } from "./api";
 
@@ -23,7 +25,7 @@ describe("dashboard screen", () => {
       ],
       monthly: [{ month: "Jan", newCount: 2, completedCount: 1 }],
       participantDistribution: [{ name: "VAWG", count: 4, color: "#B4552E" }],
-      reportingAlerts: ["SRHR narrative report overdue"],
+      reportingAlerts: ["SRHR narrative report (Hewlett Foundation) is 12 days overdue"],
       recentSubmissions: [],
       upcomingReports: [],
       recentActivity: [],
@@ -31,8 +33,15 @@ describe("dashboard screen", () => {
     const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
     expect(html).toContain("Active participants");
     expect(html).toContain("Submissions to review");
-    expect(html).toContain("Pillars at a glance");
-    expect(html).toContain("SRHR narrative report overdue");
+    // A single pillar in scope is "your" pillar, and there is no mix to chart.
+    expect(html).toContain("Your pillar");
+    expect(html).not.toContain("Participants by pillar");
+    expect(html).toContain(
+      "<strong>SRHR narrative report (Hewlett Foundation)</strong> is 12 days overdue."
+    );
+    // Each KPI opens the records behind it; pillar cards name what the target counts.
+    expect(html).toContain('href="/reporting"');
+    expect(html).toContain("of 450 survivors");
   });
   it("marks Leadership as awaiting a configured target", () => {
     const overview: DashboardOverview = {
@@ -101,29 +110,42 @@ describe("dashboard screen", () => {
       ],
       recentSubmissions: [],
       upcomingReports: [
-        { id: 1, title: "SRHR narrative report", status: "overdue", periodEnd: "2026-09-15" },
+        {
+          id: 1,
+          title: "SRHR narrative report",
+          project: "Hewlett Foundation",
+          status: "overdue",
+          periodEnd: "2026-09-15",
+        },
       ],
       recentActivity: [
         {
           id: 1,
           action: "UPDATE",
           entity: "participant",
+          entityId: 7,
+          source: "HTTP",
           when: "2026-09-27T09:00:00.000Z",
           who: "Judy Mwangi",
         },
       ],
     };
     const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
-    expect(html).toContain("SRHR narrative report is 12 days overdue.");
+    expect(html).toContain("<strong>SRHR narrative report</strong> is 12 days overdue.");
     expect(html).toContain("1 more report is overdue.");
     expect(html).toContain("Open reporting calendar →");
+    expect(html).toContain("Pillars at a glance");
     expect(html).toContain("Monthly enrollments");
     expect(html).toContain("New enrollments");
     expect(html).toContain('aria-label="Participants by pillar: VAWG 4 (40%), WEE 6 (60%)"');
     expect(html).toContain("Next 30 days");
     expect(html).toContain('href="/reporting"');
     expect(html).toContain("See all");
+    expect(html).toContain("Hewlett Foundation");
+    expect(html).toContain(">Overdue<");
     expect(html).toContain("Judy Mwangi");
     expect(html).toContain(">JM<");
+    expect(html).toContain("participant #7");
+    expect(html).toContain("Participant · via portal");
   });
 });

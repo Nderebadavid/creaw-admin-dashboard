@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
@@ -34,6 +35,8 @@ const meSchema = z.object({
   ]),
 });
 export interface ReferralQuery {
+  /** A displayed column to sort by; applied by the list action, not the API. */
+  sort?: SortState;
   page?: number;
   pageSize?: number;
   pillarId?: number;

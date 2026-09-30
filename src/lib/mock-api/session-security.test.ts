@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { handleMockRequest } from "./handlers";
+import { MOCK_OTP_CODE } from "./seed";
 import { resetMockStore } from "./store";
 
 const call = (
   method: "GET" | "POST",
-  path: "/auth/login" | "/auth/me" | "/auth/logout",
+  path: "/auth/login" | "/auth/otp/verify" | "/auth/me" | "/auth/logout",
   token?: string,
   body?: unknown
 ) =>
@@ -20,9 +21,15 @@ const call = (
   });
 
 async function login(): Promise<string> {
-  const response = await call("POST", "/auth/login", undefined, {
+  const password = await call("POST", "/auth/login", undefined, {
     username: "judy.mwangi",
     password: "creaw-demo",
+  });
+  expect(password.resultCode).toBe(200);
+  const { challengeId } = password.data as { challengeId: string };
+  const response = await call("POST", "/auth/otp/verify", undefined, {
+    challengeId,
+    code: MOCK_OTP_CODE,
   });
   expect(response.resultCode).toBe(200);
   return (response.data as { token: string }).token;

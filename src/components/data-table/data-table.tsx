@@ -1,12 +1,16 @@
 import { Fragment, type MouseEvent, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ariaSort, SortHeader } from "./sort-header";
+import type { SortState, SortValue } from "./sorting";
 import { TableState } from "./table-state";
 
 export interface DataColumn<T> {
   id: string;
   header: ReactNode;
   cell: (row: T) => ReactNode;
+  /** The value this column sorts by; with `onSortChange` it makes the header sortable. */
+  sortValue?: (row: T) => SortValue;
   className?: string;
 }
 export interface DataTableProps<T> {
@@ -27,6 +31,9 @@ export interface DataTableProps<T> {
   framed?: boolean;
   /** Detail shown in a full-width row under a record, e.g. an opened audit entry. */
   renderExpanded?: (row: T) => ReactNode;
+  /** The active sort. The table only shows it; the caller sorts `rows`. */
+  sort?: SortState;
+  onSortChange?: (sort: SortState | undefined) => void;
 }
 
 /** Clicks on a row's own controls (menus, links, reveal buttons) must not also open it. */
@@ -47,6 +54,8 @@ export function DataTable<T>({
   rowOpenLabel = () => "Open record",
   framed = true,
   renderExpanded,
+  sort,
+  onSortChange,
 }: DataTableProps<T>) {
   const span = columns.length + (rowActions ? 1 : 0) + (onRowOpen ? 1 : 0);
   return (
@@ -58,15 +67,25 @@ export function DataTable<T>({
           <table aria-label={label} className="w-full min-w-[640px] text-left text-[14.5px]">
             <thead className="border-b border-creaw-divider bg-creaw-surface text-[13px] font-semibold text-creaw-faint">
               <tr>
-                {columns.map((column) => (
-                  <th
-                    key={column.id}
-                    scope="col"
-                    className={`whitespace-nowrap px-3.5 py-3 first:pl-5 ${column.className ?? ""}`}
-                  >
-                    {column.header}
-                  </th>
-                ))}
+                {columns.map((column) => {
+                  const sortable = Boolean(column.sortValue && onSortChange);
+                  return (
+                    <th
+                      key={column.id}
+                      scope="col"
+                      aria-sort={sortable ? ariaSort(sort, column.id) : undefined}
+                      className={`whitespace-nowrap px-3.5 py-3 first:pl-5 ${column.className ?? ""}`}
+                    >
+                      {sortable ? (
+                        <SortHeader id={column.id} sort={sort} onSortChange={onSortChange!}>
+                          {column.header}
+                        </SortHeader>
+                      ) : (
+                        column.header
+                      )}
+                    </th>
+                  );
+                })}
                 {rowActions && (
                   <th scope="col" className="px-3.5 py-3">
                     <span className="sr-only">Actions</span>

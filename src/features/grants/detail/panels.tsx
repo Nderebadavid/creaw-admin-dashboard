@@ -1,26 +1,61 @@
-import { Check, Circle, Lock, Plus } from "lucide-react";
+import { useState } from "react";
+import { CalendarX, Check, Circle, FileText, History, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
-import type { GrantDetail } from "../api";
+import { daysUntil, reportStatus } from "@/features/reporting/status";
+import type { GrantDetail, GrantHistoryEntry } from "../api";
 
 const card = "rounded-2xl border border-creaw-line bg-white p-6";
 
 const STEPS = ["Application", "Prepared", "Reviewed", "Approved"];
 
+const HISTORY_LABEL: Record<GrantHistoryEntry["event"], string> = {
+  SUBMITTED: "Application received",
+  PREPARED: "Marked as prepared",
+  REVIEWED: "Marked as reviewed",
+  APPROVED: "Application approved",
+  DECLINED: "Application declined",
+};
+
+const historyTime = (iso: string) =>
+  new Date(iso).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+
 /** Four-step sign-off track; each step is signed by a different officer. */
-export function SignoffChain({ stage }: { stage: number }) {
+export function SignoffChain({
+  stage,
+  declined = false,
+  history = [],
+}: {
+  stage: number;
+  declined?: boolean;
+  /** Who decided each step and when, oldest first. */
+  history?: readonly GrantHistoryEntry[];
+}) {
+  const [showHistory, setShowHistory] = useState(false);
   return (
     <section className={card}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-heading text-[22px] font-bold">Sign-off chain</h2>
-        <span className="text-[13.5px] text-creaw-faint">Separate officer per step</span>
+        <div className="flex flex-wrap items-center gap-3.5 text-[13.5px]">
+          <span className="text-creaw-faint">Separate officer per step</span>
+          <button
+            type="button"
+            aria-expanded={showHistory}
+            onClick={() => setShowHistory((shown) => !shown)}
+            className="flex items-center gap-1 font-semibold text-primary"
+          >
+            <History size={16} aria-hidden="true" />
+            {showHistory ? "Hide history" : "View history"}
+          </button>
+        </div>
       </div>
       <ol className="mt-5 grid grid-cols-2 gap-y-5 sm:grid-cols-4">
         {STEPS.map((step, index) => {
           // `stage` is the last completed step (ACTIVE = 0 means the application is in).
           const done = index <= stage;
-          const current = index === stage + 1;
+          // A declined application stopped where it was: no step is current any more.
+          const current = !declined && index === stage + 1;
           return (
             <li key={step} className="flex flex-col gap-2.5">
               <div className="flex items-center">
@@ -39,15 +74,43 @@ export function SignoffChain({ stage }: { stage: number }) {
               <div>
                 <p className="text-[15px] font-semibold">{step}</p>
                 <p className="text-[13px] text-creaw-faint">
-                  {done ? "Signed off" : current ? "Current step" : "Awaiting sign-off"}
+                  {done
+                    ? "Signed off"
+                    : current
+                      ? "Current step"
+                      : declined
+                        ? "Not reached"
+                        : "Awaiting sign-off"}
                 </p>
               </div>
             </li>
           );
         })}
       </ol>
+      {showHistory && (
+        <ol
+          aria-label="Sign-off history"
+          className="mt-5 divide-y divide-creaw-divider border-t border-creaw-divider"
+        >
+          {/* Newest first, as in the audit trail. */}
+          {[...history].reverse().map((entry) => (
+            <li
+              key={`${entry.event}-${entry.at}`}
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 text-sm"
+            >
+              <span>
+                <span className="font-semibold">{HISTORY_LABEL[entry.event]}</span>
+                {entry.byName && <span className="text-creaw-body"> · {entry.byName}</span>}
+              </span>
+              <time dateTime={entry.at} className="text-[13px] text-creaw-faint">
+                {historyTime(entry.at)}
+              </time>
+            </li>
+          ))}
+        </ol>
+      )}
       <p className="mt-4 text-xs text-creaw-faint">
-        Officers who signed each step are recorded in the audit trail.
+        Each decision is recorded against the officer in the audit trail.
       </p>
     </section>
   );
@@ -189,22 +252,41 @@ export function ComplianceReports({
           </span>
         )}
       </div>
-      {detail.reports.map((report) => (
-        <div
-          key={report.id}
-          className="flex flex-wrap items-center gap-3.5 rounded-xl border border-creaw-line px-3.5 py-3"
-        >
-          <div className="min-w-44 flex-1">
-            <p className="text-[14.5px] font-semibold">
-              Reporting period {formatDate(report.periodStart)} – {formatDate(report.periodEnd)}
-            </p>
-            <p className="text-[13px] text-creaw-faint">Due {formatDate(report.dueDate)}</p>
+      {detail.reports.map((report) => {
+        const status = reportStatus({
+          status: report.submittedDate
+            ? "submitted"
+            : daysUntil(report.dueDate) < 0
+              ? "overdue"
+              : "pending",
+          dueDate: report.dueDate,
+        });
+        const late = status.tone === "danger";
+        return (
+          <div
+            key={report.id}
+            className={`flex flex-wrap items-center gap-3.5 rounded-xl px-3.5 py-3 ${late ? "border-[1.5px] border-dashed border-[#F3CCC6] bg-[#FFF8F6]" : "border border-creaw-divider bg-white"}`}
+          >
+            <span
+              aria-hidden="true"
+              className={`flex size-10 shrink-0 items-center justify-center rounded-[10px] ${late ? "bg-creaw-danger-soft text-creaw-danger" : "bg-creaw-canvas text-primary"}`}
+            >
+              {late ? <CalendarX size={20} /> : <FileText size={20} />}
+            </span>
+            <div className="min-w-44 flex-1">
+              <p className="text-[14.5px] font-semibold">
+                Reporting period {formatDate(report.periodStart)} – {formatDate(report.periodEnd)}
+              </p>
+              <p className="text-[13px] text-creaw-faint">
+                {report.submittedDate
+                  ? `Submitted ${formatDate(report.submittedDate)} · due ${formatDate(report.dueDate)}`
+                  : `Due ${formatDate(report.dueDate)}${late ? ` · ${-daysUntil(report.dueDate)} days late` : ""}`}
+              </p>
+            </div>
+            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           </div>
-          <StatusBadge tone={report.submittedDate ? "success" : "warning"}>
-            {report.submittedDate ? "Submitted" : "Pending"}
-          </StatusBadge>
-        </div>
-      ))}
+        );
+      })}
       {!detail.reports.length && (
         <p className="rounded-[10px] bg-creaw-canvas p-3 text-[13.5px] leading-normal text-creaw-faint">
           {awarded

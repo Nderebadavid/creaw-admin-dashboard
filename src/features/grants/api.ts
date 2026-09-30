@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
@@ -27,6 +28,8 @@ import {
 } from "./schemas";
 
 export interface GrantQuery {
+  /** A displayed column to sort by; applied by the list action, not the API. */
+  sort?: SortState;
   page?: number;
   pageSize?: number;
   pillarId?: number;
@@ -43,13 +46,30 @@ export interface GrantRow {
   grantType: string;
   createdAt: string;
 }
+export interface GrantProgramme {
+  id: number;
+  name: string;
+  pillarId: number;
+}
+export interface GrantHistoryEntry {
+  event: "SUBMITTED" | "PREPARED" | "REVIEWED" | "APPROVED" | "DECLINED";
+  /** The deciding officer; null for the application's arrival. */
+  byName: string | null;
+  at: string;
+}
 export interface GrantDetail extends GrantRow {
   notes: string | null;
   participantId: number | null;
   organisationId: number | null;
+  /** Sign-off steps completed; for a declined application, the steps it had reached. */
   stage: number;
+  /** The next sign-off step; null once approved or declined. */
   nextStatus: "PREPARED" | "REVIEWED" | "APPROVED" | null;
+  /** Why the application was declined; null unless it was. */
+  declineReason: string | null;
   signoffs: { preparedBy: number | null; reviewedBy: number | null; approvedBy: number | null };
+  /** The application's arrival and every sign-off decision since, oldest first. */
+  history: readonly GrantHistoryEntry[];
   award: { id: number; amountAwarded: string; currency: string; lifecycle: string } | null;
   reportingAwardId: number | null;
   disbursements: { id: number; amount: string; date: string | null; notes: string | null }[];
@@ -137,6 +157,43 @@ export function createGrantsApi(client: ApiClient, token: string) {
     });
   }
   return {
+    /** Grant programmes (projects) an application can be filed under. */
+    async programmes(): Promise<GrantProgramme[]> {
+      return (await projects()).map((row) => ({
+        id: row.id,
+        name: row.name,
+        pillarId: row.pillar_id,
+      }));
+    },
+    /**
+     * Files an application for a participant. It starts as PREPARED, signed by
+     * the officer who files it, so review and approval need two other officers.
+     */
+    create(input: {
+      projectId: number;
+      participantId: number;
+      requestedAmount: number;
+      grantType: string;
+      notes?: string;
+    }) {
+      return request<import("zod").infer<typeof mutationSchema>>(
+        {
+          method: "POST",
+          path: "/grants",
+          routeTemplate: "/grants",
+          token,
+          body: {
+            project_id: input.projectId,
+            participant_id: input.participantId,
+            requested_amount: input.requestedAmount,
+            grant_type: input.grantType,
+            notes: input.notes || null,
+            status: "PREPARED",
+          },
+        },
+        mutationSchema
+      );
+    },
     async pillars() {
       return collectPages(async (page, pageSize) =>
         required(
@@ -153,7 +210,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
         )
       );
     },
-    /** Applications still in their sign-off chain (not yet approved), without enriching rows. */
+    /** Applications still in their sign-off chain (neither approved nor declined), without enriching rows. */
     async countAwaitingSignoff(): Promise<number> {
       const total = async (status?: string) =>
         required(
@@ -168,8 +225,12 @@ export function createGrantsApi(client: ApiClient, token: string) {
             applicationListSchema
           )
         ).totalItems;
-      const [all, approved] = await Promise.all([total(), total("APPROVED")]);
-      return all - approved;
+      const [all, approved, declined] = await Promise.all([
+        total(),
+        total("APPROVED"),
+        total("DECLINED"),
+      ]);
+      return all - approved - declined;
     },
     async list(query: GrantQuery = {}): Promise<GrantPage> {
       const result = await request<import("zod").infer<typeof applicationListSchema>>(
@@ -235,15 +296,30 @@ export function createGrantsApi(client: ApiClient, token: string) {
         "document",
         documentListSchema
       ).catch(() => []);
-      const stage = stageFor(row.status);
+      const declined = row.status === "DECLINED";
+      // A declined application keeps the steps that were signed before it closed.
+      const stage = declined
+        ? signoffs.reviewedBy
+          ? 2
+          : signoffs.preparedBy
+            ? 1
+            : 0
+        : stageFor(row.status);
       return {
         ...summary,
         notes: row.notes,
         participantId: row.participant_id,
         organisationId: row.organisation_id,
         stage,
-        signoffs,
-        nextStatus: stage < 3 ? (stages[stage + 1] as GrantDetail["nextStatus"]) : null,
+        signoffs: {
+          preparedBy: signoffs.preparedBy,
+          reviewedBy: signoffs.reviewedBy,
+          approvedBy: signoffs.approvedBy,
+        },
+        history: [{ event: "SUBMITTED", byName: null, at: row.created_at }, ...signoffs.history],
+        nextStatus:
+          !declined && stage < 3 ? (stages[stage + 1] as GrantDetail["nextStatus"]) : null,
+        declineReason: declined ? (row.status_description ?? "") : null,
         award: award
           ? {
               id: award.id,
@@ -274,6 +350,19 @@ export function createGrantsApi(client: ApiClient, token: string) {
           .filter((item) => item.owner_type === "grant_application" && item.owner_id === id)
           .map((item) => ({ id: item.id, name: item.document_type.replaceAll("_", " ") })),
       };
+    },
+    /** Closes an application that is still in its sign-off chain. This cannot be undone. */
+    decline(id: number, reason: string) {
+      return request<import("zod").infer<typeof mutationSchema>>(
+        {
+          method: "PATCH",
+          path: `/grants/${id}`,
+          routeTemplate: "/grants/:id",
+          token,
+          body: { status: "DECLINED", status_description: reason },
+        },
+        mutationSchema
+      );
     },
     advance(id: number, status: "PREPARED" | "REVIEWED" | "APPROVED") {
       return request<import("zod").infer<typeof mutationSchema>>(
@@ -379,5 +468,8 @@ export const grantsApi = {
   },
   async pillars() {
     return (await bound()).pillars();
+  },
+  async programmes() {
+    return (await bound()).programmes();
   },
 };

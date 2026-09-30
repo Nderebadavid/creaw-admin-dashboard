@@ -45,7 +45,7 @@ export function GlobalSearch({ destinations }: { destinations: readonly SearchDe
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
     >
-      <label className="flex items-center gap-2 rounded-xl border bg-creaw-canvas px-3">
+      <label className="flex items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3">
         <Search aria-hidden="true" size={17} className="shrink-0 text-creaw-muted" />
         <span className="sr-only">Search portal</span>
         <input

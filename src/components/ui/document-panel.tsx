@@ -1,5 +1,6 @@
-import { FileText, CircleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { DocumentRow } from "./record-parts";
+
 export interface DocumentItem {
   id: string | number;
   name: string;
@@ -7,6 +8,8 @@ export interface DocumentItem {
   description?: string;
   action?: ReactNode;
 }
+
+/** A record's documents, with each required one that is still missing flagged below. */
 export function DocumentPanel({
   documents,
   requirements = [],
@@ -19,31 +22,38 @@ export function DocumentPanel({
   const missing = requirements.filter(
     (requirement) => !documents.some((document) => document.requirement === requirement)
   );
+  const total = documents.length + missing.length;
   return (
-    <section aria-label={title} className="rounded-2xl border bg-white p-5">
-      <h2 className="mb-4 font-heading text-[22px] font-bold">{title}</h2>
-      <ul className="divide-y">
-        {documents.map((document) => (
-          <li key={document.id} className="flex items-center gap-3 py-3">
-            <FileText aria-hidden="true" size={20} className="text-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">{document.name}</p>
-              {document.description && (
-                <p className="text-xs text-muted-foreground">{document.description}</p>
-              )}
-            </div>
-            {document.action}
-          </li>
-        ))}
-        {missing.map((requirement) => (
-          <li key={requirement} className="flex items-center gap-3 py-3 text-sm text-[#94570d]">
-            <CircleAlert aria-hidden="true" size={18} />
-            Missing: {requirement}
-          </li>
-        ))}
-      </ul>
+    <section
+      aria-label={title}
+      className="flex flex-col gap-3 rounded-2xl border border-creaw-line bg-white p-6"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-heading text-[22px] font-bold">{title}</h2>
+        {total > 0 && (
+          <span className="text-[13.5px] text-creaw-faint">
+            {documents.length} of {total} attached
+          </span>
+        )}
+      </div>
+      {documents.map((document) => (
+        <DocumentRow
+          key={document.id}
+          name={document.name}
+          detail={document.description ?? "On file"}
+          action={document.action}
+        />
+      ))}
+      {missing.map((requirement) => (
+        <DocumentRow
+          key={requirement}
+          missing
+          name={requirement.charAt(0).toUpperCase() + requirement.slice(1)}
+          detail={`Missing: ${requirement}`}
+        />
+      ))}
       {!documents.length && !missing.length && (
-        <p className="text-sm text-muted-foreground">No documents added.</p>
+        <p className="text-sm text-creaw-faint">No documents added.</p>
       )}
     </section>
   );

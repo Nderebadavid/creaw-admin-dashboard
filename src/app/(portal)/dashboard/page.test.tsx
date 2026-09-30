@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("server-only", () => ({}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), notFound: vi.fn() }));
 vi.mock("@/lib/auth/session-server", () => ({
   requireSession: vi.fn(async () => ({
     user: { firstName: "Lead" },

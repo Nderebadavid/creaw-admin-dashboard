@@ -40,7 +40,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // The optimizer fetches these public source images without a session cookie.
-    "/((?!api|_next/static|_next/image|favicon.ico|creaw-logo\\.png$|login-wvl\\.png$).*)",
+    // The optimizer fetches the public logo source without a session cookie.
+    "/((?!api|_next/static|_next/image|favicon.ico|creaw-logo\\.png$).*)",
   ],
 };

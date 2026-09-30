@@ -1,10 +1,10 @@
 "use client";
 import { fieldClass } from "@/components/ui/form-styles";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
+import { FileDropField } from "@/components/ui/file-drop-field";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format";
 import { addDeadlineAction, submitReportAction } from "../actions";
 import type { ReportView } from "../api";
 
@@ -96,6 +96,11 @@ export function SubmitReportDialog({
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  const [ready, setReady] = useState(false);
+  function close() {
+    submit.clearError();
+    onClose();
+  }
 
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,7 +113,7 @@ export function SubmitReportDialog({
         date: String(form.get("date") ?? ""),
         fileUrl: String(form.get("fileUrl") ?? "") || undefined,
       }),
-      "Report submitted. Document metadata is retained in mock mode."
+      "Report submitted"
     );
   }
 
@@ -116,33 +121,37 @@ export function SubmitReportDialog({
     <ActionDialog
       open={report !== null}
       busy={submit.busy}
-      onClose={() => {
-        submit.clearError();
-        onClose();
-      }}
+      onClose={close}
       title="Upload report submission"
-      description={report && `${report.title} · due ${formatDate(report.dueDate)}`}
+      description={report && `${report.title} — ${report.project}`}
       error={submit.error}
+      className="sm:max-w-[560px]"
     >
-      <form className="space-y-3" onSubmit={send}>
+      <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
           Submitted date
-          <input name="date" type="date" required className={fieldClass} />
-        </label>
-        <label className="block text-sm">
-          Document URL
           <input
-            name="fileUrl"
-            type="url"
-            required={report?.type === "grant"}
-            placeholder="https://…"
+            name="date"
+            type="date"
+            required
+            defaultValue={new Date().toISOString().slice(0, 10)}
             className={fieldClass}
           />
         </label>
-        <p className="text-xs text-creaw-faint">Mock mode stores document metadata only.</p>
-        <Button type="submit" disabled={submit.busy}>
-          Mark submitted
-        </Button>
+        <FileDropField
+          name="fileUrl"
+          target={report ? `${report.title} — ${report.project}` : undefined}
+          onChange={setReady}
+        />
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={close}>
+            Cancel
+          </Button>
+          {/* A grant compliance report must carry its document; a narrative one may follow later. */}
+          <Button type="submit" disabled={submit.busy || (report?.type === "grant" && !ready)}>
+            Upload &amp; attach
+          </Button>
+        </div>
       </form>
     </ActionDialog>
   );

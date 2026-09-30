@@ -1,15 +1,20 @@
 "use client";
 import { fieldClass } from "@/components/ui/form-styles";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
+import { FileDropField } from "@/components/ui/file-drop-field";
 import {
   approveAssessmentAction,
   attachAssessmentDocumentAction,
   recommendAssessmentAction,
+  recordAssessmentAction,
 } from "../actions";
-import type { AssessmentView } from "../api";
+import { dueDiligenceDocuments, type AssessmentRecord } from "../schemas";
+
+type DueDiligenceDocument = AssessmentRecord["documents"][number];
+import type { AssessmentOptions, AssessmentView } from "../api";
 import { recommendationLabels } from "./assessment-drawer";
 
 /**
@@ -94,6 +99,11 @@ export function AttachDocumentDialog({
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  const [ready, setReady] = useState(false);
+  function close() {
+    submit.clearError();
+    onClose();
+  }
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!checkId) return;
@@ -102,36 +112,239 @@ export function AttachDocumentDialog({
         checkId,
         fileUrl: String(new FormData(event.currentTarget).get("fileUrl") ?? ""),
       }),
-      "Document attached to the assessment check."
+      `${checkName ?? "Document"} attached`
     );
   }
   return (
     <ActionDialog
       open={checkId !== null}
       busy={submit.busy}
-      onClose={() => {
-        submit.clearError();
-        onClose();
-      }}
-      title="Attach due diligence document"
+      onClose={close}
+      title="Attach document"
       description={checkName}
       error={submit.error}
+      className="sm:max-w-[560px]"
     >
-      <form className="space-y-3" onSubmit={send}>
+      <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
-          Document URL
-          <input
-            name="fileUrl"
-            type="url"
-            required
-            placeholder="https://…"
+          Document type
+          <select disabled value={checkName} className={fieldClass}>
+            <option>{checkName}</option>
+          </select>
+        </label>
+        <FileDropField
+          name="fileUrl"
+          target={`the due-diligence check “${checkName}”`}
+          onChange={setReady}
+        />
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submit.busy || !ready}>
+            Upload &amp; attach
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
+  );
+}
+
+/** The two documents the field app asks for with every assessment. */
+const defaultDocuments: readonly DueDiligenceDocument[] = [
+  "Registration certificate",
+  "Audited accounts",
+];
+
+/**
+ * Records an organisation assessment as the field app does: the instrument,
+ * a 1–5 score for each of its domains, the assessor's notes, whether a
+ * follow-up visit is needed, and the due-diligence documents to collect.
+ */
+export function NewAssessmentDialog({
+  open,
+  options,
+  organisationId,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  options: AssessmentOptions;
+  /** Preselects the organisation, e.g. when opened from its profile. */
+  organisationId?: number;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  const [instrumentId, setInstrumentId] = useState(options.instruments[0]?.id ?? 0);
+  const [scores, setScores] = useState<Record<number, number>>({});
+  const [unscored, setUnscored] = useState(false);
+  const instrument = options.instruments.find((item) => item.id === instrumentId);
+  const criteria = instrument?.criteria ?? [];
+
+  function close() {
+    submit.clearError();
+    setScores({});
+    setUnscored(false);
+    onClose();
+  }
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (criteria.some((criterion) => !scores[criterion.id])) {
+      setUnscored(true);
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    void submit.run(
+      recordAssessmentAction({
+        organisationId: Number(form.get("organisationId")),
+        instrumentId,
+        scores: criteria.map((criterion) => ({
+          criterionId: criterion.id,
+          score: scores[criterion.id],
+        })),
+        notes: String(form.get("notes") ?? "") || undefined,
+        followUp: form.get("followUp") === "on",
+        documents: form.getAll("documents").map(String) as DueDiligenceDocument[],
+      }),
+      "Assessment saved. Scores and the document checklist are on the organisation's card."
+    );
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={close}
+      title="New assessment"
+      description="Score each domain from 1 (weak) to 5 (strong), as on the mobile app"
+      error={submit.error}
+      className="sm:max-w-[640px]"
+    >
+      <form className="space-y-4" onSubmit={send}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm">
+            Organisation
+            <select
+              name="organisationId"
+              required
+              defaultValue={organisationId ?? ""}
+              className={fieldClass}
+            >
+              <option value="" disabled>
+                Choose an organisation
+              </option>
+              {options.organisations.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            Assessment instrument
+            <select
+              name="instrumentId"
+              required
+              value={instrumentId}
+              onChange={(event) => {
+                setInstrumentId(Number(event.target.value));
+                setScores({});
+                setUnscored(false);
+              }}
+              className={fieldClass}
+            >
+              {options.instruments.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {criteria.length > 0 && (
+          <fieldset className="space-y-2.5">
+            <legend className="mb-2 text-[13.5px] font-semibold text-creaw-ink-soft">
+              Domain scores (1–5)
+            </legend>
+            {criteria.map((criterion) => (
+              <div
+                key={criterion.id}
+                role="radiogroup"
+                aria-label={criterion.label}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-creaw-divider px-3 py-2"
+              >
+                <span className="text-sm font-medium">{criterion.label}</span>
+                <span className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((value) => {
+                    const on = scores[criterion.id] === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        aria-label={`${criterion.label}: ${value}`}
+                        onClick={() => setScores({ ...scores, [criterion.id]: value })}
+                        className={`size-9 rounded-lg border text-sm font-semibold ${on ? "border-primary bg-primary text-white" : "border-creaw-line-strong bg-white text-creaw-ink-soft hover:bg-accent"}`}
+                      >
+                        {value}
+                      </button>
+                    );
+                  })}
+                </span>
+              </div>
+            ))}
+            {unscored && (
+              <p role="alert" className="text-[13px] text-creaw-danger">
+                Score every domain before saving.
+              </p>
+            )}
+          </fieldset>
+        )}
+        <label className="block text-sm">
+          Assessor notes
+          <textarea
+            name="notes"
+            rows={3}
+            maxLength={2000}
+            placeholder="Key strengths and gaps"
             className={fieldClass}
           />
         </label>
-        <p className="text-xs text-creaw-faint">Mock mode stores document metadata only.</p>
-        <Button type="submit" disabled={submit.busy}>
-          Attach document
-        </Button>
+        <label className="flex items-start gap-2.5 text-sm">
+          <input type="checkbox" name="followUp" className="mt-0.5 size-[18px] accent-primary" />
+          <span>
+            <span className="block font-semibold">Needs follow-up visit</span>
+            <span className="text-[12.5px] text-creaw-faint">Adds to next month&apos;s plan</span>
+          </span>
+        </label>
+        <fieldset>
+          <legend className="mb-2 text-[13.5px] font-semibold text-creaw-ink-soft">
+            Due-diligence documents to collect
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {dueDiligenceDocuments.map((name) => (
+              <label key={name} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="documents"
+                  value={name}
+                  defaultChecked={defaultDocuments.includes(name)}
+                  className="size-[18px] accent-primary"
+                />
+                {name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submit.busy}>
+            Save assessment
+          </Button>
+        </div>
       </form>
     </ActionDialog>
   );

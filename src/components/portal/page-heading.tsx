@@ -18,18 +18,18 @@ export function PageHeading({
   actions?: ReactNode;
 }) {
   return (
-    <div data-page-heading className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p className="mb-1 text-xs text-creaw-muted">
+    <div data-page-heading className="mb-[22px] flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <p className="text-[13px] text-creaw-faint">
           Home <span aria-hidden="true"> / </span>
           {section}
           <span aria-hidden="true"> / </span>
-          <span className="text-primary">{title}</span>
+          <span className="font-semibold text-primary">{title}</span>
         </p>
-        <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
-        {description && <p className="mt-1 text-sm text-creaw-muted">{description}</p>}
+        <h1 className="font-heading text-[32px] font-bold leading-tight">{title}</h1>
+        {description && <p className="text-[14.5px] text-creaw-faint">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2.5">{actions}</div>}
     </div>
   );
 }

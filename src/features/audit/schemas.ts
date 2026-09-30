@@ -36,6 +36,8 @@ export const auditQuerySchema = z
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
     search: z.string().trim().max(120).optional(),
+    /** A displayed column to sort by; applied by the list action. */
+    sort: z.object({ by: z.string().max(40), order: z.enum(["asc", "desc"]) }).optional(),
   })
   .refine(
     (query) => !query.from || !query.to || query.from <= query.to,

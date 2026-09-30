@@ -4,7 +4,7 @@ import { filterSelectClass } from "@/components/ui/form-styles";
 import { FormBanner } from "@/components/ui/form-banner";
 import { titleCase } from "@/lib/format";
 import { useState } from "react";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, CircleCheck, Pencil, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
@@ -146,6 +146,8 @@ export function ReferralsContent({
           framed={false}
           label="Referrals"
           columns={referralColumns}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
           rows={list.data.items}
           getRowId={(row) => row.id}
           loading={list.loading}
@@ -162,16 +164,19 @@ export function ReferralsContent({
               actions={[
                 {
                   label: "Decide…",
+                  icon: CircleCheck,
                   disabled: !referral.canRespond,
                   onSelect: () => setModal({ kind: "decide", referral }),
                 },
                 {
                   label: "Edit referral",
+                  icon: Pencil,
                   disabled: !referral.canEdit,
                   onSelect: () => setModal({ kind: "edit", referral }),
                 },
                 {
                   label: "Withdraw",
+                  icon: Undo2,
                   destructive: true,
                   disabled: !referral.canWithdraw,
                   onSelect: () => setModal({ kind: "withdraw", referral }),

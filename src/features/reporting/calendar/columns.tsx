@@ -1,16 +1,14 @@
 import type { DataColumn } from "@/components/data-table/data-table";
+import { withSortValues } from "@/components/data-table/sorting";
+import { PillarChip } from "@/components/portal/pillars";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
 import type { ReportView } from "../api";
-
-const statusTone = (status: string) =>
-  status === "submitted" ? "success" : status === "overdue" ? "danger" : "warning";
-
-const ownerOf = (row: ReportView) =>
-  row.ownerName ?? (row.ownerId ? `Staff #${row.ownerId}` : "Unassigned");
+import { ownerOf, reportSortValues } from "../sort-values";
+import { reportStatus } from "../status";
 
 /** Columns from the design: report, donor/programme, pillar, due, owner, status. */
-export const reportColumns: DataColumn<ReportView>[] = [
+export const reportColumns: DataColumn<ReportView>[] = withSortValues(reportSortValues, [
   {
     id: "report",
     header: "Report",
@@ -25,9 +23,9 @@ export const reportColumns: DataColumn<ReportView>[] = [
     id: "programme",
     header: "Donor / programme",
     cell: (row) => (
-      <div>
+      <div className="font-medium text-creaw-ink-soft">
         {row.project}
-        <p className="text-[12.5px] text-creaw-faint">
+        <p className="text-[12.5px] font-normal text-creaw-faint">
           {row.type === "grant" ? "Grant compliance" : "Narrative report"}
         </p>
       </div>
@@ -36,27 +34,30 @@ export const reportColumns: DataColumn<ReportView>[] = [
   {
     id: "pillar",
     header: "Pillar",
-    cell: (row) => (
-      <span className="rounded-[7px] bg-creaw-orange-soft px-2.5 py-0.5 text-xs font-semibold text-primary">
-        {row.pillar}
-      </span>
-    ),
+    cell: (row) => <PillarChip id={row.pillarId} fallback={row.pillar} />,
   },
   {
     id: "due",
     header: "Due",
     cell: (row) => (
       <span
-        className={`whitespace-nowrap ${row.status === "overdue" ? "font-semibold text-creaw-danger" : ""}`}
+        className={`whitespace-nowrap font-medium ${row.status === "overdue" ? "text-creaw-danger" : "text-creaw-ink-soft"}`}
       >
         {formatDate(row.dueDate)}
       </span>
     ),
   },
-  { id: "owner", header: "Owner", cell: ownerOf },
+  {
+    id: "owner",
+    header: "Owner",
+    cell: (row) => <span className="font-medium text-creaw-ink-soft">{ownerOf(row)}</span>,
+  },
   {
     id: "status",
     header: "Status",
-    cell: (row) => <StatusBadge tone={statusTone(row.status)}>{row.status}</StatusBadge>,
+    cell: (row) => {
+      const status = reportStatus(row);
+      return <StatusBadge tone={status.tone}>{status.label}</StatusBadge>;
+    },
   },
-];
+]);

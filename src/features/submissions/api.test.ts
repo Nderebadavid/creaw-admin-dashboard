@@ -35,7 +35,8 @@ describe("submission adapter", () => {
     expect(await api.get(1109)).toMatchObject({
       id: 1109,
       pillarId: 1,
-      type: enrollment.entry_category,
+      // The card names the stage captured; the enrollment's category rides alongside.
+      category: enrollment.entry_category,
     });
   });
   it("exports the same searched rows as the UI without raw note identities", async () => {

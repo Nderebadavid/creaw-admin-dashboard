@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { fieldClass } from "@/components/ui/form-styles";
 import { ModalForm } from "@/components/ui/modal-form";
 import {
   createPillarDomainAction,
@@ -12,13 +13,22 @@ import {
 } from "./actions";
 import type { PillarCode } from "./schemas";
 
-export function PillarCreateButton({ code, name }: { code: PillarCode; name: string }) {
+export function PillarCreateButton({
+  code,
+  name,
+  variant = "default",
+}: {
+  code: PillarCode;
+  name: string;
+  /** "outline" when the pillar's register action is the page's primary button. */
+  variant?: "default" | "outline";
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        <Plus size={16} />
+      <Button variant={variant} onClick={() => setOpen(true)}>
+        <Plus />
         Add {name} record
       </Button>
       <ModalForm
@@ -38,7 +48,10 @@ export function PillarCreateButton({ code, name }: { code: PillarCode; name: str
         }}
       >
         <div>
-          <label htmlFor="pillar-participant-id" className="mb-1 block text-sm font-medium">
+          <label
+            htmlFor="pillar-participant-id"
+            className="block text-[13.5px] font-semibold text-creaw-ink-soft"
+          >
             Participant ID
           </label>
           <input
@@ -47,11 +60,14 @@ export function PillarCreateButton({ code, name }: { code: PillarCode; name: str
             type="number"
             min="1"
             required
-            className="w-full rounded-lg border px-3 py-2"
+            className={fieldClass}
           />
         </div>
         <div>
-          <label htmlFor="pillar-category" className="mb-1 block text-sm font-medium">
+          <label
+            htmlFor="pillar-category"
+            className="block text-[13.5px] font-semibold text-creaw-ink-soft"
+          >
             Programme category
           </label>
           <input
@@ -60,7 +76,7 @@ export function PillarCreateButton({ code, name }: { code: PillarCode; name: str
             required
             maxLength={120}
             placeholder="e.g. Legal aid & counselling"
-            className="w-full rounded-lg border px-3 py-2"
+            className={fieldClass}
           />
         </div>
       </ModalForm>
@@ -107,7 +123,10 @@ export function PillarEditButton({
         }}
       >
         <div>
-          <label htmlFor={`pillar-category-${id}`} className="mb-1 block text-sm font-medium">
+          <label
+            htmlFor={`pillar-category-${id}`}
+            className="block text-[13.5px] font-semibold text-creaw-ink-soft"
+          >
             Programme category
           </label>
           <input
@@ -116,7 +135,7 @@ export function PillarEditButton({
             defaultValue={category}
             required
             maxLength={120}
-            className="w-full rounded-lg border px-3 py-2"
+            className={fieldClass}
           />
         </div>
       </ModalForm>
@@ -178,7 +197,7 @@ export function PillarDomainCreateButton({ code }: { code: PillarCode }) {
   return (
     <>
       <Button onClick={() => setOpen(true)}>
-        <Plus size={16} />
+        <Plus />
         {form.label}
       </Button>
       <ModalForm
@@ -201,7 +220,10 @@ export function PillarDomainCreateButton({ code }: { code: PillarCode }) {
       >
         {form.fields.map(([name, label, type]) => (
           <div key={name}>
-            <label htmlFor={`domain-${code}-${name}`} className="mb-1 block text-sm font-medium">
+            <label
+              htmlFor={`domain-${code}-${name}`}
+              className="block text-[13.5px] font-semibold text-creaw-ink-soft"
+            >
               {label}
             </label>
             <input
@@ -211,7 +233,7 @@ export function PillarDomainCreateButton({ code }: { code: PillarCode }) {
               min={type === "number" ? "1" : undefined}
               step={name === "requestedAmount" ? "0.01" : undefined}
               required
-              className="w-full rounded-lg border px-3 py-2"
+              className={fieldClass}
             />
           </div>
         ))}

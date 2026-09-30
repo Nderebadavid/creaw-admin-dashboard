@@ -1,3 +1,4 @@
+import { pillarLookBySlug } from "@/components/portal/pillars";
 import type { PipelineView, StageView } from "../api";
 
 export type PipelinePillar = { id: number; code: string; name: string };
@@ -9,14 +10,5 @@ export type StageModal =
   | { kind: "rename" | "remove"; stage: StageView }
   | { kind: "move"; stage: StageView; direction: "up" | "down" };
 
-const colors: Record<string, string> = {
-  VAWG: "#C04F53",
-  WEE: "#DB8A45",
-  SRHR: "#58A891",
-  LEADERSHIP: "#9D83BB",
-  WRO: "#7198BE",
-  SKILLING: "#DEB859",
-};
-
-/** The pillar's accent colour for tabs and counts. */
-export const pillarColor = (code: string) => colors[code] ?? "#B4552E";
+/** The pillar's accent colour for tabs and counts, shared with the rest of the portal. */
+export const pillarColor = (code: string) => pillarLookBySlug(code)?.color ?? "#B4552E";

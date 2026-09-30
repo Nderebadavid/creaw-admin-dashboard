@@ -10,8 +10,10 @@
 import { requireSession } from "@/lib/auth/session-server";
 import { withSessionApi } from "@/lib/api/session-api";
 import { hasPermission } from "@/lib/auth/permissions";
+import { sortedPage } from "@/lib/api/sorted-page";
 import { createAuditApi } from "./api";
 import { auditQuerySchema, type AuditQuery } from "./schemas";
+import { auditSortValues } from "./sort-values";
 
 function api() {
   return withSessionApi(createAuditApi);
@@ -24,11 +26,22 @@ export async function listAuditAction(query: AuditQuery) {
   if (!parsed.success)
     return { resultCode: 422, success: false, message: "Check audit filters", data: null };
   try {
+    const audit = await api();
+    const { sort, ...filters } = parsed.data;
     return {
       resultCode: 200,
       success: true,
       message: "OK",
-      data: await (await api()).list(parsed.data),
+      // The trail can be very long, so the one sort the API supports is left
+      // to it; other columns are sorted here across every matching entry.
+      data:
+        sort?.by === "when"
+          ? await audit.list(filters, sort.order)
+          : await sortedPage(
+              (query: AuditQuery) => audit.list(query),
+              parsed.data,
+              auditSortValues
+            ),
     };
   } catch {
     return { resultCode: 500, success: false, message: "Could not load audit entries", data: null };

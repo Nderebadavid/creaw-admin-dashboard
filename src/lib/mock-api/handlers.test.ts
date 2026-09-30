@@ -270,7 +270,7 @@ describe("mock repository contracts", () => {
       })
     ).toMatchObject({
       resultCode: 200,
-      data: { token: expect.stringMatching(/^[0-9a-f-]{36}$/i) },
+      data: { challengeId: expect.stringMatching(/^[0-9a-f-]{36}$/i) },
     });
     expect(
       await request({

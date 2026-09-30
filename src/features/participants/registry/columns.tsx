@@ -1,40 +1,48 @@
 import type { DataColumn } from "@/components/data-table/data-table";
+import { withSortValues } from "@/components/data-table/sorting";
+import { PillarChip, pillarLook } from "@/components/portal/pillars";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { formatDate, initials } from "@/lib/format";
+import { formatDate, initials, titleCase } from "@/lib/format";
 import type { ParticipantView } from "../api";
+import { participantSortValues } from "../sort-values";
 
 /** Registry columns from the design: participant, county, pillars, stage, registered, status. */
 export function participantColumns(
   pillarName: (id: number) => string
 ): DataColumn<ParticipantView>[] {
-  return [
+  return withSortValues(participantSortValues(pillarName), [
     {
       id: "participant",
       header: "Participant",
-      cell: (row) => (
-        <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-creaw-orange-soft text-[13px] font-bold text-primary"
-          >
-            {initials(row.name)}
-          </span>
-          <div>
-            <span className="whitespace-nowrap font-semibold">{row.name}</span>
-            <p className="text-[12.5px] text-creaw-faint">
-              {row.idNumber ? `ID ${row.idNumber}` : "No ID recorded"}
-            </p>
+      cell: (row) => {
+        // The avatar takes the colours of the participant's first pillar.
+        const look = pillarLook(row.pillarIds[0]);
+        return (
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-creaw-orange-soft text-[13px] font-bold text-primary"
+              style={look && { backgroundColor: look.tint, color: look.color }}
+            >
+              {initials(row.name)}
+            </span>
+            <div>
+              <span className="whitespace-nowrap font-semibold">{row.name}</span>
+              <p className="whitespace-nowrap text-[12.5px] text-creaw-faint">
+                {row.idNumber ? `ID ${row.idNumber}` : "No ID recorded"}
+              </p>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       id: "county",
       header: "County",
       cell: (row) => (
-        <div>
+        <div className="font-medium text-creaw-ink-soft">
           {row.county}
-          <p className="text-[12.5px] text-creaw-faint">{row.ward}</p>
+          <p className="text-[12.5px] font-normal text-creaw-faint">{row.ward}</p>
         </div>
       ),
     },
@@ -42,14 +50,9 @@ export function participantColumns(
       id: "pillars",
       header: "Pillars",
       cell: (row) => (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-[5px]">
           {row.pillarIds.map((id) => (
-            <span
-              key={id}
-              className="rounded-[7px] bg-creaw-orange-soft px-2.5 py-0.5 text-xs font-semibold text-primary"
-            >
-              {pillarName(id)}
-            </span>
+            <PillarChip key={id} id={id} fallback={pillarName(id)} />
           ))}
         </div>
       ),
@@ -58,23 +61,31 @@ export function participantColumns(
       id: "stage",
       header: "Current stage",
       cell: (row) => (
-        <div>
+        <div className="font-medium text-creaw-ink-soft">
           {row.currentStage}
-          <p className="text-[12.5px] text-creaw-faint">
+          <p className="text-[12.5px] font-normal text-creaw-faint">
             {row.enrollments.length} enrollment{row.enrollments.length === 1 ? "" : "s"}
           </p>
         </div>
       ),
     },
-    { id: "registered", header: "Registered", cell: (row) => formatDate(row.registered) },
+    {
+      id: "registered",
+      header: "Registered",
+      cell: (row) => (
+        <span className="whitespace-nowrap font-medium text-creaw-ink-soft">
+          {formatDate(row.registered)}
+        </span>
+      ),
+    },
     {
       id: "status",
       header: "Status",
       cell: (row) => (
         <StatusBadge tone={row.status === "ACTIVE" ? "success" : "neutral"}>
-          {row.status}
+          {titleCase(row.status)}
         </StatusBadge>
       ),
     },
-  ];
+  ]);
 }

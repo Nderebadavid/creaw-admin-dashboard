@@ -11,6 +11,9 @@ import {
 } from "@/features/pillars/record-controls";
 import { pillarCodeSchema, type PillarCode } from "@/features/pillars/schemas";
 import { submissionsApi } from "@/features/submissions/api";
+import { assessmentsApi } from "@/features/assessments/api";
+import { wrosApi } from "@/features/wros/api";
+import { OrganisationRegister } from "@/features/wros/components/organisation-register";
 
 const ids: Record<PillarCode, number> = {
   vawg: 1,
@@ -36,6 +39,27 @@ async function loadSubmissions(grants: readonly EffectiveGrant[], pillarId: numb
   if (!hasPermission(grants, "FIELD_SUBMISSION_VIEW", { pillarId })) return [];
   const all = await submissionsApi.listAll().catch(() => []);
   return all.filter((row) => row.pillarId === pillarId);
+}
+
+/** The WRO partner register with the options its dialogs need, trimmed to the user's grants. */
+async function loadWroRegister(grants: readonly EffectiveGrant[], pillarId: number) {
+  const can = (code: string) => hasPermission(grants, code, { pillarId });
+  const canRegister = can("ORGANISATION_EDIT") && can("PARTICIPANT_EDIT");
+  const [organisations, wards, assessmentOptions] = await Promise.all([
+    wrosApi.list(),
+    canRegister ? wrosApi.wardOptions().catch(() => []) : [],
+    can("ORG_ASSESSMENT_EDIT") ? assessmentsApi.options().catch(() => undefined) : undefined,
+  ]);
+  return (
+    <OrganisationRegister
+      organisations={organisations}
+      wards={wards}
+      assessmentOptions={assessmentOptions}
+      canRegister={canRegister}
+      canMove={can("ORGANISATION_EDIT") && can("FIELD_SUBMISSION_REVIEW")}
+      canReveal={can("SENSITIVE_REVEAL")}
+    />
+  );
 }
 
 /** The pillar, or null when the API refuses access (404 becomes a not-found page). */
@@ -70,8 +94,12 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
     pillar.code !== "leadership" &&
     can(domainPermission[pillar.code]) &&
     (pillar.code !== "wros" || canEdit);
+  // WROs carry over the field app's organisation register, profile and pipeline.
+  const register =
+    pillar.code === "wros" ? await loadWroRegister(session.grants, pillar.id) : undefined;
   return (
     <PillarContent
+      register={register}
       heading={{
         title: pillar.fullName,
         section: "Pillars",
@@ -80,8 +108,18 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
       pillar={pillar}
       canCreate={canCreate}
       canViewSubmissions={hasModulePermission(session.grants, "FIELD_SUBMISSION_VIEW")}
-      actions={<PillarCreateButton code={pillar.code} name={pillar.name} />}
-      domainActions={canCreateDomain ? <PillarDomainCreateButton code={pillar.code} /> : undefined}
+      actions={
+        <PillarCreateButton
+          code={pillar.code}
+          name={pillar.name}
+          variant={canCreateDomain ? "outline" : "default"}
+        />
+      }
+      domainActions={
+        canCreateDomain && pillar.code !== "wros" ? (
+          <PillarDomainCreateButton code={pillar.code} />
+        ) : undefined
+      }
       rowActions={
         canEdit
           ? (row) => <PillarEditButton code={pillar.code} id={row.id} category={row.category} />

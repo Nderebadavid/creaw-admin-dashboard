@@ -11,6 +11,15 @@ export const assessmentSchema = z.object({
   status: z.string(),
   recorded_by: id.nullable(),
   created_at: z.string(),
+  /** Assessor notes and whether a follow-up visit is needed, as recorded in the field. */
+  section_comments: z
+    .object({
+      assessor_notes: z.string().nullable().optional(),
+      follow_up_visit: z.boolean().optional(),
+    })
+    .nullable()
+    .optional()
+    .catch(null),
 });
 export const scoreSchema = z.object({
   id,
@@ -40,6 +49,10 @@ export const organisationSchema = z.object({
   name: z.string(),
   due_diligence_status: z.string(),
 });
+export const instrumentSchema = z.object({ id, name: z.string() });
+export const instrumentListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(instrumentSchema), z.null()])
+);
 export const assessmentListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(assessmentSchema), z.null()])
 );
@@ -75,6 +88,25 @@ export const assessmentCreateSchema = z.object({
   instrumentId: id,
   recommendation: z.string().trim().max(60).optional(),
 });
+/** The due-diligence documents an assessment can ask the organisation for. */
+export const dueDiligenceDocuments = [
+  "Registration certificate",
+  "Audited accounts",
+  "Constitution",
+  "Board member list",
+  "Safeguarding policy",
+  "Bank reference letter",
+] as const;
+/** A scored assessment, as the field app's assessment form records it. */
+export const assessmentRecordSchema = z.object({
+  organisationId: id,
+  instrumentId: id,
+  scores: z.array(z.object({ criterionId: id, score: z.number().int().min(1).max(5) })).max(50),
+  notes: z.string().trim().max(2000).optional(),
+  followUp: z.boolean(),
+  documents: z.array(z.enum(dueDiligenceDocuments)).max(dueDiligenceDocuments.length),
+});
+export type AssessmentRecord = z.infer<typeof assessmentRecordSchema>;
 export const recommendationSchema = z.object({
   id,
   recommendation: z.string().trim().min(1).max(60),

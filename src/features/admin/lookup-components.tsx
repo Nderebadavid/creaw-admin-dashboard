@@ -1,5 +1,6 @@
 "use client";
 import { useClientPaging } from "@/components/data-table/use-client-paging";
+import { useClientSort } from "@/components/data-table/use-client-sort";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useMemo, useState } from "react";
@@ -77,7 +78,22 @@ export function LookupContent({
       ),
     [rows, query, status, config.columns, counties, subCounties, pillars]
   );
-  const { pageRows, pager, resetPage } = useClientPaging(filtered);
+  // Every column sorts by the label it shows; "active" is the switch column.
+  const sortColumns = [
+    ...config.columns.map((column) => ({
+      id: column.key,
+      sortValue: (row: LookupView) => {
+        const label = labelFor(row, column.key, counties, subCounties, pillars);
+        return label === "—" ? null : label;
+      },
+    })),
+    {
+      id: "active",
+      sortValue: (row: LookupView) => (!row.is_deleted && row.status === "ACTIVE" ? 0 : 1),
+    },
+  ];
+  const { rows: sorted, sorting } = useClientSort(filtered, sortColumns);
+  const { pageRows, pager, resetPage } = useClientPaging(sorted);
 
   const open = (next: Modal) => {
     clearError();
@@ -184,6 +200,8 @@ export function LookupContent({
         <LookupTableView
           table={table}
           rows={pageRows}
+          sort={sorting.sort}
+          onSortChange={refilter(sorting.onSortChange)}
           totalRows={rows.length}
           parentId={parent?.id}
           counties={counties}

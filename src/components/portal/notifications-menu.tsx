@@ -82,20 +82,20 @@ export function NotificationsMenu({ status }: { status?: NavigationStatus }) {
         aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
         aria-expanded={menuOpen}
         onClick={toggleMenu}
-        className="relative rounded-full"
+        className="relative rounded-full border-creaw-line text-creaw-body"
       >
         <Bell aria-hidden="true" />
         {unread > 0 && (
           <span
             aria-hidden="true"
-            className="absolute right-2.5 top-2 size-2 rounded-full border-2 border-white bg-[#E0822F]"
+            className="absolute right-[11px] top-[9px] size-3 rounded-full border-2 border-white bg-[#E0822F]"
           />
         )}
       </Button>
       {menuOpen && (
         <section
           aria-label="Notifications"
-          className="absolute right-0 top-12 z-30 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-creaw-line bg-white shadow-xl"
+          className="absolute right-0 top-[54px] z-30 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-[14px] border border-creaw-line bg-white shadow-[0_16px_40px_-12px_rgba(34,28,24,.25)]"
         >
           <div className="flex items-center justify-between border-b border-creaw-divider px-4 py-3.5">
             <h2 className="font-heading text-lg font-bold">Notifications</h2>

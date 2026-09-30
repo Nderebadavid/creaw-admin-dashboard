@@ -9,10 +9,12 @@
  */
 import { revalidatePath } from "next/cache";
 import { actionResult } from "@/lib/api/action-result";
+import { sortedPage } from "@/lib/api/sorted-page";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { createAdminApi } from "./api";
+import { staffLookups, staffSortValues } from "./users/sort-values";
 import {
   permissionInputSchema,
   roleInputSchema,
@@ -40,6 +42,8 @@ export async function listUsersAction(query: {
   pageSize?: number;
   search?: string;
   status?: string;
+  /** A displayed column to sort by, applied across every matching account. */
+  sort?: unknown;
 }) {
   const session = await requireSession();
   if (!allowed(session.grants, "USER_MANAGE")) return { ...denied(), data: null };
@@ -56,11 +60,23 @@ export async function listUsersAction(query: {
   )
     return { ...actionResult(422, "Check staff filters"), data: null };
   try {
+    const api = await admin();
+    const filters = { page, pageSize, search: query.search, status: query.status };
+    if (!query.sort) return { ...actionResult(200, "OK"), data: await api.users(filters) };
+    // Roles and scope are shown only to role managers, exactly as on the page.
+    const canSeeRoles = allowed(session.grants, "ROLE_MANAGE");
+    const [assignments, roles, pillars] = await Promise.all([
+      canSeeRoles ? api.userRoles() : [],
+      canSeeRoles ? api.roles() : [],
+      canSeeRoles ? api.pillars() : [],
+    ]);
     return {
       ...actionResult(200, "OK"),
-      data: await (
-        await admin()
-      ).users({ page, pageSize, search: query.search, status: query.status }),
+      data: await sortedPage(
+        (paging: typeof filters) => api.users(paging),
+        { ...filters, sort: query.sort },
+        staffSortValues(staffLookups(assignments, roles, pillars))
+      ),
     };
   } catch {
     return { ...actionResult(500, "Could not load staff"), data: null };

@@ -2,6 +2,10 @@ import type { z } from "zod";
 
 export const API_ROUTE_TEMPLATES = [
   "/auth/login",
+  "/auth/otp/verify",
+  "/auth/otp/resend",
+  "/auth/password/forgot",
+  "/auth/password/reset",
   "/auth/logout",
   "/auth/me",
   "/dashboard",

@@ -14,11 +14,29 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { auditedExportAction } from "@/components/portal/data-actions";
+import { pillarLook } from "@/components/portal/pillars";
 import { createParticipantsApi, type ParticipantQuery } from "./api";
+import { sortedPage } from "@/lib/api/sorted-page";
+import { participantSortValues } from "./sort-values";
 import { participantRegistrationSchema, participantUpdateSchema } from "./schemas";
 
 function api() {
   return withSessionApi(createParticipantsApi);
+}
+
+/** The registry page; a sort on a displayed column is applied across every matching participant. */
+async function sortedParticipants(query: ParticipantQuery) {
+  const participants = await api();
+  if (!query.sort) return participants.list(query);
+  const { pillars } = await participants.catalog();
+  // The same short names the Pillars column shows.
+  const pillarName = (id: number) =>
+    pillarLook(id)?.name ?? pillars.find((item) => item.id === id)?.name ?? `Pillar #${id}`;
+  return sortedPage(
+    (filters: ParticipantQuery) => participants.list(filters),
+    query,
+    participantSortValues(pillarName)
+  );
 }
 
 export async function listParticipantsAction(query: ParticipantQuery) {
@@ -26,7 +44,7 @@ export async function listParticipantsAction(query: ParticipantQuery) {
   if (!hasModulePermission(session.grants, "PARTICIPANT_VIEW"))
     return { ...actionResult(403, "Permission denied"), data: null };
   try {
-    return { ...actionResult(200, "OK"), data: await (await api()).list(query) };
+    return { ...actionResult(200, "OK"), data: await sortedParticipants(query) };
   } catch {
     return { ...actionResult(422, "Could not load participants"), data: null };
   }

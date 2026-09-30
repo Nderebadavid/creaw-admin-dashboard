@@ -1,21 +1,30 @@
 import { cn } from "@/lib/utils";
 export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
 const tones: Record<StatusTone, string> = {
-  neutral: "bg-creaw-divider text-[#665b52]",
-  success: "bg-[#e2f3e9] text-[#24734b]",
-  warning: "bg-[#fff1d8] text-[#94570d]",
-  danger: "bg-[#fce7e4] text-[#b52e26]",
-  info: "bg-[#e9eef9] text-[#36548e]",
+  neutral: "bg-[#F4EEE8] text-creaw-body",
+  success: "bg-[#E3F3EA] text-[#1F7A4D]",
+  warning: "bg-[#FDEFD9] text-[#9A5A0E]",
+  danger: "bg-creaw-danger-soft text-creaw-danger",
+  info: "bg-[#E7EEF8] text-[#2F5E9A]",
 };
 export function StatusBadge({
   children,
   tone = "neutral",
+  dot = false,
 }: {
   children: React.ReactNode;
   tone?: StatusTone;
+  /** A leading dot in the badge colour, as on account statuses. */
+  dot?: boolean;
 }) {
   return (
-    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", tones[tone])}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12.5px] font-semibold",
+        tones[tone]
+      )}
+    >
+      {dot && <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />}
       {children}
     </span>
   );

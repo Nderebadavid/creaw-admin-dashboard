@@ -3,6 +3,7 @@ import type { ApiClient } from "@/lib/api/client";
 import { collectPages } from "@/lib/api/pagination";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 import type { PillarCode } from "./schemas";
+import { titleCase } from "@/lib/format";
 
 export interface PillarDomainRecord {
   id: number;
@@ -108,7 +109,7 @@ export async function loadPillarDomain(
         values: [
           `Case #${row.id}`,
           `Case type #${row.case_type_id}`,
-          row.court_status ?? "Not set",
+          row.court_status ? titleCase(row.court_status) : "Not set",
           "Not assigned",
           row.ruling_date ?? "Not scheduled",
         ],
@@ -198,7 +199,7 @@ export async function loadPillarDomain(
         row.ward_id ? `Ward #${row.ward_id}` : "Not recorded",
         "Not recorded",
         "Not scored",
-        row.due_diligence_status.replaceAll("_", " "),
+        titleCase(row.due_diligence_status),
       ],
       status: row.due_diligence_status,
     })),

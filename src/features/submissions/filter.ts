@@ -6,12 +6,15 @@ export interface SubmissionFilters {
 }
 
 export function filterSubmissionRows<
-  T extends Pick<SubmissionRow, "title" | "type" | "pillar" | "status">,
+  T extends Pick<SubmissionRow, "title" | "type" | "pillar" | "status" | "category">,
 >(rows: readonly T[], filters: SubmissionFilters): T[] {
   const search = filters.search?.trim().toLocaleLowerCase() ?? "";
   return rows.filter(
     (row) =>
       (!filters.status || filters.status === "All" || row.status === filters.status) &&
-      (!search || `${row.title} ${row.pillar} ${row.type}`.toLocaleLowerCase().includes(search))
+      (!search ||
+        `${row.title} ${row.pillar} ${row.type} ${row.category ?? ""}`
+          .toLocaleLowerCase()
+          .includes(search))
   );
 }

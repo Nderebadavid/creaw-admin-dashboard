@@ -1,5 +1,7 @@
 "use client";
 import { useClientPaging } from "@/components/data-table/use-client-paging";
+import { useClientSort } from "@/components/data-table/use-client-sort";
+import { ariaSort, SortHeader } from "@/components/data-table/sort-header";
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,27 @@ export function CatalogueTab({
         .toLowerCase()
         .includes(query.toLowerCase())
   );
-  const { pageRows: visible, pager, resetPage } = useClientPaging(filtered);
+  const rolesWith = (permission: PermissionView) =>
+    roles.filter((role) => hasGrant(role, permission));
+  const columns = [
+    { id: "permission", label: "Permission", sortValue: (row: PermissionView) => row.name },
+    { id: "module", label: "Module", sortValue: (row: PermissionView) => row.module },
+    {
+      id: "description",
+      label: "Description",
+      sortValue: (row: PermissionView) => row.description,
+    },
+    {
+      id: "roles",
+      label: "Roles",
+      sortValue: (row: PermissionView) =>
+        rolesWith(row)
+          .map((role) => role.name)
+          .join(", "),
+    },
+  ];
+  const { rows: sorted, sorting } = useClientSort(filtered, columns);
+  const { pageRows: visible, pager, resetPage } = useClientPaging(sorted);
 
   return (
     <section className="rounded-2xl border border-creaw-line bg-white">
@@ -82,10 +104,25 @@ export function CatalogueTab({
         <table className="w-full min-w-[740px] text-left text-sm">
           <thead className="bg-creaw-surface text-xs text-creaw-body">
             <tr>
-              <th className="p-3">Permission</th>
-              <th className="p-3">Module</th>
-              <th className="p-3">Description</th>
-              <th className="p-3">Roles</th>
+              {columns.map((column) => (
+                <th
+                  key={column.id}
+                  scope="col"
+                  aria-sort={ariaSort(sorting.sort, column.id)}
+                  className="p-3"
+                >
+                  <SortHeader
+                    id={column.id}
+                    sort={sorting.sort}
+                    onSortChange={(sort) => {
+                      sorting.onSortChange(sort);
+                      resetPage();
+                    }}
+                  >
+                    {column.label}
+                  </SortHeader>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -100,16 +137,14 @@ export function CatalogueTab({
                 <td className="p-3">{permission.module}</td>
                 <td className="p-3 text-creaw-body">{permission.description ?? "—"}</td>
                 <td className="p-3">
-                  {roles
-                    .filter((role) => hasGrant(role, permission))
-                    .map((role) => (
-                      <span
-                        key={role.id}
-                        className="mr-1 inline-block rounded-md bg-creaw-canvas px-2 py-1 text-xs"
-                      >
-                        {role.name}
-                      </span>
-                    ))}
+                  {rolesWith(permission).map((role) => (
+                    <span
+                      key={role.id}
+                      className="mr-1 inline-block rounded-md bg-creaw-canvas px-2 py-1 text-xs"
+                    >
+                      {role.name}
+                    </span>
+                  ))}
                 </td>
               </tr>
             ))}

@@ -1,9 +1,16 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
-vi.mock("./actions", () => ({ listGrantsAction: vi.fn(), exportGrantsAction: vi.fn() }));
+vi.mock("./actions", () => ({
+  listGrantsAction: vi.fn(),
+  exportGrantsAction: vi.fn(),
+  createGrantApplicationAction: vi.fn(),
+}));
+vi.mock("@/features/participants/actions", () => ({ listParticipantsAction: vi.fn() }));
+import { listParticipantsAction } from "@/features/participants/actions";
+import { createGrantApplicationAction, listGrantsAction } from "./actions";
 import { GrantsContent } from "./components";
 
 afterEach(() => {
@@ -52,4 +59,78 @@ it("opens an application's sign-off page from its row", () => {
   renderQueue();
   fireEvent.click(screen.getByText("Rehema Karisa"));
   expect(push).toHaveBeenCalledWith("/grants/2");
+});
+
+const programmes = [
+  { id: 1, name: "Jasiri business grants", pillarId: 2 },
+  { id: 5, name: "WRO sub-grants", pillarId: 5 },
+];
+const page = { items: [row], page: 1, pageSize: 25, totalItems: 1, totalPages: 1 };
+const ok = { resultCode: 200, success: true, message: "OK" };
+
+function renderWithProgrammes() {
+  render(<GrantsContent initial={page} pillars={[]} canExport={false} programmes={programmes} />);
+}
+
+it("files a new application for a participant enrolled in the programme's pillar", async () => {
+  vi.mocked(listParticipantsAction).mockResolvedValue({
+    ...ok,
+    data: {
+      items: [{ id: 12, name: "••wadi ••ende" }],
+      page: 1,
+      pageSize: 100,
+      totalItems: 140,
+      totalPages: 2,
+    },
+  } as never);
+  vi.mocked(createGrantApplicationAction).mockResolvedValue({ ...ok, data: { id: 9 } });
+  vi.mocked(listGrantsAction).mockResolvedValue({ ...ok, data: page } as never);
+  renderWithProgrammes();
+  fireEvent.click(screen.getByRole("button", { name: "New application" }));
+  const dialog = screen.getByRole("dialog");
+  await within(dialog).findByRole("option", { name: "••wadi ••ende · Participant #12" });
+  expect(listParticipantsAction).toHaveBeenCalledWith({ pillarId: 2, page: 1, pageSize: 100 });
+  expect(dialog).toHaveTextContent("Showing the first 1 of 140 participants in this pillar.");
+  expect(
+    within(dialog)
+      .getAllByRole("option")
+      .map((option) => option.textContent)
+  ).toEqual(expect.arrayContaining(["One off", "Staggered by milestone", "Asset grant"]));
+  fireEvent.change(within(dialog).getByLabelText("Applicant"), { target: { value: "12" } });
+  fireEvent.change(within(dialog).getByLabelText("Amount requested (KES)"), {
+    target: { value: "75000" },
+  });
+  fireEvent.change(within(dialog).getByLabelText("Business or purpose"), {
+    target: { value: "Posho mill" },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "File application" }));
+  await waitFor(() =>
+    expect(createGrantApplicationAction).toHaveBeenCalledWith({
+      projectId: 1,
+      participantId: 12,
+      requestedAmount: 75000,
+      grantType: "one_off",
+      notes: "Posho mill",
+    })
+  );
+  expect(await screen.findByText(/Application filed and marked as prepared/)).toBeInTheDocument();
+});
+
+it("reloads the applicants when another programme is chosen", async () => {
+  vi.mocked(listParticipantsAction).mockResolvedValue({
+    ...ok,
+    data: { items: [], page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  } as never);
+  renderWithProgrammes();
+  fireEvent.click(screen.getByRole("button", { name: "New application" }));
+  fireEvent.change(screen.getByLabelText("Programme"), { target: { value: "5" } });
+  await waitFor(() =>
+    expect(listParticipantsAction).toHaveBeenLastCalledWith({ pillarId: 5, page: 1, pageSize: 100 })
+  );
+  expect(screen.getByRole("button", { name: "File application" })).toBeDisabled();
+});
+
+it("offers no New application button without a programme to file under", () => {
+  renderQueue();
+  expect(screen.queryByRole("button", { name: "New application" })).not.toBeInTheDocument();
 });

@@ -4,7 +4,12 @@ import type { FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
-import { advanceGrantAction, logGrantReportAction, recordDisbursementAction } from "../actions";
+import {
+  advanceGrantAction,
+  declineGrantAction,
+  logGrantReportAction,
+  recordDisbursementAction,
+} from "../actions";
 import type { GrantDetail } from "../api";
 
 /** "Approve application" or "Mark as reviewed", matching the next sign-off step. */
@@ -51,6 +56,68 @@ export function AdvanceDialog({
       >
         Confirm sign-off
       </Button>
+    </ActionDialog>
+  );
+}
+
+/** Declines an application in its sign-off chain; a reason is required and the decision is final. */
+export function DeclineDialog({
+  open,
+  detail,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  detail: GrantDetail;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = String(new FormData(event.currentTarget).get("reason") ?? "");
+    void submit.run(declineGrantAction({ id: detail.id, reason }), "Application declined.");
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Decline application"
+      description={`${detail.applicant} · ${detail.project}`}
+      error={submit.error}
+    >
+      <form className="space-y-4" onSubmit={send}>
+        <p className="text-sm">
+          Declining closes this application and ends its sign-off chain. This cannot be undone; the
+          applicant would need to apply again.
+        </p>
+        <label className="block text-sm">
+          Reason for declining
+          <textarea
+            name="reason"
+            required
+            maxLength={255}
+            rows={4}
+            aria-describedby="decline-reason-hint"
+            className={fieldClass}
+          />
+        </label>
+        <p id="decline-reason-hint" className="-mt-2 text-xs text-creaw-faint">
+          Kept on the record and in the audit trail against your name.
+        </p>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={submit.busy} type="submit" variant="destructive">
+            Decline application
+          </Button>
+        </div>
+      </form>
     </ActionDialog>
   );
 }

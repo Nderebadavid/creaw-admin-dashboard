@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import type { SortOrder } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import {
@@ -24,9 +25,10 @@ function required<T>(response: { success: boolean; data: T | null; message: stri
   return response.data;
 }
 export function createAuditApi(client: ApiClient, token: string) {
-  const queryParams = (query: AuditQuery = {}) => {
+  const queryParams = (query: AuditQuery = {}, timeOrder?: SortOrder) => {
     const parsed = auditQuerySchema.parse(query);
     return {
+      ...(timeOrder ? { sortBy: "performed_at", sortOrder: timeOrder } : {}),
       page: parsed.page,
       pageSize: parsed.pageSize,
       source: parsed.source,
@@ -40,7 +42,8 @@ export function createAuditApi(client: ApiClient, token: string) {
     };
   };
   return {
-    async list(query: AuditQuery = {}): Promise<AuditPage> {
+    /** `timeOrder` sorts by when the entry was made, which the API does itself. */
+    async list(query: AuditQuery = {}, timeOrder?: SortOrder): Promise<AuditPage> {
       return required(
         await client.request(
           {
@@ -48,7 +51,7 @@ export function createAuditApi(client: ApiClient, token: string) {
             path: "/audit-logs",
             routeTemplate: "/audit-logs",
             token,
-            query: queryParams(query),
+            query: queryParams(query, timeOrder),
           },
           auditListSchema
         )

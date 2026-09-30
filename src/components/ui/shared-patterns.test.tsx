@@ -35,6 +35,9 @@ it("awaits the audited filtered export before starting a download", async () => 
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   render(<ExportButton exportAction={exportAction} />);
   fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+  // The design confirms an export before anything is generated.
+  expect(exportAction).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
   await waitFor(() => expect(events).toEqual(["audit", "download"]));
   expect(exportAction).toHaveBeenCalledOnce();
 });
@@ -42,6 +45,7 @@ it("does not download when the audited export fails", async () => {
   const create = vi.spyOn(URL, "createObjectURL");
   render(<ExportButton exportAction={async () => ({ success: false, error: "Export denied" })} />);
   fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+  fireEvent.click(screen.getByRole("button", { name: "Download CSV" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Export denied");
   expect(create).not.toHaveBeenCalled();
 });

@@ -24,6 +24,11 @@ const meSchema = z.object({
         first_name: z.string(),
         last_name: z.string(),
         email: z.string().nullable(),
+        middle_name: z.string().nullable().optional(),
+        username: z.string().optional(),
+        // Masked by the API; the profile shows it as it arrives.
+        phone_number: z.string().nullable().optional(),
+        status: z.string().optional(),
       }),
       grants: z.array(z.object({ permissionCode: z.string(), pillarId: z.number().nullable() })),
       roles: z.array(z.string()).default([]),

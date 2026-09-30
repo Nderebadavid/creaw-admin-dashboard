@@ -13,7 +13,7 @@ import {
   type Row,
   visible,
 } from "../core";
-import { signoffActors } from "../reporting";
+import { signoffActors, signoffHistory } from "../reporting";
 import { makeRow } from "../rows";
 import { tableDefinitions } from "../schema";
 import { filterSubmissionRows } from "@/features/submissions/filter";
@@ -50,7 +50,10 @@ function readSpecialView(ctx: ResourceContext): Envelope | undefined {
   const { request, store, query, userId, grants, table, id, existing } = ctx;
   if (table === "grant_application" && existing && query.get("signoffs") === "true") {
     if (!allowed(store, grants, "GRANT_APPLICATION_VIEW", table, existing)) return envelope(403);
-    return envelope(200, signoffActors(store, existing.id));
+    return envelope(200, {
+      ...signoffActors(store, existing.id),
+      history: signoffHistory(store, existing.id),
+    });
   }
   if (table === "grant_application" && existing && query.get("pack") === "true") {
     if (

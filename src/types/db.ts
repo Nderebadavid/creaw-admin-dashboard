@@ -405,6 +405,18 @@ export interface DbTables {
   audit_logs: AuditLogs;
 }
 export type TableName = keyof DbTables;
+/** A password that passed and is waiting for its one-time code. */
+export interface MockLoginChallenge {
+  userId: number;
+  expiresAt: number;
+  wrongCodes: number;
+}
 export type MockStore = { [K in TableName]: DbTables[K][] } & {
   sessions: Map<string, number>;
+  loginChallenges: Map<string, MockLoginChallenge>;
+  /** Failed password attempts per account; `lockedUntil` is 0 while unlocked. */
+  failedLogins: Map<string, { count: number; lockedUntil: number }>;
+  resetTokens: Map<string, { userId: number; expiresAt: number }>;
+  /** Passwords changed through a reset; everyone else keeps the shared mock password. */
+  passwords: Map<number, string>;
 };

@@ -1,4 +1,5 @@
 "use client";
+import { pillarLookBySlug } from "@/components/portal/pillars";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -57,14 +58,25 @@ export function PipelineContent({
             role="tab"
             aria-selected={selected?.id === pillar.id}
             onClick={() => setSelectedId(pillar.id)}
-            className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold ${selected?.id === pillar.id ? "border-creaw-orange bg-creaw-orange-soft text-creaw-orange" : "border-creaw-line-strong bg-white text-creaw-body"}`}
+            className="flex items-center gap-2 rounded-[10px] border border-creaw-line-strong bg-white px-4 py-[9px] text-sm font-semibold text-creaw-body"
+            style={
+              selected?.id === pillar.id
+                ? {
+                    backgroundColor: pillarLookBySlug(pillar.code)?.tint,
+                    color: pillarColor(pillar.code),
+                    borderColor: pillarColor(pillar.code),
+                  }
+                : undefined
+            }
           >
             <span
-              className="size-2.5 rounded-full"
+              className="size-[9px] rounded-full"
               style={{ backgroundColor: pillarColor(pillar.code) }}
             />
-            {pillar.name}
-            <span className="text-xs opacity-70">{pipelineOf(pillar.id)?.stages.length ?? 0}</span>
+            {pillarLookBySlug(pillar.code)?.name ?? pillar.name}
+            <span className="text-xs font-medium text-creaw-faint">
+              {pipelineOf(pillar.id)?.stages.length ?? 0}
+            </span>
           </button>
         ))}
       </div>

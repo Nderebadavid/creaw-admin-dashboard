@@ -52,23 +52,30 @@ export function RecordDrawer({
     >
       <DialogContent
         showCloseButton={false}
-        className="left-auto right-0 top-0 flex h-dvh w-[min(560px,100vw)] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 sm:max-w-none"
+        className="left-auto right-0 top-0 flex h-dvh w-[min(600px,100vw)] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 shadow-[-20px_0_50px_-20px_rgba(34,28,24,.35)] sm:max-w-none"
       >
-        <header className="border-b border-creaw-divider px-6 pb-4 pt-5">
+        <header
+          className={`flex flex-col gap-3.5 border-b border-creaw-divider px-6 pt-[22px] ${tabs.length > 1 ? "" : "pb-4"}`}
+        >
           <div className="flex items-start gap-3.5">
             <span
               aria-hidden="true"
-              className="flex size-12 shrink-0 items-center justify-center rounded-full text-base font-bold"
+              className="flex size-[52px] shrink-0 items-center justify-center rounded-full text-[17px] font-bold"
               style={{ background: tint, color: accent }}
             >
               {initials}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-creaw-faint">
+              <p
+                className="text-[11.5px] font-bold uppercase tracking-[.08em]"
+                style={{ color: accent }}
+              >
                 {kind}
               </p>
-              <DialogTitle className="font-heading text-2xl font-bold">{title}</DialogTitle>
-              <DialogDescription className="text-sm text-creaw-faint">
+              <DialogTitle className="pr-0 font-heading text-[25px] font-bold leading-[1.1]">
+                {title}
+              </DialogTitle>
+              <DialogDescription className="mt-0.5 text-[13.5px] text-creaw-faint">
                 {subtitle ?? kind}
               </DialogDescription>
             </div>
@@ -76,35 +83,38 @@ export function RecordDrawer({
               type="button"
               aria-label="Close record"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-creaw-faint hover:bg-accent"
+              className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-creaw-canvas text-creaw-body hover:bg-creaw-line"
             >
               <X size={20} aria-hidden="true" />
             </button>
           </div>
           {(status || actions) && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {status}
               <div className="ml-auto flex flex-wrap gap-2">{actions}</div>
             </div>
           )}
+          {tabs.length > 1 && (
+            <div role="tablist" aria-label={`${title} sections`} className="-mb-px flex gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab.id === current?.id}
+                  onClick={() => setActive(tab.id)}
+                  className={`border-b-2 px-3 py-2.5 text-sm font-semibold ${tab.id === current?.id ? "border-primary text-primary" : "border-transparent text-creaw-body"}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
-        {tabs.length > 1 && (
-          <div role="tablist" aria-label={`${title} sections`} className="flex gap-1 border-b px-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={tab.id === current?.id}
-                onClick={() => setActive(tab.id)}
-                className={`border-b-2 px-3 py-2.5 text-sm font-semibold ${tab.id === current?.id ? "border-primary text-primary" : "border-transparent text-creaw-body"}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
-        <div role="tabpanel" className="flex-1 overflow-y-auto px-6 py-5 text-sm">
+        <div
+          role="tabpanel"
+          className="flex-1 overflow-y-auto bg-creaw-surface px-6 pb-8 pt-[22px] text-sm"
+        >
           {current?.content}
         </div>
       </DialogContent>

@@ -64,4 +64,61 @@ describe("assessment workflows", () => {
     expect(page.items[0].organisation).not.toMatch(/^Organisation #/);
     expect(page.items[0].documents.length).toBeGreaterThan(0);
   });
+
+  it("lists organisations and instruments by name and opens a new assessment", async () => {
+    const api = apiFor(1);
+    const options = await api.options();
+    const store = getMockStore();
+    expect(options.organisations.map((item) => item.name)).toEqual(
+      store.organisation.filter((row) => !row.is_deleted).map((row) => row.name)
+    );
+    // The API only lists instruments already used by an assessment the user can see.
+    expect(options.instruments.map((item) => item.name)).toEqual(["Organisation capacity"]);
+    const before = (await api.list(1, 100)).totalItems;
+    const created = await api.create({
+      organisationId: options.organisations[0].id,
+      instrumentId: options.instruments[0].id,
+    });
+    expect(created.success).toBe(true);
+    const after = await api.list(1, 100);
+    expect(after.totalItems).toBe(before + 1);
+    expect(after.items.find((item) => item.id === created.data!.id)).toMatchObject({
+      organisation: options.organisations[0].name,
+      recommendation: null,
+    });
+  });
+
+  it("records a scored assessment with notes, follow-up and a document checklist", async () => {
+    const api = apiFor(1);
+    const { instruments } = await api.options();
+    const capacity = instruments.find((item) => item.criteria.length > 0)!;
+    const response = await api.record(
+      {
+        organisationId: 2,
+        instrumentId: capacity.id,
+        scores: capacity.criteria.map((criterion, index) => ({
+          criterionId: criterion.id,
+          score: (index % 5) + 1,
+        })),
+        notes: "Board meets quarterly",
+        followUp: true,
+        documents: ["Registration certificate", "Audited accounts"],
+      },
+      true
+    );
+    expect(response.success).toBe(true);
+    const saved = await api.get(response.data!.id);
+    expect(saved).toMatchObject({
+      organisationId: 2,
+      notes: "Board meets quarterly",
+      followUp: true,
+      documents: [
+        expect.objectContaining({ name: "Registration certificate", status: "not_obtained" }),
+        expect.objectContaining({ name: "Audited accounts", status: "not_obtained" }),
+      ],
+    });
+    expect(saved!.scores.map((row) => row.score)).toEqual(
+      capacity.criteria.map((_, index) => (index % 5) + 1)
+    );
+  });
 });

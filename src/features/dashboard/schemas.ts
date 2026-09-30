@@ -46,20 +46,6 @@ export const dashboardSubmissionSchema = createEnvelopeSchema(
   ])
 );
 
-export const dashboardReportSchema = createEnvelopeSchema(
-  z.union([
-    createPaginatedSchema(
-      z.object({
-        id: z.number().int(),
-        report_status: z.string(),
-        notes: z.string().nullable(),
-        reporting_period_end: z.string(),
-      })
-    ),
-    z.null(),
-  ])
-);
-
 export const dashboardAuditSchema = createEnvelopeSchema(
   z.union([
     createPaginatedSchema(
@@ -67,6 +53,7 @@ export const dashboardAuditSchema = createEnvelopeSchema(
         id: z.number().int(),
         action: z.string(),
         entity_type: z.string(),
+        entity_id: z.number().int().nullable().default(null),
         performed_at: z.string(),
         performed_by_name: z.string().nullable().default(null),
         source: z.string().nullable().default(null),
@@ -82,6 +69,9 @@ export const dashboardEnrollmentSchema = createEnvelopeSchema(
       z.object({
         id: z.number().int(),
         pillar_id: z.number().int(),
+        participant_id: z.number().int().nullable().default(null),
+        entry_category: z.string().nullable().default(null),
+        status: z.string().default("ACTIVE"),
       })
     ),
     z.null(),

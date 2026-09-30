@@ -42,20 +42,23 @@ export function MaskedField({
   }
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <span aria-label={label}>{value ?? maskedValue}</span>
+      <span aria-label={label} className={value === null ? "font-mono" : undefined}>
+        {value ?? maskedValue}
+      </span>
       {revealAction && (
         <button
           type="button"
           disabled={pending}
           onClick={reveal}
           aria-label={`${value === null ? "Reveal" : "Hide"} ${label}`}
-          className="rounded p-1 text-primary hover:bg-accent disabled:opacity-50"
+          className="flex items-center gap-[3px] rounded-md bg-[#FDEFD9] px-2 py-0.5 text-xs font-semibold text-[#9A5A0E] hover:bg-[#FBE3BD] disabled:opacity-50"
         >
           {value === null ? (
-            <Eye aria-hidden="true" size={16} />
+            <Eye aria-hidden="true" size={14} />
           ) : (
-            <EyeOff aria-hidden="true" size={16} />
+            <EyeOff aria-hidden="true" size={14} />
           )}
+          {value === null ? "Reveal" : "Hide"}
         </button>
       )}
       {pending && (

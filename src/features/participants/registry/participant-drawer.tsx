@@ -1,10 +1,13 @@
 "use client";
+import { Flag, Pencil, UserPlus } from "lucide-react";
+import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
-import { formatDate, initials } from "@/lib/format";
+import { formatDate, initials, titleCase } from "@/lib/format";
 import { revealParticipantAction } from "../actions";
 import type { ParticipantView } from "../api";
 
@@ -31,10 +34,12 @@ export function ParticipantDrawer({
       ? () => revealParticipantAction(participant.id, field)
       : undefined;
   const fields: [string, React.ReactNode][] = [
-    ["County / ward", `${participant.county} · ${participant.ward}`],
-    ["Registered", formatDate(participant.registered)],
+    ["Full name", participant.name],
+    ["Gender", participant.gender ? titleCase(participant.gender) : "Not recorded"],
+    ["County", participant.county],
+    ["Ward / location", participant.ward],
     [
-      "ID number",
+      "National ID number",
       <MaskedField
         key="id"
         label="ID number"
@@ -43,7 +48,7 @@ export function ParticipantDrawer({
       />,
     ],
     [
-      "Phone number",
+      "Phone",
       <MaskedField
         key="phone"
         label="Phone number"
@@ -51,8 +56,25 @@ export function ParticipantDrawer({
         revealAction={reveal("phone_number")}
       />,
     ],
+    ["Registered", formatDate(participant.registered)],
     ["Consent", participant.consentGiven ? "Recorded" : "Not recorded"],
     ["Remarks", participant.remarks ?? "—"],
+  ];
+  const firstPillar = pillarLook(participant.pillarIds[0]);
+  // Newest first: each enrollment, then the registration they all hang off.
+  const timeline = [
+    ...[...participant.enrollments]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((item) => ({
+        icon: <Flag size={15} aria-hidden="true" />,
+        title: `Enrolled in ${pillarName(item.pillarId)} · ${item.category}`,
+        detail: formatDate(item.date),
+      })),
+    {
+      icon: <UserPlus size={15} aria-hidden="true" />,
+      title: "Registered",
+      detail: formatDate(participant.registered),
+    },
   ];
 
   return (
@@ -62,16 +84,19 @@ export function ParticipantDrawer({
       initials={initials(participant.name)}
       kind={`Participant · ${participant.pillarIds.map(pillarName).join(", ")}`}
       title={participant.name}
-      subtitle={`${participant.county} · ${participant.ward}`}
+      subtitle={`${participant.county} · ${participant.ward} · Registered ${formatDate(participant.registered)}`}
+      accent={firstPillar?.color}
+      tint={firstPillar?.tint}
       status={
         <StatusBadge tone={participant.status === "ACTIVE" ? "success" : "neutral"}>
-          {participant.status}
+          {titleCase(participant.status)}
         </StatusBadge>
       }
       actions={
         inAnyPillar("PARTICIPANT_EDIT") && (
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            Edit participant
+          <Button variant="outline" size="sm" aria-label="Edit participant" onClick={onEdit}>
+            <Pencil aria-hidden="true" />
+            Edit
           </Button>
         )
       }
@@ -80,31 +105,45 @@ export function ParticipantDrawer({
           id: "overview",
           label: "Overview",
           content: (
-            <div className="space-y-6">
-              <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                {fields.map(([label, value]) => (
-                  <div key={label}>
-                    <dt className="text-xs font-semibold text-creaw-faint">{label}</dt>
-                    <dd className="mt-1">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <section>
-                <h3 className="font-heading text-lg font-bold">Pillar enrollments</h3>
-                <ul className="mt-2 space-y-2">
-                  {participant.enrollments.map((item) => (
-                    <li key={item.id} className="rounded-xl border border-creaw-line p-3">
-                      <span className="font-semibold">{pillarName(item.pillarId)}</span> ·{" "}
-                      {item.category}
-                      <span className="block text-xs text-creaw-faint">
-                        Since {formatDate(item.date)} · {item.status}
-                      </span>
-                      <span className="mt-1 inline-block rounded-full bg-creaw-canvas px-2 py-0.5 text-xs font-semibold">
+            <div className="flex flex-col gap-[22px]">
+              <FieldGrid fields={fields} />
+              <section className="flex flex-col gap-2.5">
+                <SectionTitle>Pillar enrollments</SectionTitle>
+                {participant.enrollments.map((item) => {
+                  const look = pillarLook(item.pillarId);
+                  const Icon = look?.icon;
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3.5 rounded-xl border border-l-4 border-creaw-line bg-white px-4 py-3.5"
+                      style={{ borderLeftColor: look?.color }}
+                    >
+                      {Icon && (
+                        <Icon
+                          size={22}
+                          aria-hidden="true"
+                          className="shrink-0"
+                          style={{ color: look.color }}
+                        />
+                      )}
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="font-semibold">
+                          {pillarName(item.pillarId)} · {item.category}
+                        </span>
+                        <span className="text-[13px] text-creaw-faint">
+                          Since {formatDate(item.date)}
+                          {item.status === "ACTIVE" ? "" : ` · ${titleCase(item.status)}`}
+                        </span>
+                      </div>
+                      <StatusBadge tone={item.currentStage ? "info" : "neutral"}>
                         {item.currentStage ?? "Not started"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                      </StatusBadge>
+                    </div>
+                  );
+                })}
+                {participant.enrollments.length === 0 && (
+                  <p className="text-[13.5px] text-creaw-faint">No pillar enrollments yet.</p>
+                )}
               </section>
             </div>
           ),
@@ -112,13 +151,7 @@ export function ParticipantDrawer({
         {
           id: "activity",
           label: "Activity",
-          content: (
-            <p className="text-creaw-faint">
-              Registered {formatDate(participant.registered)}; {participant.enrollments.length}{" "}
-              enrollment
-              {participant.enrollments.length === 1 ? "" : "s"} recorded.
-            </p>
-          ),
+          content: <Timeline events={timeline} />,
         },
       ]}
     />

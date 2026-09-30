@@ -1,4 +1,5 @@
 "use client";
+import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { filterSelectClass } from "@/components/ui/form-styles";
 import { FormBanner } from "@/components/ui/form-banner";
 import { titleCase } from "@/lib/format";
@@ -56,6 +57,7 @@ export function ReportingContent({
   );
   const [search, setSearch] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [actionError, setActionError] = useState("");
   const [modal, setModal] = useState<"deadline" | "submit" | null>(null);
   const [selected, setSelected] = useState<ReportView | null>(null);
@@ -77,7 +79,7 @@ export function ReportingContent({
   async function viewDocument(row: ReportView) {
     setActionError("");
     const response = await viewReportDocumentAction(row.type, row.id);
-    if (response.success) setFeedback("Document access audited. Mock mode provides metadata only.");
+    if (response.success && response.document) setViewing(response.document);
     else setActionError(response.message);
   }
 
@@ -189,6 +191,8 @@ export function ReportingContent({
           framed={false}
           label="Reports due"
           columns={reportColumns}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
           rows={list.data.items}
           getRowId={(row) => row.key}
           loading={list.loading}
@@ -201,6 +205,7 @@ export function ReportingContent({
           }
         />
       </TableCard>
+      <DocumentViewer document={viewing} onClose={() => setViewing(null)} />
       <AddDeadlineDialog
         open={modal === "deadline"}
         projects={catalog.projects.filter((project) =>

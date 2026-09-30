@@ -54,6 +54,40 @@ export function signoffActors(store: MockStore, applicationId: number) {
   }
   return { preparedBy, reviewedBy, approvedBy };
 }
+const DECISIONS = ["PREPARED", "REVIEWED", "APPROVED", "DECLINED"];
+
+/**
+ * Every recorded decision on an application, oldest first, with the officer's
+ * name. The schema keeps no per-step timestamps, so this is read from the
+ * audit trail.
+ */
+export function signoffHistory(store: MockStore, applicationId: number) {
+  const history: { event: string; byName: string | null; at: string }[] = [];
+  for (const entry of store.audit_logs
+    .filter(
+      (row) =>
+        row.entity_type === "grant_application" &&
+        row.entity_id === applicationId &&
+        ["CREATE", "UPDATE"].includes(row.action)
+    )
+    .sort((a, b) => a.id - b.id)) {
+    let before: string | undefined, after: string | undefined;
+    try {
+      before = JSON.parse(entry.previous_state ?? "{}").status;
+      after = JSON.parse(entry.new_state ?? "{}").status;
+    } catch {
+      continue;
+    }
+    if (!after || after === before || !DECISIONS.includes(after)) continue;
+    const officer = store.user.find((user) => user.id === entry.performed_by);
+    history.push({
+      event: after,
+      byName: officer ? `${officer.first_name} ${officer.last_name}` : null,
+      at: entry.performed_at,
+    });
+  }
+  return history;
+}
 export function calendarRows(store: MockStore, grants: EffectiveGrant[]) {
   const projects = new Map(
     store.project.filter((row) => !row.is_deleted).map((row) => [row.id, row])

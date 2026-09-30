@@ -4,6 +4,8 @@ import { makeRow } from "./rows";
 import { story } from "./story";
 
 export const MOCK_PASSWORD = "creaw-demo";
+/** The mock sends no SMS or email, so every login challenge accepts this code. */
+export const MOCK_OTP_CODE = "246810";
 const SEED_DATE = "2026-09-27T09:00:00.000Z";
 const pillarIds: Record<string, number> = {
   vawg: 1,
@@ -19,6 +21,10 @@ export function createSeed(): MockStore {
     Object.keys(tableDefinitions).map((table) => [table, []])
   ) as unknown as MockStore;
   store.sessions = new Map();
+  store.loginChallenges = new Map();
+  store.failedLogins = new Map();
+  store.resetTokens = new Map();
+  store.passwords = new Map();
   function add<K extends TableName>(table: K, input: Partial<DbTables[K]>) {
     const row = makeRow(table, input, store[table].length + 1, SEED_DATE);
     (store[table] as DbTables[K][]).push(row);

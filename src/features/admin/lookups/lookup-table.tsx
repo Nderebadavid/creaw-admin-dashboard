@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ChevronRight, History, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ariaSort, SortHeader } from "@/components/data-table/sort-header";
+import type { SortState } from "@/components/data-table/sorting";
 import type { LookupView } from "../api";
 import type { LookupTable } from "../schemas";
 import { isGeoTable, labelFor, lookupConfig, type Option } from "./config";
@@ -17,6 +19,8 @@ function drillHref(table: LookupTable, row: LookupView, parentId: number | undef
 export function LookupTableView({
   table,
   rows,
+  sort,
+  onSortChange,
   totalRows,
   parentId,
   counties,
@@ -28,7 +32,10 @@ export function LookupTableView({
 }: {
   table: LookupTable;
   /** The current page of filtered rows. */
-  rows: LookupView[];
+  rows: readonly LookupView[];
+  /** The active sort; column ids are the lookup's column keys, plus "active". */
+  sort: SortState | undefined;
+  onSortChange: (sort: SortState | undefined) => void;
   /** Unfiltered row count, used to choose the empty-state message. */
   totalRows: number;
   parentId: number | undefined;
@@ -46,25 +53,35 @@ export function LookupTableView({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[660px] text-left text-sm">
-        <thead className="bg-creaw-surface text-xs text-creaw-body">
+      <table className="w-full min-w-[660px] text-left text-[14.5px]">
+        <thead className="border-b border-creaw-divider bg-creaw-surface text-[13px] font-semibold text-creaw-faint">
           <tr>
-            {columns.map((column) => (
-              <th key={column.key} className="p-3">
-                {column.label}
-              </th>
-            ))}
-            <th className="p-3">Active</th>
-            <th className="p-3">Actions</th>
+            {[...columns.map((column) => [column.key, column.label]), ["active", "Active"]].map(
+              ([id, label]) => (
+                <th
+                  key={id}
+                  scope="col"
+                  aria-sort={ariaSort(sort, id)}
+                  className="px-2.5 py-3 first:pl-[22px]"
+                >
+                  <SortHeader id={id} sort={sort} onSortChange={onSortChange}>
+                    {label}
+                  </SortHeader>
+                </th>
+              )
+            )}
+            <th className="px-2.5 py-3">
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="border-t border-[#F7F2EC]">
+            <tr key={row.id} className="border-t border-[#F7F2EC] hover:bg-creaw-surface">
               {columns.map((column, index) => (
                 <td
                   key={column.key}
-                  className={`p-3 ${index === 0 ? "font-semibold" : "text-creaw-body"}`}
+                  className={`px-2.5 py-3 first:pl-[22px] ${index === 0 ? "font-semibold" : "font-medium text-creaw-ink-soft"} ${isActive(row) ? "" : "text-[#A39A92]"}`}
                 >
                   {index === 0 && drillable ? (
                     <Link
@@ -79,21 +96,21 @@ export function LookupTableView({
                   )}
                 </td>
               ))}
-              <td className="p-3">
+              <td className="px-2.5 py-3">
                 <button
                   type="button"
                   role="switch"
                   aria-label={`${row.is_deleted ? "Reactivate" : "Deactivate"} ${row.name}`}
                   aria-checked={isActive(row)}
                   onClick={() => onToggle(row)}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${isActive(row) ? "bg-[#3D9B72]" : "bg-[#C9C0B7]"}`}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${isActive(row) ? "bg-[#1F7A4D]" : "bg-[#DCD4CB]"}`}
                 >
                   <span
                     className={`absolute top-0.5 size-5 rounded-full bg-white shadow ${isActive(row) ? "right-0.5" : "left-0.5"}`}
                   />
                 </button>
               </td>
-              <td className="whitespace-nowrap p-3">
+              <td className="whitespace-nowrap py-2 pl-1 pr-3.5 text-right">
                 <Button variant="ghost" size="sm" onClick={() => onEdit(row)}>
                   <Pencil />
                   Edit

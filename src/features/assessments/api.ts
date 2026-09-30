@@ -16,6 +16,7 @@ import {
   checkListSchema,
   criterionListSchema,
   organisationListSchema,
+  instrumentListSchema,
   documentDetailSchema,
   mutationSchema,
   checkSchema,
@@ -23,6 +24,7 @@ import {
   type scoreSchema,
   type criterionSchema,
   type organisationSchema,
+  type AssessmentRecord,
 } from "./schemas";
 import { createEnvelopeSchema } from "@/lib/api/contracts";
 import type { z } from "zod";
@@ -44,7 +46,22 @@ export interface AssessmentView {
   status: string;
   recommendation: string | null;
   proposedRecommendation: string | null;
+  /** The assessor's notes on strengths and gaps. */
+  notes: string | null;
+  /** The assessor asked for a follow-up visit. */
+  followUp: boolean;
+  recordedAt: string;
   pillarId: number;
+}
+/** The choices for a new assessment: which organisation, scored with which instrument. */
+export interface AssessmentOptions {
+  organisations: { id: number; name: string }[];
+  instruments: {
+    id: number;
+    name: string;
+    /** The domains this instrument scores; none for a checklist-only instrument. */
+    criteria: { id: number; label: string; max: number | null }[];
+  }[];
 }
 export interface AssessmentPage {
   items: AssessmentView[];
@@ -132,11 +149,32 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
         status: row.status,
         recommendation: row.overall_recommendation,
         proposedRecommendation: row.status_description,
+        notes: row.section_comments?.assessor_notes ?? null,
+        followUp: row.section_comments?.follow_up_visit ?? false,
+        recordedAt: row.created_at,
         pillarId: 5,
       };
     });
   }
   return {
+    async options(): Promise<AssessmentOptions> {
+      const [organisations, instruments, criteria] = await Promise.all([
+        all<Organisation>("organisation", organisationListSchema),
+        all<{ id: number; name: string }>("assessment_instrument", instrumentListSchema),
+        all<Criterion>("assessment_criterion", criterionListSchema),
+      ]);
+      return {
+        organisations: organisations.map(({ id, name }) => ({ id, name })),
+        instruments: instruments.map(({ id, name }) => ({
+          id,
+          name,
+          criteria: criteria
+            .filter((item) => item.instrument_id === id)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((item) => ({ id: item.id, label: item.label, max: item.max_score })),
+        })),
+      };
+    },
     async list(page = 1, pageSize = 25): Promise<AssessmentPage> {
       const result = await request<z.infer<typeof assessmentListSchema>>(
         {
@@ -173,6 +211,50 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
         },
         mutationSchema
       );
+    },
+    /**
+     * A scored assessment: the assessment row, one score per domain, then a
+     * not-yet-obtained check for each due-diligence document to collect.
+     * Stops at the first refused write and returns it.
+     */
+    async record(input: AssessmentRecord, withChecks: boolean) {
+      const post = (table: string | undefined, body: Record<string, unknown>) =>
+        request<z.infer<typeof mutationSchema>>(
+          {
+            method: "POST",
+            path: "/assessments",
+            routeTemplate: "/assessments",
+            token,
+            query: table ? { table } : undefined,
+            body,
+          },
+          mutationSchema
+        );
+      const created = await post(undefined, {
+        organisation_id: input.organisationId,
+        instrument_id: input.instrumentId,
+        section_comments: { assessor_notes: input.notes || null, follow_up_visit: input.followUp },
+      });
+      if (!created.success || !created.data) return created;
+      const assessmentId = created.data.id;
+      for (const score of input.scores) {
+        const saved = await post("organisation_assessment_score", {
+          assessment_id: assessmentId,
+          criterion_id: score.criterionId,
+          score: score.score,
+        });
+        if (!saved.success) return saved;
+      }
+      if (withChecks)
+        for (const name of input.documents) {
+          const saved = await post("assessment_document_check", {
+            assessment_id: assessmentId,
+            document_name: name,
+            document_check_status: "not_obtained",
+          });
+          if (!saved.success) return saved;
+        }
+      return created;
     },
     // TODO(schema): there is no separate recommendation/draft column; status_description holds a proposed value until an approver writes overall_recommendation.
     recommend(id: number, recommendation: string) {
@@ -263,6 +345,9 @@ function bound() {
   return withSessionApi(createAssessmentsApi);
 }
 export const assessmentsApi = {
+  async options() {
+    return (await bound()).options();
+  },
   async list(page?: number, pageSize?: number) {
     return (await bound()).list(page, pageSize);
   },

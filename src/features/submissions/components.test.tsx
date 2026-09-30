@@ -52,7 +52,9 @@ describe("field submissions screen", () => {
   it("offers export only when the displayed filter is wholly exportable", () => {
     render(<SubmissionsContent rows={rows} reviewableIds={[]} canExport exportableIds={[1]} />);
     expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Facility" } });
+    // The design has status tabs and no search box; the Pending tab shows only the exportable card.
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Pending review/ }));
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });
 

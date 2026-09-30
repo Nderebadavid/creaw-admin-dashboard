@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import type { NavigationStatus } from "./navigation";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
+import { pillarLook } from "./pillars";
 import { DateRangePicker, type DateRange } from "./date-range-picker";
+
+/** "System-wide" for any unscoped grant, otherwise the pillars the grants cover. */
+function scopeOf(grants: readonly EffectiveGrant[]) {
+  if (grants.some((grant) => grant.pillarId === null)) return "System-wide";
+  const pillars = [...new Set(grants.map((grant) => grant.pillarId))];
+  return pillars.map((id) => pillarLook(id)?.name ?? `Pillar #${id}`).join(", ") || "—";
+}
 
 export function PortalHeader({
   user,
@@ -31,13 +39,13 @@ export function PortalHeader({
   destinations: readonly SearchDestination[];
 }) {
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-white px-4 py-3 lg:flex-nowrap lg:px-7">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3.5 border-b border-[#F0DFC8] bg-[#FDF6EC] px-4 py-3 lg:flex-nowrap lg:px-7">
       <Button
         variant="outline"
         size="icon"
         aria-label="Open navigation"
         onClick={onOpenMobile}
-        className="lg:hidden"
+        className="border-creaw-line lg:hidden"
       >
         <Menu aria-hidden="true" />
       </Button>
@@ -46,7 +54,7 @@ export function PortalHeader({
         size="icon"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         onClick={onToggleSidebar}
-        className="hidden lg:inline-flex"
+        className="hidden border-creaw-line lg:inline-flex"
       >
         {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
       </Button>
@@ -61,6 +69,7 @@ export function PortalHeader({
           // /admin/users and /audit require platform-wide grants.
           canManageUsers={hasPermission(grants, "USER_MANAGE")}
           canViewAudit={hasPermission(grants, "AUDIT_LOG_VIEW")}
+          scope={scopeOf(grants)}
         />
       </div>
     </header>

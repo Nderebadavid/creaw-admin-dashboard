@@ -10,6 +10,8 @@
 
 import { revalidatePath } from "next/cache";
 import { actionResult } from "@/lib/api/action-result";
+import { sortedPage } from "@/lib/api/sorted-page";
+import { referralSortValues } from "./sort-values";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
@@ -26,7 +28,11 @@ export async function listReferralsAction(query: ReferralQuery) {
   if (!hasModulePermission(session.grants, "REFERRAL_VIEW"))
     return { ...actionResult(403, "Permission denied"), data: null };
   try {
-    return { ...actionResult(200, "OK"), data: await (await api()).list(query) };
+    const { list } = await api();
+    return {
+      ...actionResult(200, "OK"),
+      data: await sortedPage((filters: ReferralQuery) => list(filters), query, referralSortValues),
+    };
   } catch {
     return { ...actionResult(422, "Could not load referrals"), data: null };
   }

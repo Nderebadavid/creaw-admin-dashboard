@@ -50,8 +50,8 @@ export function PortalShell({
         </a>
         <aside
           className={cn(
-            "sticky top-0 hidden h-screen shrink-0 border-r lg:block",
-            collapsed ? "w-[76px]" : "w-[248px]"
+            "sticky top-0 hidden h-screen shrink-0 border-r border-creaw-line transition-[width] duration-200 lg:block",
+            collapsed ? "w-[84px]" : "w-[264px]"
           )}
         >
           <PortalSidebar {...sidebarProps} collapsed={collapsed} />
@@ -71,7 +71,7 @@ export function PortalShell({
           <main
             id="portal-content"
             tabIndex={-1}
-            className="mx-auto max-w-[1800px] p-4 outline-none md:p-7"
+            className="mx-auto max-w-[1800px] px-4 pb-24 pt-4 outline-none md:px-7 md:pt-[26px]"
           >
             {children}
           </main>

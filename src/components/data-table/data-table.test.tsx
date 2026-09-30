@@ -76,6 +76,7 @@ it("offers the required page sizes and reports page changes", () => {
   expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
     "10",
     "25",
+    "30",
     "50",
     "100",
   ]);
@@ -147,4 +148,49 @@ it("renders an expanded detail row beneath its record", () => {
   const detail = screen.getByText("Grace details");
   expect(detail.closest("td")).toHaveAttribute("colspan", "1");
   expect(screen.getAllByRole("row")).toHaveLength(4);
+});
+it("turns sortable column headers into buttons that cycle the sort", () => {
+  const onSortChange = vi.fn();
+  const sortable = [
+    { ...columns[0], sortValue: (row: { id: number; name: string }) => row.name },
+    { id: "plain", header: "Plain", cell: () => "x" },
+  ];
+  const props = {
+    columns: sortable,
+    rows: [{ id: 1, name: "Sample" }],
+    getRowId: (row: { id: number }) => row.id,
+    label: "Participants",
+    onSortChange,
+  };
+  const view = render(<DataTable {...props} />);
+  expect(screen.getByRole("columnheader", { name: "Name" })).toHaveAttribute("aria-sort", "none");
+  expect(screen.getByRole("columnheader", { name: "Plain" })).not.toHaveAttribute("aria-sort");
+  expect(screen.queryByRole("button", { name: "Plain" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Name" }));
+  expect(onSortChange).toHaveBeenLastCalledWith({ by: "name", order: "asc" });
+  view.rerender(<DataTable {...props} sort={{ by: "name", order: "asc" }} />);
+  expect(screen.getByRole("columnheader", { name: "Name" })).toHaveAttribute(
+    "aria-sort",
+    "ascending"
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Name" }));
+  expect(onSortChange).toHaveBeenLastCalledWith({ by: "name", order: "desc" });
+  view.rerender(<DataTable {...props} sort={{ by: "name", order: "desc" }} />);
+  expect(screen.getByRole("columnheader", { name: "Name" })).toHaveAttribute(
+    "aria-sort",
+    "descending"
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Name" }));
+  expect(onSortChange).toHaveBeenLastCalledWith(undefined);
+});
+it("leaves headers as plain text when the table is given no sort handler", () => {
+  render(
+    <DataTable
+      columns={[{ ...columns[0], sortValue: (row: { id: number; name: string }) => row.name }]}
+      rows={[{ id: 1, name: "Sample" }]}
+      getRowId={(row) => row.id}
+      label="Participants"
+    />
+  );
+  expect(screen.queryByRole("button", { name: "Name" })).not.toBeInTheDocument();
 });

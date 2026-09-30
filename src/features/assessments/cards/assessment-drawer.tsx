@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { AssessmentView } from "../api";
-import { scorePercent } from "./assessment-card";
+import { scoreColor, scorePercent } from "./assessment-card";
+import { DocumentRow } from "@/components/ui/record-parts";
 
 /** Labels for assessment.overall_recommendation values. */
 export const recommendationLabels: Record<string, string> = {
@@ -77,7 +78,7 @@ export function AssessmentDrawer({
           label: "Overview",
           content: (
             <div className="space-y-6">
-              <section>
+              <section className="rounded-[14px] border border-creaw-line bg-white p-[18px]">
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-heading text-lg font-bold">Capacity assessment</h3>
                   <span className="font-heading text-xl font-bold">
@@ -95,8 +96,11 @@ export function AssessmentDrawer({
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-[#F4EEE8]">
                         <div
-                          className="h-full rounded-full bg-creaw-orange"
-                          style={{ width: `${scorePercent(score.score, score.max)}%` }}
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${scorePercent(score.score, score.max)}%`,
+                            backgroundColor: scoreColor(score.score, score.max),
+                          }}
                         />
                       </div>
                     </li>
@@ -118,6 +122,16 @@ export function AssessmentDrawer({
                   </dt>
                   <dd className="mt-1">{labelOf(assessment.recommendation, "Pending approval")}</dd>
                 </div>
+                <div>
+                  <dt className="text-xs font-semibold text-creaw-faint">Follow-up visit</dt>
+                  <dd className="mt-1">{assessment.followUp ? "Needed" : "Not needed"}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-semibold text-creaw-faint">Assessor notes</dt>
+                  <dd className="mt-1 whitespace-pre-line">
+                    {assessment.notes ?? "None recorded"}
+                  </dd>
+                </div>
               </dl>
             </div>
           ),
@@ -126,49 +140,46 @@ export function AssessmentDrawer({
           id: "documents",
           label: "Documents",
           content: (
-            <ul className="space-y-2">
+            <div className="flex flex-col gap-2.5">
               {assessment.documents.map((doc) => {
                 const received = doc.status === "obtained";
                 return (
-                  <li
+                  <DocumentRow
                     key={doc.id}
-                    className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${received ? "border-creaw-line" : "border-dashed border-[#E6B069] bg-[#FFFBF7]"}`}
-                  >
-                    <span>
-                      <span className="font-semibold">{doc.name}</span>
-                      <span className="block text-xs text-creaw-faint">
-                        {received ? "Received" : "Missing — required for due diligence"}
-                      </span>
-                    </span>
-                    {!received ? (
-                      <Button
-                        size="sm"
-                        disabled={!canAttach}
-                        title={
-                          !canAttach ? "Due diligence and upload permissions required" : undefined
-                        }
-                        aria-label={`Attach ${doc.name}`}
-                        onClick={() => onAttach(doc.id)}
-                      >
-                        Attach
-                      </Button>
-                    ) : (
-                      doc.documentId && (
+                    name={doc.name}
+                    missing={!received}
+                    detail={received ? "Received" : "Missing — required for due diligence"}
+                    action={
+                      !received ? (
                         <Button
                           size="sm"
-                          variant="outline"
-                          disabled={!canDownload}
-                          aria-label={`View ${doc.name}`}
-                          onClick={() => onView(doc.documentId!)}
+                          disabled={!canAttach}
+                          title={
+                            !canAttach ? "Due diligence and upload permissions required" : undefined
+                          }
+                          aria-label={`Attach ${doc.name}`}
+                          onClick={() => onAttach(doc.id)}
                         >
-                          View
+                          Attach
                         </Button>
+                      ) : (
+                        doc.documentId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!canDownload}
+                            aria-label={`View ${doc.name}`}
+                            onClick={() => onView(doc.documentId!)}
+                          >
+                            View
+                          </Button>
+                        )
                       )
-                    )}
-                  </li>
+                    }
+                  />
                 );
               })}
-            </ul>
+            </div>
           ),
         },
       ]}

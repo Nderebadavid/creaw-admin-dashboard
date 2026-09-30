@@ -174,6 +174,8 @@ export function AuditContent({
           framed={false}
           label="Audit entries"
           columns={auditColumns}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
           rows={list.data.items}
           getRowId={(row) => row.id}
           loading={list.loading}

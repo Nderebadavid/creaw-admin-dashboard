@@ -1,16 +1,23 @@
 "use client";
+import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
-import type { AssessmentPage, AssessmentView } from "./api";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { AssessmentOptions, AssessmentPage, AssessmentView } from "./api";
 import { listAssessmentsAction, viewAssessmentDocumentAction } from "./actions";
 import { AssessmentCard } from "./cards/assessment-card";
 import { AssessmentDrawer } from "./cards/assessment-drawer";
-import { AttachDocumentDialog, RecommendationDialog } from "./cards/assessment-dialogs";
+import {
+  AttachDocumentDialog,
+  NewAssessmentDialog,
+  RecommendationDialog,
+} from "./cards/assessment-dialogs";
 
-type Modal = "recommend" | "approve" | "attach" | null;
+type Modal = "recommend" | "approve" | "attach" | "create" | null;
 
 /**
  * WRO partner capacity assessments as cards. Each opens a drawer with the
@@ -23,6 +30,7 @@ export function AssessmentsContent({
   canApprove,
   canAttach,
   canDownload = false,
+  createOptions,
 }: {
   heading?: PageHeadingText;
   initial: AssessmentPage;
@@ -30,6 +38,8 @@ export function AssessmentsContent({
   canApprove: boolean;
   canAttach: boolean;
   canDownload?: boolean;
+  /** Organisations and instruments for a new assessment; omitted when the user cannot create one. */
+  createOptions?: AssessmentOptions;
 }) {
   const list = usePagedList<AssessmentView, { page?: number; pageSize?: number }>(
     initial,
@@ -43,6 +53,7 @@ export function AssessmentsContent({
   const [actionError, setActionError] = useState("");
   const error = actionError || list.error;
   const [feedback, setFeedback] = useState("");
+  const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   // Look the selection up in the latest page so the drawer shows fresh data after a save.
   const selected: AssessmentView | null = data.items.find((item) => item.id === selectedId) ?? null;
 
@@ -56,13 +67,20 @@ export function AssessmentsContent({
   async function viewDocument(documentId: number) {
     if (!selected) return;
     const response = await viewAssessmentDocumentAction(selected.id, documentId);
-    if (response.success) setFeedback("Document access audited. Mock mode provides metadata only.");
+    if (response.success && response.document) setViewing(response.document);
     else setActionError(response.message);
   }
 
+  const newButton = createOptions && (
+    <Button onClick={() => setModal("create")}>
+      <Plus size={16} />
+      New assessment
+    </Button>
+  );
+
   return (
     <div className="space-y-5">
-      {heading && <PageHeading {...heading} />}
+      {heading ? <PageHeading {...heading} actions={newButton} /> : newButton}
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{error}</FormBanner>
       {list.loading && <p role="status">Loading assessments…</p>}
@@ -95,6 +113,15 @@ export function AssessmentsContent({
         onAttach={setCheckId}
         onView={(documentId) => void viewDocument(documentId)}
       />
+      {createOptions && (
+        <NewAssessmentDialog
+          open={modal === "create"}
+          options={createOptions}
+          onClose={() => setModal(null)}
+          onDone={done}
+        />
+      )}
+      <DocumentViewer document={viewing} onClose={() => setViewing(null)} />
       <RecommendationDialog
         assessment={modal === "recommend" || modal === "approve" ? selected : null}
         approve={modal === "approve"}

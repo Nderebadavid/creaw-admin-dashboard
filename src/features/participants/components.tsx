@@ -10,6 +10,7 @@ import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
 import { ExportButton } from "@/components/ui/export-button";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
+import { pillarLook } from "@/components/portal/pillars";
 import { hasPermission, hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
 import type { ParticipantCatalog, ParticipantPage, ParticipantQuery, ParticipantView } from "./api";
 import { exportParticipantsAction, listParticipantsAction } from "./actions";
@@ -46,8 +47,9 @@ export function ParticipantsContent({
   const enrollablePillars = catalog.pillars.filter((item) =>
     hasPermission(grants, "PARTICIPANT_EDIT", { pillarId: item.id })
   );
+  // Short names ("VAWG"), as in the design's chips; the registry name is the fallback.
   const pillarName = (id: number) =>
-    catalog.pillars.find((item) => item.id === id)?.name ?? `Pillar #${id}`;
+    pillarLook(id)?.name ?? catalog.pillars.find((item) => item.id === id)?.name ?? `Pillar #${id}`;
 
   const done = (message: string) => {
     setModal(null);
@@ -86,7 +88,7 @@ export function ParticipantsContent({
             onSelect: () => list.filter({ pillarId: undefined }),
           },
           ...catalog.pillars.map((pillar) => ({
-            label: pillar.name,
+            label: pillarName(pillar.id),
             active: list.query.pillarId === pillar.id,
             onSelect: () => list.filter({ pillarId: pillar.id }),
           })),
@@ -136,6 +138,8 @@ export function ParticipantsContent({
           framed={false}
           label="Participants"
           columns={participantColumns(pillarName)}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
           rows={list.data.items}
           getRowId={(row) => row.id}
           loading={list.loading}

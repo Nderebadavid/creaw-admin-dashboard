@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowBigUp, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
-import { loginAction } from "@/lib/auth/actions";
+import { FlaskConical } from "lucide-react";
+import type { OtpChannels, VerifyOtpActionResult } from "@/lib/auth/actions";
 import { AuthShell } from "./auth-shell";
+import { ForgotView, SentView } from "./views/forgot-password-views";
+import { ResetDoneView, ResetView } from "./views/new-password-views";
+import { OtpView } from "./views/otp-view";
+import { SignInView } from "./views/sign-in-view";
+import { WelcomeView } from "./views/welcome-view";
 
 export function safeRedirectTarget(value: string | null): string {
   if (!value || !value.startsWith("/")) return "/dashboard";
@@ -15,139 +20,115 @@ export function safeRedirectTarget(value: string | null): string {
   return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : "/dashboard";
 }
 
-export function LoginForm() {
+/** Mock-mode credentials shown under the form so the prototype can be walked through. */
+export interface DemoCredentials {
+  username: string;
+  password: string;
+  code: string;
+}
+
+type View = "login" | "otp" | "forgot" | "sent" | "reset" | "done" | "welcome";
+type SignedInUser = NonNullable<VerifyOtpActionResult["user"]>;
+
+/**
+ * The whole sign-in experience on one route: password, one-time code and
+ * welcome, plus the forgot-password path. An emailed reset link opens the
+ * new-password view through `/login?reset=<token>`.
+ */
+export function LoginForm({ demo }: { demo?: DemoCredentials }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
-  const [capsLock, setCapsLock] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const linkToken = searchParams.get("reset");
+  const redirectTarget = safeRedirectTarget(searchParams.get("redirect"));
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setError("");
-    if (!username.trim()) {
-      setError("Enter your email or username.");
-      return;
-    }
-    if (!password) {
-      setError("Enter your password.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const result = await loginAction(username, password, remember);
-      if (!result.success) {
-        setError(result.error ?? "Sign in failed. Please try again.");
-        return;
-      }
-      router.push(safeRedirectTarget(searchParams.get("redirect")));
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const [view, setView] = useState<View>(linkToken ? "reset" : "login");
+  // Shared by the sign-in and forgot-password fields, as in the design.
+  const [email, setEmail] = useState("");
+  const [notice, setNotice] = useState("");
+  const [channels, setChannels] = useState<OtpChannels | null>(null);
+  const [previewToken, setPreviewToken] = useState<string>();
+  const [user, setUser] = useState<SignedInUser | null>(null);
+
+  function showSignIn(message = "") {
+    setNotice(message);
+    setView("login");
+    // Drop a used reset token from the address bar.
+    if (linkToken) router.replace("/login");
   }
 
+  // The welcome view opens the portal on a timer or a click, whichever is first.
+  const opened = useRef(false);
+  const openPortal = useCallback(() => {
+    if (opened.current) return;
+    opened.current = true;
+    router.push(redirectTarget);
+  }, [router, redirectTarget]);
+
   return (
-    <AuthShell title="Sign in" subtitle="Use your CREAW staff account.">
-      {error && (
-        <div
-          role="alert"
-          className="rounded-[10px] border border-[#F3CCC6] bg-creaw-danger-soft px-3.5 py-3 text-sm text-[#6E2019]"
-        >
-          {error}
+    <AuthShell>
+      {view === "login" && (
+        <SignInView
+          email={email}
+          onEmailChange={setEmail}
+          notice={notice}
+          onChallenge={(sentTo) => {
+            setChannels(sentTo);
+            setView("otp");
+          }}
+          onForgot={() => setView("forgot")}
+        />
+      )}
+      {view === "otp" && channels && (
+        <OtpView
+          channels={channels}
+          onVerified={(signedIn) => {
+            setUser(signedIn);
+            setView("welcome");
+          }}
+          onExpired={showSignIn}
+          onBack={() => showSignIn()}
+        />
+      )}
+      {view === "welcome" && user && <WelcomeView user={user} onOpen={openPortal} />}
+      {view === "forgot" && (
+        <ForgotView
+          email={email}
+          onEmailChange={setEmail}
+          onSent={(token) => {
+            setPreviewToken(token);
+            setView("sent");
+          }}
+          onBack={() => showSignIn()}
+        />
+      )}
+      {view === "sent" && (
+        <SentView
+          email={email}
+          previewToken={previewToken}
+          onResent={setPreviewToken}
+          onOpenReset={() => setView("reset")}
+          onBack={() => showSignIn()}
+        />
+      )}
+      {view === "reset" && (
+        <ResetView
+          token={linkToken ?? previewToken ?? ""}
+          email={linkToken ? undefined : email}
+          onDone={() => setView("done")}
+          onRequestNewLink={() => setView("forgot")}
+        />
+      )}
+      {view === "done" && <ResetDoneView onContinue={() => showSignIn()} />}
+      {demo && (view === "login" || view === "otp") && (
+        <div className="flex items-start gap-2.5 rounded-[10px] border border-dashed border-[#E2C7B6] bg-[#FFFBF7] px-3.5 py-3 text-[13px] leading-normal text-[#6B5A4C]">
+          <FlaskConical size={18} className="shrink-0 text-creaw-orange" aria-hidden />
+          <span>
+            Demo: sign in as <b className="text-creaw-ink">{demo.username}</b> with password{" "}
+            <b className="text-creaw-ink">{demo.password}</b>. Verification code:{" "}
+            <b className="font-mono text-creaw-ink">{demo.code}</b>
+          </span>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-[18px]" noValidate>
-        <label
-          htmlFor="username"
-          className="block space-y-[7px] text-sm font-semibold text-creaw-ink-soft"
-        >
-          <span>Email or username</span>
-          <span className="flex h-12 items-center gap-2.5 rounded-[10px] border border-creaw-line-strong px-3.5 focus-within:border-creaw-orange focus-within:ring-2 focus-within:ring-[#F0CDBB]">
-            <Mail size={20} className="shrink-0 text-[#A39A92]" aria-hidden />
-            <input
-              id="username"
-              type="text"
-              autoComplete="username"
-              autoCapitalize="none"
-              autoCorrect="off"
-              placeholder="name@creaw.org"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              disabled={loading}
-              className="min-w-0 flex-1 bg-transparent text-[15px] font-normal text-creaw-ink outline-none placeholder:text-[#A39A92]"
-            />
-          </span>
-        </label>
-        <label
-          htmlFor="password"
-          className="block space-y-[7px] text-sm font-semibold text-creaw-ink-soft"
-        >
-          <span>Password</span>
-          <span className="flex h-12 items-center gap-2.5 rounded-[10px] border border-creaw-line-strong pr-1.5 pl-3.5 focus-within:border-creaw-orange focus-within:ring-2 focus-within:ring-[#F0CDBB]">
-            <LockKeyhole size={20} className="shrink-0 text-[#A39A92]" aria-hidden />
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              onKeyUp={(event) => setCapsLock(event.getModifierState("CapsLock"))}
-              onBlur={() => setCapsLock(false)}
-              disabled={loading}
-              className="min-w-0 flex-1 bg-transparent text-[15px] font-normal text-creaw-ink outline-none placeholder:text-[#A39A92]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="grid h-9 w-9 place-items-center rounded-lg text-creaw-body hover:bg-creaw-canvas"
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </span>
-          {capsLock && (
-            <span role="status" className="flex items-center gap-1.5 text-xs text-[#94570d]">
-              <ArrowBigUp size={14} aria-hidden="true" />
-              Caps Lock is on
-            </span>
-          )}
-        </label>
-        <label className="flex items-center gap-2.5 text-sm text-creaw-ink-soft">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(event) => setRemember(event.target.checked)}
-            className="h-[18px] w-[18px] accent-creaw-orange"
-          />
-          Keep me signed in on this device for 12 hours
-        </label>
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex h-[50px] w-full items-center justify-center gap-2 rounded-[10px] bg-creaw-orange text-base font-semibold text-white hover:bg-[#8C3F20] disabled:cursor-wait disabled:opacity-60"
-        >
-          {loading ? "Signing in…" : "Sign in"} {!loading && <ArrowRight size={19} aria-hidden />}
-        </button>
-      </form>
-      <div className="rounded-xl bg-creaw-canvas p-3.5 text-[13px] leading-relaxed text-creaw-body">
-        <p className="flex gap-2">
-          <ShieldCheck size={20} className="shrink-0 text-creaw-orange" aria-hidden />
-          <span>
-            This portal holds survivor and participant data. Need an account? Ask your System
-            Administrator.
-          </span>
-        </p>
-        <p className="mt-2 pl-7">
-          Demo: <strong>judy.mwangi</strong> / <strong>creaw-demo</strong>
-        </p>
-      </div>
     </AuthShell>
   );
 }
