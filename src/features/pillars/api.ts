@@ -6,7 +6,9 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import { z } from "zod";
 import type { ApiClient } from "@/lib/api/client";
+import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { collectPages } from "@/lib/api/pagination";
@@ -51,6 +53,10 @@ export interface PillarView {
   records: PillarRecord[];
   stages: string[];
   stageCounts?: { name: string; count: number }[] | null;
+  /** The pillar lead's name, when the user may read it. */
+  leadName?: string | null;
+  /** Counties the pillar's participants live in, most common first. */
+  counties?: string[];
   hasPipeline: boolean;
   domain?: PillarDomainView | null;
 }
@@ -101,6 +107,79 @@ const presentation: Record<
     fullName: "Vocational Skilling",
   },
 };
+
+/** Pages of a lookup-style list; none when the user may not read it. */
+async function readAll<T>(
+  client: ApiClient,
+  token: string,
+  path: string,
+  routeTemplate: "/lookups/:table" | "/participants",
+  schema: z.ZodType<T>
+): Promise<T[]> {
+  const envelope = createEnvelopeSchema(z.union([createPaginatedSchema(schema), z.null()]));
+  return collectPages(async (page, pageSize) => {
+    const result = await client.request(
+      { method: "GET", path, routeTemplate, token, query: { page, pageSize } },
+      envelope
+    );
+    if (!result.success || !result.data) throw new Error(result.message);
+    return result.data;
+  }).catch(() => []);
+}
+
+/** The lead's name from the reporting catalogue, which lists pillar leads as report owners. */
+async function leadNameOf(client: ApiClient, token: string, leadId: number | null) {
+  if (!leadId) return null;
+  const result = await client
+    .request(
+      {
+        method: "GET",
+        path: "/reports",
+        routeTemplate: "/reports",
+        token,
+        query: { catalog: true },
+      },
+      createEnvelopeSchema(
+        z.union([
+          z.object({ owners: z.array(z.object({ id: z.number(), name: z.string() })) }),
+          z.null(),
+        ])
+      )
+    )
+    .catch(() => null);
+  return result?.data?.owners.find((owner) => owner.id === leadId)?.name ?? null;
+}
+
+/** Counties the given participants live in, most common first. */
+async function countiesOf(client: ApiClient, token: string, participantIds: number[]) {
+  if (!participantIds.length) return [];
+  const place = z.object({
+    id: z.number(),
+    name: z.string(),
+    sub_county_id: z.number().optional(),
+    county_id: z.number().optional(),
+  });
+  const [participants, wards, subCounties, counties] = await Promise.all([
+    readAll(
+      client,
+      token,
+      "/participants",
+      "/participants",
+      z.object({ id: z.number(), ward_id: z.number().nullable() })
+    ),
+    readAll(client, token, "/lookups/ward", "/lookups/:table", place),
+    readAll(client, token, "/lookups/sub_county", "/lookups/:table", place),
+    readAll(client, token, "/lookups/county", "/lookups/:table", place),
+  ]);
+  const tally = new Map<string, number>();
+  for (const participant of participants.filter((row) => participantIds.includes(row.id))) {
+    const ward = wards.find((row) => row.id === participant.ward_id);
+    const subCounty = subCounties.find((row) => row.id === ward?.sub_county_id);
+    const county = counties.find((row) => row.id === subCounty?.county_id);
+    if (county) tally.set(county.name, (tally.get(county.name) ?? 0) + 1);
+  }
+  return [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+}
 
 export function createPillarsApi(client: ApiClient, token: string) {
   return {
@@ -196,7 +275,15 @@ export function createPillarsApi(client: ApiClient, token: string) {
         status: row.status,
         updatedAt: row.updated_at,
       }));
-      const domain = await loadPillarDomain(client, token, selected, enrollments).catch(() => null);
+      const [domain, leadName, counties] = await Promise.all([
+        loadPillarDomain(client, token, selected, enrollments).catch(() => null),
+        leadNameOf(client, token, pillar.lead_user_id),
+        countiesOf(
+          client,
+          token,
+          enrollments.map((row) => row.participant_id).filter((id): id is number => id !== null)
+        ),
+      ]);
       return {
         id: pillar.id,
         code: selected,
@@ -220,6 +307,8 @@ export function createPillarsApi(client: ApiClient, token: string) {
             }))
           : null,
         domain,
+        leadName,
+        counties,
       };
     },
     async createEnrollment(

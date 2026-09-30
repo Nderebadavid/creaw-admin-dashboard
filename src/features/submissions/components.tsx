@@ -8,7 +8,8 @@ import { ExportButton } from "@/components/ui/export-button";
 import { Pagination } from "@/components/data-table/pagination";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
-import { reviewSubmissionAction } from "./actions";
+import { reviewSubmissionAction, viewSubmissionPhotoAction } from "./actions";
+import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import type { SubmissionRow, SubmissionStatus } from "./api";
 import { filterSubmissionRows } from "./filter";
 import { SubmissionCard } from "./queue/submission-card";
@@ -49,6 +50,14 @@ export function SubmissionsContent({
   const [approving, setApproving] = useState<SubmissionRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [viewing, setViewing] = useState<ViewedDocument | null>(null);
+
+  /** Opens a submission photo in the viewer; the action audits the read. */
+  async function viewPhoto(row: SubmissionRow, photoId: number) {
+    const result = await viewSubmissionPhotoAction(row.id, photoId);
+    if (result.success && result.document) setViewing(result.document);
+    else setFeedback(result.message);
+  }
   // Decisions update the cards immediately; router.refresh() reconciles with the server.
   const [localRows, setLocalRows] = useState(rows);
   const filtered = useMemo(
@@ -151,7 +160,9 @@ export function SubmissionsContent({
         busy={busy}
         onClose={() => setReviewing(null)}
         onDecide={(decision) => reviewing && void decide(reviewing, decision)}
+        onViewPhoto={(photoId) => reviewing && void viewPhoto(reviewing, photoId)}
       />
+      <DocumentViewer document={viewing} onClose={() => setViewing(null)} />
       <ApproveDialog
         submission={approving}
         busy={busy}

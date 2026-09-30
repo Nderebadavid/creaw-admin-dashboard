@@ -34,9 +34,10 @@ export function SubmissionCard({
         <span className="rounded bg-white/85 px-[7px] py-[3px] font-mono text-[11px] text-creaw-faint">
           photo · {row.type.toLowerCase()}
         </span>
-        <span className="flex items-center rounded-full bg-creaw-ink/60 px-2 py-[3px] text-white">
+        <span className="flex items-center gap-1 rounded-full bg-creaw-ink/60 px-2 py-[3px] text-xs font-semibold text-white">
           <Camera size={14} aria-hidden="true" />
-          <span className="sr-only">Captured on {row.source}</span>
+          {row.photos?.length ?? 0}
+          <span className="sr-only">photos, captured on {row.source}</span>
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">

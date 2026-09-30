@@ -16,6 +16,8 @@ export interface ViewedDocument {
   /** The record the file belongs to, e.g. "Participant #3 · Grant application". */
   linkedRecord: string;
   uploadedAt?: string | null;
+  /** Where the file came from, e.g. "Mobile app"; worked out from the address when absent. */
+  source?: string;
 }
 
 type Kind = "pdf" | "image" | "sheet" | "file";
@@ -28,7 +30,7 @@ const kindOf = (url: string): Kind => {
 };
 const kindLabel: Record<Kind, string> = {
   pdf: "PDF document",
-  image: "Photo",
+  image: "Photo (JPG)",
   sheet: "Spreadsheet",
   file: "File",
 };
@@ -151,7 +153,7 @@ export function DocumentViewer({
                   [
                     ["Type", kindLabel[kind]],
                     ["Document", titleCase(shown.documentType)],
-                    ["Source", fetchable ? "Portal upload" : "Stored reference"],
+                    ["Source", shown.source ?? (fetchable ? "Portal upload" : "Stored reference")],
                     ["Date", shown.uploadedAt ? formatDate(shown.uploadedAt) : "—"],
                     ["Linked record", shown.linkedRecord],
                   ] as const

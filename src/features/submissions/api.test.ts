@@ -100,4 +100,14 @@ describe("submission adapter", () => {
       entity_type: "participant_stage_event",
     });
   });
+
+  it("returns the photos captured with a submission and audits opening one", async () => {
+    const api = createSubmissionsApi(createPortalApiClient(), issueMockToken(1));
+    const withPhotos = (await api.listAll()).find((row) => (row.photos?.length ?? 0) > 1)!;
+    expect(withPhotos.photos![0].name).toBeTruthy();
+    const opened = await api.viewDocument(withPhotos.photos![0].id);
+    expect(opened.success).toBe(true);
+    expect(opened.data?.owner_type).toBe("participant_stage_event");
+    expect(getMockStore().audit_logs.at(-1)).toMatchObject({ action: "DOWNLOAD" });
+  });
 });

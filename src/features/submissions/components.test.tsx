@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("server-only", () => ({}));
-vi.mock("./actions", () => ({ reviewSubmissionAction: vi.fn() }));
+vi.mock("./actions", () => ({
+  reviewSubmissionAction: vi.fn(),
+  viewSubmissionPhotoAction: vi.fn(),
+}));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { SubmissionsContent } from "./components";
-import { reviewSubmissionAction } from "./actions";
+import { reviewSubmissionAction, viewSubmissionPhotoAction } from "./actions";
 import type { SubmissionRow } from "./api";
 
 afterEach(cleanup);
@@ -21,6 +24,7 @@ const rows: SubmissionRow[] = [
     source: "mobile",
     status: "Pending review",
     flag: null,
+    photos: [{ id: 41, name: "group photo" }],
   },
   {
     id: 2,
@@ -93,5 +97,34 @@ describe("field submissions screen", () => {
     expect(reviewSubmissionAction).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
     await waitFor(() => expect(reviewSubmissionAction).toHaveBeenCalledWith(1, "approve"));
+  });
+
+  it("opens a submission's photo in the document viewer, as in the design", async () => {
+    vi.mocked(viewSubmissionPhotoAction).mockResolvedValue({
+      success: true,
+      message: "OK",
+      document: {
+        id: 41,
+        name: "group photo",
+        documentType: "group_photo",
+        fileUrl: "mock://documents/field/m1/1.jpg",
+        linkedRecord: "Facility referral day",
+        uploadedAt: "2026-09-27",
+        source: "Mobile app",
+      },
+    });
+    render(<SubmissionsContent rows={rows} reviewableIds={[1, 2]} />);
+    // Each card counts its photos, as in the design.
+    const card = screen.getByText("Facility referral day").closest("article") as HTMLElement;
+    expect(within(card).getByText("photos, captured on mobile").parentElement).toHaveTextContent(
+      "1"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Review Facility referral day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open photo: group photo" }));
+    await waitFor(() => expect(viewSubmissionPhotoAction).toHaveBeenCalledWith(1, 41));
+    const viewer = await screen.findByRole("dialog", { name: "Group photo" });
+    expect(viewer).toHaveTextContent("Photo (JPG)");
+    expect(viewer).toHaveTextContent("Mobile app");
+    expect(viewer).toHaveTextContent("Facility referral day");
   });
 });

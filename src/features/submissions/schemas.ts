@@ -57,6 +57,20 @@ export const placeLookupSchema = createEnvelopeSchema(
     z.null(),
   ])
 );
+/** A file captured with a submission (owner_type participant_stage_event). */
+export const submissionDocumentSchema = z.object({
+  id: z.number().int(),
+  owner_type: z.string(),
+  owner_id: z.number().int(),
+  document_type: z.string(),
+  file_url: z.string(),
+});
+export const submissionDocumentListSchema = createEnvelopeSchema(
+  z.union([createPaginatedSchema(submissionDocumentSchema), z.null()])
+);
+export const submissionDocumentDetailSchema = createEnvelopeSchema(
+  z.union([submissionDocumentSchema, z.null()])
+);
 export const enrollmentDetailSchema = createEnvelopeSchema(
   z.union([
     z.object({

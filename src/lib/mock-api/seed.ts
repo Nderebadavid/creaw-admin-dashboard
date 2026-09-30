@@ -16,6 +16,23 @@ const pillarIds: Record<string, number> = {
   skill: 6,
 };
 
+/** What each field form's photos show, in the order the mobile app captures them. */
+const fieldPhotoLabels: Record<string, string[]> = {
+  "Session attendance": [
+    "group photo",
+    "attendance sheet",
+    "venue",
+    "materials",
+    "facilitator",
+    "close-up",
+  ],
+  "Participant registration": ["ID front", "consent signature"],
+  "Business visit": ["shop front", "stock", "owner at work", "receipts", "premises"],
+  "Assessment scoring": ["office exterior", "board minutes", "policy file", "staff"],
+  "Attendance register": ["register page 1", "register page 2"],
+  "Case update": ["court notice"],
+};
+
 export function createSeed(): MockStore {
   const store = Object.fromEntries(
     Object.keys(tableDefinitions).map((table) => [table, []])
@@ -346,6 +363,8 @@ export function createSeed(): MockStore {
         performed_at: SEED_DATE,
       });
   }
+  // Added after every other document, so earlier document ids stay stable.
+  const fieldPhotos: { submission: (typeof story.submissions)[number]; eventId: number }[] = [];
   for (const submission of story.submissions) {
     const pillarId = pillarIds[submission.pillar];
     const participantByRecord: Record<string, number> = {
@@ -365,7 +384,7 @@ export function createSeed(): MockStore {
           : row.participant_id === participantByRecord[submission.rec])
     )!;
     const pipeline = store.pipeline_definition.find((row) => row.pillar_id === pillarId)!;
-    add("participant_stage_event", {
+    const event = add("participant_stage_event", {
       enrollment_id: enrollment.id,
       stage_definition_id: store.stage_definition.find((row) => row.pipeline_id === pipeline.id)!
         .id,
@@ -379,6 +398,7 @@ export function createSeed(): MockStore {
       source_channel: "mobile",
       local_ref: submission.id,
     });
+    fieldPhotos.push({ submission, eventId: event.id });
   }
   add("legal_case", {
     enrollment_id: 1,
@@ -396,6 +416,47 @@ export function createSeed(): MockStore {
     session_type: "psychological_first_aid",
     notes: "Initial confidential counselling session.",
   });
+  // The rest of the design's legal case register, with the columns the schema holds.
+  (
+    [
+      [7, 3, "2026-05-02", "mention", false, null, null, null],
+      [12, 6, "2026-09-06", "plea_taken", false, null, null, null],
+      [9, 1, "2025-12-11", "judgment_delivered", true, "agreement", "2026-06-10", "2026-06-20"],
+    ] as const
+  ).forEach(
+    ([enrollment_id, case_type_id, opened_date, court_status, mediation, outcome, ruling, closed]) =>
+      add("legal_case", {
+        enrollment_id,
+        case_type_id,
+        opened_date,
+        court_status,
+        mediation_attempted: mediation,
+        mediation_outcome: outcome,
+        ruling_date: ruling,
+        closed_date: closed,
+      })
+  );
+  (
+    [
+      [1, 2, "2026-03-02"],
+      [1, 3, "2026-04-06"],
+      [1, 4, "2026-05-11"],
+      [7, 1, "2026-05-04"],
+      [7, 2, "2026-06-01"],
+      [7, 3, "2026-07-06"],
+      [7, 4, "2026-08-03"],
+      [7, 5, "2026-09-07"],
+      [7, 6, "2026-09-21"],
+    ] as const
+  ).forEach(([enrollment_id, session_no, session_date]) =>
+    add("counselling_session", {
+      enrollment_id,
+      session_no,
+      session_date,
+      session_type: "individual",
+      notes: "Confidential counselling session.",
+    })
+  );
   add("training_enrollment", {
     enrollment_id: 4,
     pathway: "apprenticeship",
@@ -569,5 +630,35 @@ export function createSeed(): MockStore {
     performed_at: "2026-04-02T10:00:00.000Z",
     event_name: "skilling.grant_recommended",
   });
+  // Photos each officer captured with a submission, as the mobile app uploads them.
+  for (const { submission, eventId } of fieldPhotos)
+    (fieldPhotoLabels[submission.type] ?? ["photo"])
+      .slice(0, submission.nPhotos)
+      .forEach((label, index) =>
+        add("document", {
+          owner_type: "participant_stage_event",
+          owner_id: eventId,
+          document_type: label.replaceAll(" ", "_"),
+          file_url: `mock://documents/field/${submission.id}/${index + 1}.jpg`,
+        })
+      );
+  // Case files: an intake form for every case, plus the forms each case has on file.
+  (
+    [
+      [1, "case_intake_form"],
+      [1, "p3_form"],
+      [2, "case_intake_form"],
+      [3, "case_intake_form"],
+      [4, "case_intake_form"],
+      [4, "judgment"],
+    ] as const
+  ).forEach(([owner_id, document_type], index) =>
+    add("document", {
+      owner_type: "legal_case",
+      owner_id,
+      document_type,
+      file_url: `mock://documents/legal_case/${owner_id}/${index + 1}.pdf`,
+    })
+  );
   return store;
 }

@@ -1,7 +1,8 @@
 "use client";
-import { BadgeCheck, Check, CloudCheck, Flag, Smartphone } from "lucide-react";
+import Link from "next/link";
+import { BadgeCheck, Check, CloudCheck, ExternalLink, Flag, Smartphone } from "lucide-react";
 import { ActionDialog } from "@/components/ui/action-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pillarLook } from "@/components/portal/pillars";
 import { formatDate, titleCase } from "@/lib/format";
@@ -17,6 +18,7 @@ export function ReviewDialog({
   busy,
   onClose,
   onDecide,
+  onViewPhoto,
 }: {
   submission: SubmissionRow | null;
   /** False shows the submission without the approve and flag decisions. */
@@ -24,6 +26,8 @@ export function ReviewDialog({
   busy: boolean;
   onClose: () => void;
   onDecide: (decision: Decision) => void;
+  /** Opens one of the submission's photos in the document viewer. */
+  onViewPhoto?: (photoId: number) => void;
 }) {
   const look = pillarLook(submission?.pillarId);
   return (
@@ -32,11 +36,8 @@ export function ReviewDialog({
       busy={busy}
       onClose={onClose}
       title={submission?.title}
-      description={
-        submission &&
-        `${look?.name ?? submission.pillar} · ${submission.type} · Captured via ${submission.source}`
-      }
-      className="sm:max-w-[640px]"
+      description={submission && `${look?.name ?? submission.pillar} · ${submission.type}`}
+      className="sm:max-w-[880px]"
     >
       {submission && (
         <>
@@ -57,14 +58,35 @@ export function ReviewDialog({
               Flag: {submission.flag}
             </p>
           )}
-          <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-3">
+          {submission.photos && submission.photos.length > 0 && (
+            <ul
+              aria-label="Photos"
+              className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(130px,1fr))]"
+            >
+              {submission.photos.map((photo) => (
+                <li key={photo.id}>
+                  <button
+                    type="button"
+                    onClick={() => onViewPhoto?.(photo.id)}
+                    aria-label={`Open photo: ${photo.name}`}
+                    className="flex aspect-[4/3] w-full items-end rounded-[10px] border border-creaw-line bg-[repeating-linear-gradient(135deg,#EFE7DE_0_8px,#F7F2EC_8px_16px)] p-1.5 hover:border-[#E2C7B6] focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <span className="rounded bg-white/90 px-1.5 py-0.5 text-left font-mono text-[10.5px] text-creaw-body">
+                      {photo.name}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <dl className="grid gap-x-4 gap-y-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
             {(
               [
                 ["Pillar", look?.fullName ?? submission.pillar],
-                ["Form", submission.type],
                 ["Captured", formatDate(submission.captured)],
-                ["Programme", submission.category ?? "—"],
                 ["Location", submission.place ?? "Not recorded"],
+                ["Linked record", submission.category ?? "—"],
+                ["Form", submission.type],
                 ["Channel", titleCase(submission.source)],
               ] as const
             ).map(([label, value]) => (
@@ -83,6 +105,15 @@ export function ReviewDialog({
       )}
       {submission?.status === "Approved" || !reviewable ? (
         <div>
+          {look && (
+            <Link
+              href={`/pillars/${look.slug}`}
+              className={`${buttonVariants({ variant: "outline" })} mr-auto`}
+            >
+              <ExternalLink />
+              Open linked record
+            </Link>
+          )}
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>

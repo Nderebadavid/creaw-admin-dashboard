@@ -38,6 +38,8 @@ export function PillarContent({
   rowActions,
   submissions = [],
   register,
+  kpis,
+  headingActions,
 }: {
   /** Page heading; the create action renders beside it. */
   heading?: PageHeadingText;
@@ -51,6 +53,10 @@ export function PillarContent({
   submissions?: readonly SubmissionRow[];
   /** A dedicated register shown in place of the generic domain table, e.g. WRO organisations. */
   register?: React.ReactNode;
+  /** The pillar's own headline cards, in place of the generic record counts. */
+  kpis?: React.ReactNode;
+  /** The heading's buttons, in place of the create actions. */
+  headingActions?: React.ReactNode;
 }) {
   const reached = pillar.records.length;
   const look = pillarLookBySlug(pillar.code);
@@ -58,7 +64,7 @@ export function PillarContent({
   const percent = pillar.target > 0 ? Math.round((reached / pillar.target) * 100) : 0;
   const active = pillar.records.filter((row) => row.status === "ACTIVE").length;
   // The register's own create action leads; enrolling a participant sits beside it.
-  const headingActions = (
+  const defaultActions = (
     <>
       {canCreate && actions}
       {domainActions}
@@ -66,7 +72,7 @@ export function PillarContent({
   );
   return (
     <div className="flex flex-col gap-[22px]">
-      {heading && <PageHeading {...heading} actions={headingActions} />}
+      {heading && <PageHeading {...heading} actions={headingActions ?? defaultActions} />}
       <div className="flex flex-wrap items-center gap-2" aria-label="Pillar navigation">
         {(
           availableCodes ?? (["vawg", "wee", "srhr", "leadership", "wros", "skilling"] as const)
@@ -115,8 +121,17 @@ export function PillarContent({
         <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-0.5">
           <h2 className="font-heading text-[26px] font-bold leading-tight">{pillar.fullName}</h2>
           <p className="text-sm text-creaw-faint">
-            {pillar.leadUserId ? "Pillar lead assigned" : "Pillar lead not assigned"} ·{" "}
-            {pillar.hasPipeline ? `${pillar.stages.length} pipeline stages` : "Pipeline pending"}
+            {pillar.leadName
+              ? `Pillar lead: ${pillar.leadName}`
+              : pillar.leadUserId
+                ? "Pillar lead assigned"
+                : "Pillar lead not assigned"}{" "}
+            ·{" "}
+            {pillar.counties?.length
+              ? pillar.counties.join(", ")
+              : pillar.hasPipeline
+                ? `${pillar.stages.length} pipeline stages`
+                : "Pipeline pending"}
           </p>
         </div>
         <div className="flex flex-[1_1_280px] flex-col gap-2">
@@ -136,52 +151,54 @@ export function PillarContent({
           </div>
         </div>
       </section>
-      <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          inline
-          label={pillar.code === "wros" ? "Partner organisations" : "Programme records"}
-          value={reached.toLocaleString()}
-          icon={<Users />}
-          tint={pillar.tint}
-          ink={pillar.color}
-          detail={<StatusBadge tone="neutral">in this pillar</StatusBadge>}
-        />
-        <MetricCard
-          inline
-          label="Active records"
-          value={active.toLocaleString()}
-          icon={<CircleCheck />}
-          tint={pillar.tint}
-          ink={pillar.color}
-          detail={
-            <StatusBadge tone={active === reached ? "success" : "neutral"}>
-              of {reached.toLocaleString()}
-            </StatusBadge>
-          }
-        />
-        <MetricCard
-          inline
-          label="Annual target"
-          value={pillar.target > 0 ? pillar.target.toLocaleString() : "—"}
-          icon={<Target />}
-          tint={pillar.tint}
-          ink={pillar.color}
-          detail={
-            <StatusBadge tone={pillar.target > 0 ? "info" : "neutral"}>
-              {pillar.target > 0 ? `${percent}% reached` : "No target set"}
-            </StatusBadge>
-          }
-        />
-        <MetricCard
-          inline
-          label="Pipeline stages"
-          value={pillar.stages.length}
-          icon={<Workflow />}
-          tint={pillar.tint}
-          ink={pillar.color}
-          detail={<StatusBadge tone="neutral">configured</StatusBadge>}
-        />
-      </div>
+      {kpis ?? (
+        <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            inline
+            label={pillar.code === "wros" ? "Partner organisations" : "Programme records"}
+            value={reached.toLocaleString()}
+            icon={<Users />}
+            tint={pillar.tint}
+            ink={pillar.color}
+            detail={<StatusBadge tone="neutral">in this pillar</StatusBadge>}
+          />
+          <MetricCard
+            inline
+            label="Active records"
+            value={active.toLocaleString()}
+            icon={<CircleCheck />}
+            tint={pillar.tint}
+            ink={pillar.color}
+            detail={
+              <StatusBadge tone={active === reached ? "success" : "neutral"}>
+                of {reached.toLocaleString()}
+              </StatusBadge>
+            }
+          />
+          <MetricCard
+            inline
+            label="Annual target"
+            value={pillar.target > 0 ? pillar.target.toLocaleString() : "—"}
+            icon={<Target />}
+            tint={pillar.tint}
+            ink={pillar.color}
+            detail={
+              <StatusBadge tone={pillar.target > 0 ? "info" : "neutral"}>
+                {pillar.target > 0 ? `${percent}% reached` : "No target set"}
+              </StatusBadge>
+            }
+          />
+          <MetricCard
+            inline
+            label="Pipeline stages"
+            value={pillar.stages.length}
+            icon={<Workflow />}
+            tint={pillar.tint}
+            ink={pillar.color}
+            detail={<StatusBadge tone="neutral">configured</StatusBadge>}
+          />
+        </div>
+      )}
       <div className="grid gap-5 xl:grid-cols-2">
         <PipelineFunnel pillar={pillar} />
         <section className="flex flex-col gap-1.5 rounded-2xl border border-creaw-line bg-white p-6">

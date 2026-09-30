@@ -90,6 +90,7 @@ export const relatedTables: Record<string, TableName[]> = {
     "document",
   ],
   reports: ["grant_report", "project", "document"],
+  "field-submissions": ["document"],
   "admin/users": ["user_role"],
   "admin/permissions": ["role_permission"],
   "admin/pipelines": ["stage_definition"],
@@ -105,6 +106,7 @@ export const relatedTables: Record<string, TableName[]> = {
     "participant_stage_event",
     "pipeline_definition",
     "stage_definition",
+    "document",
   ],
 };
 export const permissionCodes: Partial<Record<TableName, [string, string]>> = {

@@ -11,6 +11,7 @@ import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
 import type { PaginatedData } from "@/types/api";
+import type { z } from "zod";
 import { dashboardDtoSchema } from "@/features/dashboard/schemas";
 import {
   enrollmentDetailSchema,
@@ -18,6 +19,9 @@ import {
   participantPlaceSchema,
   placeLookupSchema,
   stageLookupSchema,
+  submissionDocumentDetailSchema,
+  submissionDocumentListSchema,
+  type submissionDocumentSchema,
   submissionDetailSchema,
   submissionListSchema,
   submissionMutationSchema,
@@ -40,6 +44,8 @@ export interface SubmissionRow {
   place?: string | null;
   /** The programme category of the enrollment the update belongs to. */
   category?: string;
+  /** Photos captured with the submission, e.g. "group photo". */
+  photos?: { id: number; name: string }[];
 }
 export interface SubmissionQuery {
   page?: number;
@@ -103,9 +109,15 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
     ]);
     const enrollments = new Map(enrollmentResponse.map((row) => [row.id, row]));
     const pillars = new Map(dashboardResponse?.data?.pillars.map((row) => [row.id, row.name]));
-    const [stages, places] = await Promise.all([
+    const [stages, places, documents] = await Promise.all([
       stageNames(dashboardResponse?.data?.pillars ?? []),
       participantPlaces(),
+      pages<z.infer<typeof submissionDocumentSchema>>(
+        "/field-submissions",
+        "/field-submissions",
+        { table: "document" },
+        submissionDocumentListSchema
+      ),
     ]);
     return rows.map((row) => {
       const enrollment = enrollments.get(row.enrollment_id);
@@ -124,13 +136,16 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
         status: statusOf(row.stage_event_status),
         flag: row.stage_event_status === "disputed" ? "Requires follow-up" : null,
         place: enrollment?.participant_id ? (places.get(enrollment.participant_id) ?? null) : null,
+        photos: documents
+          .filter((doc) => doc.owner_type === "participant_stage_event" && doc.owner_id === row.id)
+          .map((doc) => ({ id: doc.id, name: doc.document_type.replaceAll("_", " ") })),
       };
     });
   }
   /** Every page of a list, or none when the user may not read it. */
   const pages = <T>(
     path: string,
-    routeTemplate: "/pillars/:pillar" | "/participants" | "/lookups/:table",
+    routeTemplate: "/pillars/:pillar" | "/participants" | "/lookups/:table" | "/field-submissions",
     query: Record<string, string>,
     schema: Parameters<ApiClient["request"]>[1]
   ) =>
@@ -247,6 +262,19 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
       );
       if (!response.success || !response.data) return null;
       return (await enrich([response.data], true))[0];
+    },
+    /** Opens a submission's photo; the API writes the access to the audit log. */
+    viewDocument(documentId: number) {
+      return client.request(
+        {
+          method: "GET",
+          path: `/field-submissions/${documentId}`,
+          routeTemplate: "/field-submissions/:id",
+          token,
+          query: { table: "document", download: true },
+        },
+        submissionDocumentDetailSchema
+      );
     },
     async review(id: number, decision: "approve" | "flag") {
       return client.request(
