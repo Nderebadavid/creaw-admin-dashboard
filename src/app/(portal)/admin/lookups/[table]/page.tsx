@@ -44,11 +44,13 @@ export default async function LookupPage({
   const needsCounties = ["county", "sub_county", "ward", "partner_institution"].includes(table),
     needsSubCounties = table === "ward",
     needsPillars = ["pillar", "case_type", "activity_type_definition"].includes(table);
-  const [rows, countyRows, subCountyRows, pillarRows] = await Promise.all([
+  const needsActivityTypes = table === "activity_topic";
+  const [rows, countyRows, subCountyRows, pillarRows, activityTypeRows] = await Promise.all([
     allRows(api, table),
     needsCounties ? allRows(api, "county") : [],
     needsSubCounties ? allRows(api, "sub_county") : [],
     needsPillars ? allRows(api, "pillar") : [],
+    needsActivityTypes ? allRows(api, "activity_type_definition") : [],
   ]);
   const counties = countyRows
     .filter((row) => !row.is_deleted)
@@ -57,6 +59,9 @@ export default async function LookupPage({
     .filter((row) => !row.is_deleted)
     .map((row) => ({ id: row.id, name: row.name, countyId: row.county_id ?? null }));
   const pillars = pillarRows
+    .filter((row) => !row.is_deleted)
+    .map((row) => ({ id: row.id, name: row.name }));
+  const activityTypes = activityTypeRows
     .filter((row) => !row.is_deleted)
     .map((row) => ({ id: row.id, name: row.name }));
   const county = countyId ? countyRows.find((row) => row.id === countyId && !row.is_deleted) : null;
@@ -96,6 +101,7 @@ export default async function LookupPage({
         counties={counties}
         subCounties={subCounties}
         pillars={pillars}
+        activityTypes={activityTypes}
         canViewAudit={hasPermission(session.grants, "AUDIT_LOG_VIEW")}
         canExport={hasPermission(session.grants, "REPORT_EXPORT_CSV")}
       />

@@ -26,6 +26,7 @@ export function LookupTableView({
   counties,
   subCounties,
   pillars,
+  activityTypes = [],
   canViewAudit,
   onEdit,
   onToggle,
@@ -42,6 +43,7 @@ export function LookupTableView({
   counties: Option[];
   subCounties: Option[];
   pillars: Option[];
+  activityTypes?: Option[];
   canViewAudit: boolean;
   onEdit: (row: LookupView) => void;
   onToggle: (row: LookupView) => void;
@@ -49,7 +51,7 @@ export function LookupTableView({
   const { columns } = lookupConfig[table];
   const drillable = isGeoTable(table) && table !== "ward";
   const label = (row: LookupView, key: string) =>
-    labelFor(row, key, counties, subCounties, pillars);
+    labelFor(row, key, counties, subCounties, pillars, activityTypes);
 
   return (
     <div className="overflow-x-auto">

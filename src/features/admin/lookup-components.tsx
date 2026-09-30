@@ -37,6 +37,7 @@ export function LookupContent({
   counties,
   subCounties,
   pillars,
+  activityTypes = [],
   canViewAudit = false,
   canExport = false,
 }: {
@@ -47,6 +48,7 @@ export function LookupContent({
   counties: Option[];
   subCounties: Option[];
   pillars: Option[];
+  activityTypes?: Option[];
   canViewAudit?: boolean;
   canExport?: boolean;
 }) {
@@ -69,21 +71,21 @@ export function LookupContent({
         (row) =>
           (!query ||
             config.columns.some((column) =>
-              labelFor(row, column.key, counties, subCounties, pillars)
+              labelFor(row, column.key, counties, subCounties, pillars, activityTypes)
                 .toLowerCase()
                 .includes(query.toLowerCase())
             )) &&
           (status === "all" ||
             (status === "active") === (!row.is_deleted && row.status === "ACTIVE"))
       ),
-    [rows, query, status, config.columns, counties, subCounties, pillars]
+    [rows, query, status, config.columns, counties, subCounties, pillars, activityTypes]
   );
   // Every column sorts by the label it shows; "active" is the switch column.
   const sortColumns = [
     ...config.columns.map((column) => ({
       id: column.key,
       sortValue: (row: LookupView) => {
-        const label = labelFor(row, column.key, counties, subCounties, pillars);
+        const label = labelFor(row, column.key, counties, subCounties, pillars, activityTypes);
         return label === "—" ? null : label;
       },
     })),
@@ -207,6 +209,7 @@ export function LookupContent({
           counties={counties}
           subCounties={subCounties}
           pillars={pillars}
+          activityTypes={activityTypes}
           canViewAudit={canViewAudit}
           onEdit={(row) => open({ kind: "edit", row })}
           onToggle={(row) => open({ kind: "toggle", row })}
@@ -228,6 +231,7 @@ export function LookupContent({
         parentName={parent?.name}
         counties={counties}
         pillars={pillars}
+        activityTypes={activityTypes}
         busy={busy}
         error={error}
         onClose={() => setModal(null)}

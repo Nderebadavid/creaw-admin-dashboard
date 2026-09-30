@@ -59,6 +59,12 @@ const shapes = {
     pillar_id: id,
     description: z.string().trim().max(1000).nullable().optional(),
   }),
+  activity_topic: z.strictObject({
+    activity_type_id: id,
+    name,
+    sequence_no: z.number().int().min(1).max(999),
+    description: z.string().trim().max(1000).nullable().optional(),
+  }),
 } as const;
 function api() {
   return withSessionApi(createAdminApi);

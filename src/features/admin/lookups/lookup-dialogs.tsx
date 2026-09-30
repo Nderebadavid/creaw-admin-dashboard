@@ -15,6 +15,7 @@ export function LookupEntryDialog({
   parentName,
   counties,
   pillars,
+  activityTypes = [],
   busy,
   error,
   onClose,
@@ -27,6 +28,7 @@ export function LookupEntryDialog({
   parentName: string | undefined;
   counties: Option[];
   pillars: Option[];
+  activityTypes?: Option[];
   busy: boolean;
   error: string;
   onClose: () => void;
@@ -56,7 +58,13 @@ export function LookupEntryDialog({
             field={field}
             value={entry?.[field.key as keyof LookupView]}
             options={
-              field.source === "county" ? counties : field.source === "pillar" ? pillars : []
+              field.source === "county"
+                ? counties
+                : field.source === "pillar"
+                  ? pillars
+                  : field.source === "activity_type"
+                    ? activityTypes
+                    : []
             }
             // A pillar's code is referenced elsewhere, so it cannot change after creation.
             readOnly={Boolean(entry) && table === "pillar" && field.key === "code"}
@@ -131,10 +139,12 @@ function FieldInput({
         <input
           className={fieldClass}
           name={field.key}
+          type={field.kind === "number" ? "number" : undefined}
+          min={field.kind === "number" ? 1 : undefined}
           required={field.required}
           readOnly={readOnly}
           maxLength={field.key === "code" ? 20 : field.key === "institution_type" ? 30 : 160}
-          defaultValue={typeof value === "string" ? value : ""}
+          defaultValue={typeof value === "string" || typeof value === "number" ? value : ""}
         />
       )}
     </label>
