@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { AlertBanner } from "@/components/ui/alert-banner";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
@@ -62,28 +61,24 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
         .catch(() => [])
     : [];
   return (
-    <>
-      <PageHeading
-        title={pillar.fullName}
-        section="Pillars"
-        description={`${pillar.name} pillar · programme overview`}
-      />
-      <PillarContent
-        pillar={pillar}
-        canCreate={canCreate}
-        canViewSubmissions={hasModulePermission(session.grants, "FIELD_SUBMISSION_VIEW")}
-        actions={<PillarCreateButton code={pillar.code} name={pillar.name} />}
-        domainActions={
-          canCreateDomain ? <PillarDomainCreateButton code={pillar.code} /> : undefined
-        }
-        rowActions={
-          canEdit
-            ? (row) => <PillarEditButton code={pillar.code} id={row.id} category={row.category} />
-            : undefined
-        }
-        availableCodes={availableCodes}
-        submissions={submissions}
-      />
-    </>
+    <PillarContent
+      heading={{
+        title: pillar.fullName,
+        section: "Pillars",
+        description: `${pillar.name} pillar · programme overview`,
+      }}
+      pillar={pillar}
+      canCreate={canCreate}
+      canViewSubmissions={hasModulePermission(session.grants, "FIELD_SUBMISSION_VIEW")}
+      actions={<PillarCreateButton code={pillar.code} name={pillar.name} />}
+      domainActions={canCreateDomain ? <PillarDomainCreateButton code={pillar.code} /> : undefined}
+      rowActions={
+        canEdit
+          ? (row) => <PillarEditButton code={pillar.code} id={row.id} category={row.category} />
+          : undefined
+      }
+      availableCodes={availableCodes}
+      submissions={submissions}
+    />
   );
 }

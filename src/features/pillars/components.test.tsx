@@ -134,4 +134,40 @@ describe("pillar screen", () => {
     expect(html).toContain("Search legal case register");
     expect(html).toContain("Open legal case");
   });
+
+  it("shows the pipeline as a progression funnel and puts create beside the heading", () => {
+    const pillar: PillarView = {
+      id: 2,
+      code: "wee",
+      name: "WEE",
+      fullName: "Women's Economic Empowerment",
+      leadUserId: 3,
+      color: "#D9772B",
+      tint: "#FDF1DE",
+      target: 300,
+      records: [],
+      stages: [],
+      hasPipeline: true,
+      stageCounts: [
+        { name: "Intake", count: 40 },
+        { name: "Training", count: 30 },
+        { name: "Graduation", count: 10 },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <PillarContent
+        heading={{ title: pillar.fullName, section: "Pillars", description: "WEE pillar" }}
+        pillar={pillar}
+        canCreate
+        actions={<button type="button">New application</button>}
+      />
+    );
+    expect(html).toContain("WEE pipeline");
+    expect(html).toContain("Participant progression this year");
+    expect(html).toContain("Training");
+    expect(html).toContain("75%");
+    const heading = html.slice(html.indexOf("data-page-heading"), html.indexOf("</h1>") + 200);
+    expect(heading).toContain("Women&#x27;s Economic Empowerment");
+    expect(html.indexOf("New application")).toBeLessThan(html.indexOf("WEE pipeline"));
+  });
 });
