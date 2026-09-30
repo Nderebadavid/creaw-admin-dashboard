@@ -41,7 +41,9 @@ export function VawgSummaryCards({
         tint={tint}
         ink={color}
         detail={
-          <StatusBadge tone="success">{summary.sessionsThisQuarter} this quarter</StatusBadge>
+          <StatusBadge tone="success">
+            {summary.sessionsThisQuarter.toLocaleString()} this quarter
+          </StatusBadge>
         }
       />
       <MetricCard

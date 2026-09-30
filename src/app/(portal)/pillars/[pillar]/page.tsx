@@ -45,6 +45,16 @@ async function loadSubmissions(grants: readonly EffectiveGrant[], pillarId: numb
   return all.filter((row) => row.pillarId === pillarId);
 }
 
+/** The VAWG case workspace, or none for other pillars and users without case access there. */
+function loadVawgWorkspace(grants: readonly EffectiveGrant[], code: PillarCode) {
+  const pillarId = ids.vawg;
+  const allowed =
+    code === "vawg" &&
+    hasPermission(grants, "CASE_VIEW", { pillarId }) &&
+    hasPermission(grants, "PARTICIPANT_VIEW", { pillarId });
+  return allowed ? vawgApi.workspace() : undefined;
+}
+
 /** The WRO partner register with the options its dialogs need, trimmed to the user's grants. */
 async function loadWroRegister(grants: readonly EffectiveGrant[], pillarId: number) {
   const can = (code: string) => hasPermission(grants, code, { pillarId });
@@ -83,7 +93,7 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
   const [pillar, submissions, workspace] = await Promise.all([
     loadPillar(code.data),
     loadSubmissions(session.grants, ids[code.data]),
-    code.data === "vawg" ? vawgApi.workspace() : undefined,
+    loadVawgWorkspace(session.grants, code.data),
   ]);
   if (!pillar)
     return <AlertBanner tone="warning">You do not have access to this pillar.</AlertBanner>;

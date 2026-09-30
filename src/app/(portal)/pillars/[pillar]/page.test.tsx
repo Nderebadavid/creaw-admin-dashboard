@@ -42,4 +42,11 @@ describe("pillar route", () => {
     expect(html).toContain("Programme records");
     expect(html).not.toContain("Open legal case");
   });
+
+  it("shows the no-access state to a user outside the VAWG pillar", async () => {
+    cookieStore.get.mockReturnValue({ value: issueMockToken(3) });
+    const html = await render("vawg");
+    expect(html).toContain("You do not have access to this pillar.");
+    expect(html).not.toContain("Open legal case");
+  });
 });
