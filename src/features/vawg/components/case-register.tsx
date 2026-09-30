@@ -15,7 +15,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
 import { viewCaseFileAction } from "../actions";
 import type { LegalCaseView, VawgWorkspace } from "../model";
-import { AttachCaseFileDialog, CourtStatusDialog } from "./case-dialogs";
+import { AttachCaseFileDialog, CourtStatusDialog, EditCaseDialog } from "./case-dialogs";
 import { CaseDrawer } from "./case-drawer";
 import { courtStatusLabel, courtStatusTone } from "./status";
 
@@ -47,34 +47,25 @@ const columns: DataColumn<LegalCaseView>[] = [
     cell: (row) => <span className={text}>{row.caseType}</span>,
   },
   {
-    id: "route",
-    header: "Route",
-    sortValue: (row) => row.route,
-    cell: (row) => <span className={text}>{row.route}</span>,
+    id: "court",
+    header: "Court",
+    sortValue: (row) => row.court ?? "",
+    cell: (row) => <span className={text}>{row.court ?? "—"}</span>,
   },
   {
-    id: "counselling",
-    header: "Counselling",
-    sortValue: (row) => row.counselling.length,
-    cell: (row) => (
-      <span className={text}>
-        {row.counselling.length} session{row.counselling.length === 1 ? "" : "s"}
-      </span>
-    ),
+    id: "officer",
+    header: "Officer",
+    sortValue: (row) => row.assignedOfficer ?? "",
+    cell: (row) => <span className={text}>{row.assignedOfficer ?? "Not assigned"}</span>,
   },
   {
-    id: "opened",
-    header: "Opened",
-    sortValue: (row) => dateSortValue(row.opened),
-    cell: (row) => <span className={`whitespace-nowrap ${text}`}>{formatDate(row.opened)}</span>,
-  },
-  {
-    id: "ruling",
-    header: "Ruling date",
-    sortValue: (row) => (row.ruling ? dateSortValue(row.ruling) : Number.MAX_SAFE_INTEGER),
+    id: "nextDate",
+    header: "Next date",
+    sortValue: (row) =>
+      row.nextCourtDate ? dateSortValue(row.nextCourtDate) : Number.MAX_SAFE_INTEGER,
     cell: (row) => (
       <span className={`whitespace-nowrap ${text}`}>
-        {row.ruling ? formatDate(row.ruling) : "Not scheduled"}
+        {row.nextCourtDate ? formatDate(row.nextCourtDate) : "Pending"}
       </span>
     ),
   },
@@ -108,9 +99,9 @@ export function CaseRegister({
   const [status, setStatus] = useState("All");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [modal, setModal] = useState<{ kind: "status" } | { kind: "attach"; type?: string } | null>(
-    null
-  );
+  const [modal, setModal] = useState<
+    { kind: "status" } | { kind: "edit" } | { kind: "attach"; type?: string } | null
+  >(null);
   const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
@@ -126,7 +117,16 @@ export function CaseRegister({
         (row) =>
           (status === "All" || courtStatusLabel(row.courtStatus) === status) &&
           (!needle ||
-            `${row.number} ${row.survivor} ${row.caseType} ${row.route}`
+            [
+              row.number,
+              row.survivor,
+              row.caseType,
+              row.court,
+              row.assignedOfficer,
+              row.nextCourtDate ? formatDate(row.nextCourtDate) : "Pending",
+              courtStatusLabel(row.courtStatus),
+            ]
+              .join(" ")
               .toLocaleLowerCase()
               .includes(needle))
       ),
@@ -194,9 +194,17 @@ export function CaseRegister({
         legalCase={modal === null ? selected : null}
         can={can}
         onClose={() => setSelectedId(null)}
+        onEdit={() => setModal({ kind: "edit" })}
         onStatus={() => setModal({ kind: "status" })}
         onAttach={(type) => setModal({ kind: "attach", type })}
         onView={(documentId) => void view(documentId)}
+      />
+      <EditCaseDialog
+        key={modal?.kind === "edit" ? `edit-${selectedId}` : "edit-closed"}
+        legalCase={modal?.kind === "edit" ? selected : null}
+        caseTypes={workspace.caseTypes}
+        onClose={() => setModal(null)}
+        onDone={done}
       />
       <CourtStatusDialog
         legalCase={modal?.kind === "status" ? selected : null}

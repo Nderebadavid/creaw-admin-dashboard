@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Gavel,
   Paperclip,
+  Pencil,
   Scale,
   Stethoscope,
 } from "lucide-react";
@@ -17,8 +18,8 @@ import { RecordDrawer } from "@/components/ui/record-drawer";
 import { DocumentRow, FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pillarLook } from "@/components/portal/pillars";
-import { formatDate, titleCase } from "@/lib/format";
-import { revealSurvivorNameAction } from "../actions";
+import { formatDate } from "@/lib/format";
+import { revealCaseObNumberAction, revealSurvivorNameAction } from "../actions";
 import { VAWG_PILLAR_ID, type LegalCaseView } from "../model";
 import { courtStatusLabel, courtStatusTone } from "./status";
 
@@ -30,6 +31,7 @@ export function CaseDrawer({
   legalCase,
   can,
   onClose,
+  onEdit,
   onStatus,
   onAttach,
   onView,
@@ -37,6 +39,7 @@ export function CaseDrawer({
   legalCase: LegalCaseView | null;
   can: { edit: boolean; attach: boolean; download: boolean; reveal: boolean };
   onClose: () => void;
+  onEdit: () => void;
   onStatus: () => void;
   /** Opens the attach dialog, preset to a missing form when given. */
   onAttach: (documentType?: string) => void;
@@ -61,18 +64,25 @@ export function CaseDrawer({
       />,
     ],
     ["Case type", legalCase.caseType],
-    ["Default route", legalCase.route],
-    ["Court status", courtStatusLabel(legalCase.courtStatus)],
+    ["Court", legalCase.court ?? "—"],
+    ["Court file number", legalCase.courtFileNumber ?? "—"],
     [
-      "Mediation",
-      legalCase.mediationAttempted
-        ? `Attempted${legalCase.mediationOutcome ? ` · ${titleCase(legalCase.mediationOutcome)}` : ""}`
-        : "Not attempted",
+      "OB number",
+      <MaskedField
+        key="ob"
+        label="OB number"
+        maskedValue={legalCase.obNumber ?? "—"}
+        revealAction={
+          can.reveal && legalCase.obNumber
+            ? () => revealCaseObNumberAction(legalCase.id)
+            : undefined
+        }
+      />,
     ],
-    ["Opened", formatDate(legalCase.opened)],
-    ["Ruling date", legalCase.ruling ? formatDate(legalCase.ruling) : "Not scheduled"],
-    ["Closed", legalCase.closed ? formatDate(legalCase.closed) : "Open"],
-    ["Counselling sessions", String(legalCase.counselling.length)],
+    ["Assigned officer", legalCase.assignedOfficer ?? "Not assigned"],
+    ["Counsellor", legalCase.counsellor ?? "Not assigned"],
+    ["Next court date", legalCase.nextCourtDate ? formatDate(legalCase.nextCourtDate) : "Pending"],
+    ["Court status", courtStatusLabel(legalCase.courtStatus)],
   ];
   const timeline = [
     ...(legalCase.closed
@@ -111,7 +121,7 @@ export function CaseDrawer({
       initials="VC"
       kind="Legal case · VAWG"
       title={`${legalCase.number} · ${legalCase.survivor}`}
-      subtitle={`${legalCase.caseType} · ${legalCase.route}`}
+      subtitle={`${legalCase.caseType} · ${legalCase.court ?? "Court not assigned"}`}
       accent={look?.color}
       tint={look?.tint}
       status={
@@ -121,6 +131,10 @@ export function CaseDrawer({
       }
       actions={
         <>
+          <Button variant="outline" size="sm" disabled={!can.edit} onClick={onEdit}>
+            <Pencil />
+            Edit
+          </Button>
           <Button variant="outline" size="sm" disabled={!can.edit} onClick={onStatus}>
             <ArrowUpDown />
             Status
