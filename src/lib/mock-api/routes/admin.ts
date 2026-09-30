@@ -1,7 +1,7 @@
-import { hasPermission } from "../../auth/permissions";
+import { hasPermission, hasModulePermission } from "../../auth/permissions";
 import { auditWrite } from "../audit";
 import { type MockContext } from "../context";
-import { envelope, masked, type Row } from "../core";
+import { envelope, masked, type Row, isStrictGet } from "../core";
 import { makeRow } from "../rows";
 import { type ApiEnvelope } from "@/types/api";
 
@@ -9,8 +9,7 @@ import { type ApiEnvelope } from "@/types/api";
 export function handleAdminCommands(ctx: MockContext): ApiEnvelope<unknown> | undefined {
   const { request, store, url, query, parts, userId, grants } = ctx;
   if (url.pathname === "/admin/users" && query.get("catalog") === "pillars") {
-    if (request.method !== "GET" || [...query.keys()].some((key) => key !== "catalog"))
-      return envelope(422);
+    if (!isStrictGet(request, query, ["catalog"])) return envelope(422);
     if (!hasPermission(grants, "ROLE_MANAGE")) return envelope(403);
     return envelope(
       200,
@@ -20,10 +19,8 @@ export function handleAdminCommands(ctx: MockContext): ApiEnvelope<unknown> | un
     );
   }
   if (url.pathname === "/admin/pipelines" && query.get("catalog") === "pillars") {
-    if (request.method !== "GET" || [...query.keys()].some((key) => key !== "catalog"))
-      return envelope(422);
-    if (!grants.some((grant) => grant.permissionCode === "PILLAR_CONFIG_MANAGE"))
-      return envelope(403);
+    if (!isStrictGet(request, query, ["catalog"])) return envelope(422);
+    if (!hasModulePermission(grants, "PILLAR_CONFIG_MANAGE")) return envelope(403);
     return envelope(
       200,
       store.pillar

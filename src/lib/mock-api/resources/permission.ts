@@ -1,6 +1,6 @@
-import { hasPermission } from "../../auth/permissions";
+import { hasPermission, hasModulePermission } from "../../auth/permissions";
 import { type MockContext, type ResourceTarget } from "../context";
-import { envelope, permissionCodes, type Row } from "../core";
+import { envelope, permissionCodes, type Row, readableAsReference } from "../core";
 import { signoffActors } from "../reporting";
 import { type ApiEnvelope } from "@/types/api";
 
@@ -80,8 +80,7 @@ export function resolvePermission(
     !["ACTIVE", "PREPARED"].includes(String(request.body.status))
   )
     return envelope(422, null, "New applications can only begin active or prepared");
-  if (table === "grant_award" && request.method === "POST")
-    permission = "GRANT_APPLICATION_APPROVE";
+  // Awards only come into being when an application is approved.
   if (table === "grant_award" && request.method === "POST")
     return envelope(422, null, "Awards are created by application approval");
   if (
@@ -135,12 +134,8 @@ export function resolvePermission(
   }
   if (
     !permission ||
-    (!grants.some((grant) => grant.permissionCode === permission) &&
-      !(
-        request.method === "GET" &&
-        ["pillar", "county", "sub_county", "ward"].includes(table) &&
-        grants.some((grant) => ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode))
-      ))
+    (!hasModulePermission(grants, permission) &&
+      !(request.method === "GET" && readableAsReference(grants, table)))
   )
     return envelope(403);
   if (pillar && !hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);

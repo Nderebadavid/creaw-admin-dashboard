@@ -1,6 +1,6 @@
-import { hasPermission } from "../../auth/permissions";
+import { hasPermission, hasModulePermission } from "../../auth/permissions";
 import { type MockContext } from "../context";
-import { envelope } from "../core";
+import { envelope, isStrictGet } from "../core";
 import { calendarRows, filteredCalendarRows } from "../reporting";
 import { makeRow } from "../rows";
 import { type ApiEnvelope } from "@/types/api";
@@ -9,13 +9,10 @@ import { type ApiEnvelope } from "@/types/api";
 export function handleReportViews(ctx: MockContext): ApiEnvelope<unknown> | undefined {
   const { request, store, url, query, userId, grants } = ctx;
   if (url.pathname === "/reports" && query.get("catalog") === "true") {
-    if (request.method !== "GET" || [...query.keys()].some((key) => key !== "catalog"))
-      return envelope(422);
+    if (!isStrictGet(request, query, ["catalog"])) return envelope(422);
     if (
-      !grants.some((grant) =>
-        ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].includes(
-          grant.permissionCode
-        )
+      !["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].some((code) =>
+        hasModulePermission(grants, code)
       )
     )
       return envelope(403);
@@ -82,27 +79,21 @@ export function handleReportViews(ctx: MockContext): ApiEnvelope<unknown> | unde
   }
   if (url.pathname === "/reports" && query.get("calendar") === "true") {
     if (
-      request.method !== "GET" ||
-      [...query.keys()].some(
-        (key) =>
-          ![
-            "calendar",
-            "format",
-            "pillarId",
-            "ownerId",
-            "status",
-            "search",
-            "page",
-            "pageSize",
-          ].includes(key)
-      )
+      !isStrictGet(request, query, [
+        "calendar",
+        "format",
+        "pillarId",
+        "ownerId",
+        "status",
+        "search",
+        "page",
+        "pageSize",
+      ])
     )
       return envelope(422);
     if (
-      !grants.some((grant) =>
-        ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].includes(
-          grant.permissionCode
-        )
+      !["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].some((code) =>
+        hasModulePermission(grants, code)
       )
     )
       return envelope(403);
@@ -129,7 +120,7 @@ export function handleReportViews(ctx: MockContext): ApiEnvelope<unknown> | unde
     }
     if (
       query.get("format") !== "csv" ||
-      !grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") ||
+      !hasModulePermission(grants, "REPORT_EXPORT_CSV") ||
       records.some((row) => !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: row.pillarId }))
     )
       return envelope(403);

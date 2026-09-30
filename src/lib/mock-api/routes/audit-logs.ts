@@ -1,7 +1,7 @@
 import { hasPermission } from "../../auth/permissions";
 import { safeAuditRow } from "../audit";
 import { type MockContext } from "../context";
-import { envelope } from "../core";
+import { envelope, isStrictGet } from "../core";
 import { makeRow } from "../rows";
 import { type ApiEnvelope } from "@/types/api";
 
@@ -11,26 +11,22 @@ export function handleAuditLogs(ctx: MockContext): ApiEnvelope<unknown> | undefi
   if (url.pathname === "/audit-logs") {
     if (!hasPermission(grants, "AUDIT_LOG_VIEW")) return envelope(403);
     if (
-      request.method !== "GET" ||
-      [...query.keys()].some(
-        (key) =>
-          ![
-            "id",
-            "targetId",
-            "page",
-            "pageSize",
-            "search",
-            "source",
-            "module",
-            "action",
-            "performed_by",
-            "from",
-            "to",
-            "format",
-            "sortBy",
-            "sortOrder",
-          ].includes(key)
-      )
+      !isStrictGet(request, query, [
+        "id",
+        "targetId",
+        "page",
+        "pageSize",
+        "search",
+        "source",
+        "module",
+        "action",
+        "performed_by",
+        "from",
+        "to",
+        "format",
+        "sortBy",
+        "sortOrder",
+      ])
     )
       return envelope(422);
     const readInt = (key: string, defaultValue?: number) =>

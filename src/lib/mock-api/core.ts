@@ -1,4 +1,9 @@
-import { getEffectiveGrants, hasPermission, type EffectiveGrant } from "../auth/permissions";
+import {
+  getEffectiveGrants,
+  hasPermission,
+  type EffectiveGrant,
+  hasModulePermission,
+} from "../auth/permissions";
 import { isSensitiveField, maskSensitiveValue } from "../sensitive-fields";
 import { tableDefinitions } from "./schema";
 import { type ApiEnvelope } from "@/types/api";
@@ -206,11 +211,7 @@ export function allowed(
   if (
     code === "DASHBOARD_VIEW" &&
     lookups.includes(table) &&
-    (grants.some((grant) => grant.permissionCode === code) ||
-      (["pillar", "county", "sub_county", "ward"].includes(table) &&
-        grants.some((grant) =>
-          ["PARTICIPANT_VIEW", "REFERRAL_VIEW"].includes(grant.permissionCode)
-        )))
+    (hasModulePermission(grants, code) || readableAsReference(grants, table))
   )
     return true;
   return (
@@ -300,3 +301,18 @@ export function enrollmentRead(store: MockStore, row: Row): Row {
     current_stage_date: latestEvent?.event_date ?? null,
   };
 }
+
+/** A GET whose query uses only the listed keys; anything else is a 422. */
+export const isStrictGet = (
+  request: { method: string },
+  query: URLSearchParams,
+  allowed: readonly string[]
+) => request.method === "GET" && [...query.keys()].every((key) => allowed.includes(key));
+
+/**
+ * Pillar and geography tables back the participant and referral forms, so
+ * anyone who can view participants or referrals may read them.
+ */
+export const readableAsReference = (grants: readonly EffectiveGrant[], table: TableName) =>
+  ["pillar", "county", "sub_county", "ward"].includes(table) &&
+  (hasModulePermission(grants, "PARTICIPANT_VIEW") || hasModulePermission(grants, "REFERRAL_VIEW"));

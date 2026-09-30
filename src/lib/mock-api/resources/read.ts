@@ -1,4 +1,4 @@
-import { hasPermission } from "../../auth/permissions";
+import { hasPermission, hasModulePermission } from "../../auth/permissions";
 import { isSensitiveField } from "../../sensitive-fields";
 import { auditWrite } from "../audit";
 import { type ResourceContext } from "../context";
@@ -54,7 +54,7 @@ export function readResource(ctx: ResourceContext): ApiEnvelope<unknown> {
   }
   if (table === "referral" && id === undefined && query.has("catalog")) {
     if (query.get("catalog") !== "destinations") return envelope(422);
-    if (!grants.some((grant) => grant.permissionCode === "REFERRAL_CREATE")) return envelope(403);
+    if (!hasModulePermission(grants, "REFERRAL_CREATE")) return envelope(403);
     return envelope(200, {
       internalPillarIds: [
         ...new Set(store.project.filter((item) => !item.is_deleted).map((item) => item.pillar_id)),
@@ -211,7 +211,7 @@ export function readResource(ctx: ResourceContext): ApiEnvelope<unknown> {
     if (query.get("format") !== "csv") return envelope(422);
     if (
       (family === "lookups" && !hasPermission(grants, "LOOKUP_MANAGE")) ||
-      !grants.some((grant) => grant.permissionCode === "REPORT_EXPORT_CSV") ||
+      !hasModulePermission(grants, "REPORT_EXPORT_CSV") ||
       (pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id })) ||
       filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))
     )
