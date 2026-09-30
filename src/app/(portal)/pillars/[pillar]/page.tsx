@@ -13,6 +13,10 @@ import { pillarCodeSchema, type PillarCode } from "@/features/pillars/schemas";
 import { submissionsApi } from "@/features/submissions/api";
 import { assessmentsApi } from "@/features/assessments/api";
 import { wrosApi } from "@/features/wros/api";
+import { vawgApi } from "@/features/vawg/api";
+import { CaseRegister } from "@/features/vawg/components/case-register";
+import { VawgHeadingActions } from "@/features/vawg/components/heading-actions";
+import { VawgSummaryCards } from "@/features/vawg/components/summary-cards";
 import { OrganisationRegister } from "@/features/wros/components/organisation-register";
 
 const ids: Record<PillarCode, number> = {
@@ -76,9 +80,10 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
   const code = pillarCodeSchema.safeParse((await params).pillar);
   if (!code.success) notFound();
   // The pillar id is fixed per code, so submissions load alongside the pillar.
-  const [pillar, submissions] = await Promise.all([
+  const [pillar, submissions, workspace] = await Promise.all([
     loadPillar(code.data),
     loadSubmissions(session.grants, ids[code.data]),
+    code.data === "vawg" ? vawgApi.workspace() : undefined,
   ]);
   if (!pillar)
     return <AlertBanner tone="warning">You do not have access to this pillar.</AlertBanner>;
@@ -97,13 +102,41 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
   // WROs carry over the field app's organisation register, profile and pipeline.
   const register =
     pillar.code === "wros" ? await loadWroRegister(session.grants, pillar.id) : undefined;
+  const vawgPermissions = {
+    edit: can("CASE_EDIT"),
+    attach: can("DOCUMENT_UPLOAD"),
+    download: can("DOCUMENT_DOWNLOAD"),
+    reveal: can("SENSITIVE_REVEAL"),
+    export: can("REPORT_EXPORT_CSV"),
+  };
+  const vawg = workspace && pillar.code === "vawg";
   return (
     <PillarContent
-      register={register}
+      register={vawg ? <CaseRegister workspace={workspace} can={vawgPermissions} /> : register}
+      kpis={
+        vawg ? (
+          <VawgSummaryCards summary={workspace.summary} color={pillar.color} tint={pillar.tint} />
+        ) : undefined
+      }
+      headingActions={
+        vawg ? (
+          <VawgHeadingActions
+            workspace={workspace}
+            canExport={vawgPermissions.export}
+            canOpenCase={vawgPermissions.edit}
+          >
+            {canCreate ? (
+              <PillarCreateButton code="vawg" name={pillar.name} variant="outline" />
+            ) : null}
+          </VawgHeadingActions>
+        ) : undefined
+      }
       heading={{
         title: pillar.fullName,
         section: "Pillars",
-        description: `${pillar.name} pillar · programme overview`,
+        description: vawg
+          ? `${pillar.name} pillar · lead ${pillar.leadName ?? "not assigned"}`
+          : `${pillar.name} pillar · programme overview`,
       }}
       pillar={pillar}
       canCreate={canCreate}
