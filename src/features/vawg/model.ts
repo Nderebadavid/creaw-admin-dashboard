@@ -33,6 +33,12 @@ export interface LegalCaseView {
   route: string;
   /** Raw court_status, e.g. "in_hearing"; null before the case reaches court. */
   courtStatus: string | null;
+  court: string | null;
+  assignedOfficer: string | null;
+  nextCourtDate: string | null;
+  courtFileNumber: string | null;
+  obNumber: string | null;
+  counsellor: string | null;
   mediationAttempted: boolean;
   mediationOutcome: string | null;
   opened: string;

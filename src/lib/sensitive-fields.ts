@@ -5,7 +5,7 @@ export const SENSITIVE_FIELDS: Readonly<Record<string, readonly string[]>> = {
   organisation: ["has_bank_account", "financial_mgmt_notes"],
   external_provider: ["phone_number", "email"],
   document: ["file_url"],
-  legal_case: ["outcome_notes"],
+  legal_case: ["outcome_notes", "ob_number"],
   counselling_session: ["notes"],
   training_enrollment: ["monthly_salary"],
   grant_award: ["amount_awarded"],

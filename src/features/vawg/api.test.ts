@@ -11,6 +11,31 @@ const apiFor = (userId: number) =>
   createVawgApi(createApiClient(new MockApiTransport(handleMockRequest)), issueMockToken(userId));
 
 describe("VAWG legal case register", () => {
+  it("maps the court record fields used by the register and drawer", async () => {
+    const { cases } = await apiFor(1).workspace();
+    expect(cases[0]).toMatchObject({
+      court: "Kibera Law Courts",
+      assignedOfficer: "Cynthia Chelimo",
+      nextCourtDate: "2026-10-03",
+      courtFileNumber: "CR 2210/26",
+      obNumber: expect.stringMatching(/•+2026$/),
+      counsellor: "Mary Achola",
+    });
+  });
+
+  it("updates court record fields through the legal-case resource", async () => {
+    const api = apiFor(1);
+    const updated = await api.updateCase(1, { court_name: "Milimani Law Courts" });
+    expect(updated.success).toBe(true);
+    expect(getMockStore().legal_case[0].court_name).toBe("Milimani Law Courts");
+  });
+
+  it("reveals the OB number through the sensitive-field resource", async () => {
+    const revealed = await apiFor(1).revealCaseField(1, "ob_number");
+    expect(revealed.success).toBe(true);
+    expect(revealed.data).toEqual({ value: "OB/44/2026" });
+  });
+
   it("builds cases with survivor, case type, counselling and case files", async () => {
     const { cases, summary, caseTypes, survivors } = await apiFor(1).workspace();
     expect(cases.length).toBe(getMockStore().legal_case.length);

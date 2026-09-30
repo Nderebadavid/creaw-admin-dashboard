@@ -9,6 +9,7 @@ describe("schema sensitivity", () => {
       ["organisation", "has_bank_account"],
       ["document", "file_url"],
       ["legal_case", "outcome_notes"],
+      ["legal_case", "ob_number"],
       ["counselling_session", "notes"],
       ["training_enrollment", "monthly_salary"],
       ["grant_award", "amount_awarded"],
@@ -18,11 +19,13 @@ describe("schema sensitivity", () => {
     expect(isSensitiveField("participant", "gender")).toBe(false);
     expect(isSensitiveField("grant_application", "requested_amount")).toBe(false);
     expect(isSensitiveField("toString", "name")).toBe(false);
+    expect(isSensitiveField("legal_case", "ob_number")).toBe(true);
   });
   it("masks short values completely and preserves only the last four of long values", () => {
     expect(maskSensitiveValue("0712345678")).toBe("••••••5678");
     expect(maskSensitiveValue("123")).toBe("•••");
     expect(maskSensitiveValue(null)).toBe("—");
     expect(maskSensitiveValue(true)).toBe("••••");
+    expect(maskSensitiveValue("OB/44/2026")).toMatch(/•+2026$/);
   });
 });

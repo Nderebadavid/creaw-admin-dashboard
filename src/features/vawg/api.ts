@@ -19,6 +19,12 @@ const caseSchema = z.object({
   enrollment_id: id,
   case_type_id: id,
   court_status: z.string().nullable(),
+  court_name: z.string().nullable(),
+  assigned_officer: z.string().nullable(),
+  next_court_date: z.string().nullable(),
+  court_file_number: z.string().nullable(),
+  ob_number: z.string().nullable(),
+  counsellor: z.string().nullable(),
   mediation_attempted: z.boolean(),
   mediation_outcome: z.string().nullable(),
   ruling_date: z.string().nullable(),
@@ -135,6 +141,12 @@ export function createVawgApi(client: ApiClient, token: string) {
           caseType: type?.name ?? `Case type #${row.case_type_id}`,
           route: type?.default_route === "court_direct" ? "Court, direct" : "Mediation/ADR first",
           courtStatus: row.court_status,
+          court: row.court_name,
+          assignedOfficer: row.assigned_officer,
+          nextCourtDate: row.next_court_date,
+          courtFileNumber: row.court_file_number,
+          obNumber: row.ob_number,
+          counsellor: row.counsellor,
           mediationAttempted: row.mediation_attempted,
           mediationOutcome: row.mediation_outcome,
           opened: row.opened_date,
@@ -190,6 +202,35 @@ export function createVawgApi(client: ApiClient, token: string) {
         },
         vawgMutationSchema
       );
+    },
+    updateCase(caseId: number, values: Record<string, string | number | null>) {
+      return client.request(
+        {
+          method: "PATCH",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "legal_case", id: caseId },
+          body: values,
+        },
+        vawgMutationSchema
+      );
+    },
+    async revealCaseField(caseId: number, field: "ob_number") {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "legal_case", id: caseId, reveal: field },
+        },
+        createEnvelopeSchema(z.union([caseSchema, z.null()]))
+      );
+      return {
+        ...result,
+        data: result.data?.[field] == null ? null : { value: result.data[field] },
+      };
     },
     attach(caseId: number, documentType: string, fileUrl: string) {
       return client.request(

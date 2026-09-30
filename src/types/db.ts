@@ -248,6 +248,12 @@ export interface Referral extends StandardColumns {
 export interface LegalCase extends StandardColumns {
   enrollment_id: number;
   case_type_id: number;
+  court_name: string | null;
+  assigned_officer: string | null;
+  next_court_date: string | null;
+  court_file_number: string | null;
+  ob_number: string | null;
+  counsellor: string | null;
   mediation_attempted: boolean;
   mediation_outcome: string | null;
   court_status: string | null;
