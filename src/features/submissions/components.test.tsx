@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("server-only", () => ({}));
 vi.mock("./actions", () => ({ reviewSubmissionAction: vi.fn() }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { SubmissionsContent } from "./components";
+import { reviewSubmissionAction } from "./actions";
 import type { SubmissionRow } from "./api";
 
 afterEach(cleanup);
@@ -53,5 +54,42 @@ describe("field submissions screen", () => {
     expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Facility" } });
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+  });
+
+  it("lays out cards and page actions like the design", () => {
+    render(
+      <SubmissionsContent
+        heading={{
+          title: "Field submissions",
+          section: "Overview",
+          description: "Data captured on the MERL mobile app, waiting for verification",
+        }}
+        rows={rows}
+        reviewableIds={[1, 2]}
+        canExport
+      />
+    );
+    const header = screen
+      .getByRole("heading", { level: 1, name: "Field submissions" })
+      .closest("[data-page-heading]") as HTMLElement;
+    expect(within(header).getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+    expect(screen.getByText("photo · outreach")).toBeInTheDocument();
+    expect(screen.getByText("SRHR · Outreach")).toBeInTheDocument();
+  });
+
+  it("confirms before approving straight from a card", async () => {
+    vi.mocked(reviewSubmissionAction).mockResolvedValue({
+      success: true,
+      message: "Submission approved.",
+    });
+    render(<SubmissionsContent rows={rows} reviewableIds={[1, 2]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Approve Facility referral day" }));
+    const dialog = screen.getByRole("dialog", { name: "Approve submission?" });
+    expect(dialog).toHaveTextContent(
+      "Approve “Facility referral day”? The data is merged into the linked record."
+    );
+    expect(reviewSubmissionAction).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(reviewSubmissionAction).toHaveBeenCalledWith(1, "approve"));
   });
 });

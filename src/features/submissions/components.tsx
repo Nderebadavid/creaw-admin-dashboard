@@ -2,35 +2,44 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Check, Flag, MapPin, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Search } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { auditedExportAction } from "@/components/portal/data-actions";
+import { PageHeading } from "@/components/portal/page-heading";
 import { reviewSubmissionAction } from "./actions";
 import type { SubmissionRow, SubmissionStatus } from "./api";
 import { filterSubmissionRows } from "./filter";
+import { SubmissionCard } from "./queue/submission-card";
+import { ApproveDialog, ReviewDialog, type Decision } from "./queue/review-dialogs";
 
 const tabs: ("All" | SubmissionStatus)[] = ["All", "Pending review", "Flagged", "Approved"];
-const tone: Record<SubmissionStatus, "warning" | "danger" | "success"> = {
-  "Pending review": "warning",
-  Flagged: "danger",
-  Approved: "success",
-};
+/** Tab → stage_event_status, for exporting exactly what the tab shows. */
+const stageStatusOf = {
+  "Pending review": "recorded",
+  Flagged: "disputed",
+  Approved: "verified",
+} as const;
 
+/**
+ * Field submissions from the mobile app, as cards filtered by review status.
+ * Approving merges the update into its linked programme record.
+ */
 export function SubmissionsContent({
+  heading,
   rows,
   canReview = false,
   reviewableIds,
   canExport = false,
   exportableIds,
 }: {
+  heading?: { title: string; section: string; description: string };
   rows: SubmissionRow[];
   canReview?: boolean;
+  /** Submissions in pillars the user may review; overrides `canReview` when given. */
   reviewableIds?: readonly number[];
   canExport?: boolean;
+  /** Submissions the user may export; export shows only when every visible row is exportable. */
   exportableIds?: readonly number[];
 }) {
   const router = useRouter();
@@ -38,28 +47,33 @@ export function SubmissionsContent({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(10);
-  const [selected, setSelected] = useState<SubmissionRow | null>(null);
+  const [reviewing, setReviewing] = useState<SubmissionRow | null>(null);
+  const [approving, setApproving] = useState<SubmissionRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  // Decisions update the cards immediately; router.refresh() reconciles with the server.
   const [localRows, setLocalRows] = useState(rows);
   const filtered = useMemo(
     () => filterSubmissionRows(localRows, { status: active, search }),
     [localRows, active, search]
   );
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
-  async function decide(decision: "approve" | "flag") {
-    if (!selected) return;
+  const isReviewable = (row: SubmissionRow) =>
+    reviewableIds ? reviewableIds.includes(row.id) : canReview;
+
+  async function decide(row: SubmissionRow, decision: Decision) {
     setBusy(true);
     setFeedback("");
     try {
-      const result = await reviewSubmissionAction(selected.id, decision);
+      const result = await reviewSubmissionAction(row.id, decision);
       setFeedback(result.message);
       if (result.success) {
         const status = decision === "approve" ? "Approved" : "Flagged";
         setLocalRows((current) =>
-          current.map((row) => (row.id === selected.id ? { ...row, status } : row))
+          current.map((item) => (item.id === row.id ? { ...item, status } : item))
         );
-        setSelected(null);
+        setReviewing(null);
+        setApproving(null);
         router.refresh();
       }
     } catch {
@@ -68,70 +82,66 @@ export function SubmissionsContent({
       setBusy(false);
     }
   }
-  const stageStatus =
-    active === "All"
-      ? undefined
-      : ({ "Pending review": "recorded", Flagged: "disputed", Approved: "verified" } as const)[
-          active
-        ];
+
+  const exportable =
+    canExport &&
+    filtered.length > 0 &&
+    (!exportableIds || filtered.every((row) => exportableIds.includes(row.id)));
+  const actions = exportable && (
+    <ExportButton
+      exportAction={() =>
+        auditedExportAction({
+          path: "/field-submissions",
+          routeTemplate: "/field-submissions",
+          query: {
+            search: search || undefined,
+            stage_event_status: active === "All" ? undefined : stageStatusOf[active],
+          },
+        })
+      }
+    />
+  );
+
   return (
     <div className="space-y-5">
+      {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-xl font-bold">Review queue</h2>
-          <p className="text-sm text-creaw-muted">
-            Mobile updates linked to existing programme records
-          </p>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Submission status">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                setActive(tab);
+                setPage(1);
+              }}
+              aria-pressed={active === tab}
+              className={`rounded-[9px] border px-3 py-[7px] text-[13px] font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "border-creaw-line-strong bg-white text-creaw-body"}`}
+            >
+              {tab}{" "}
+              <span className="ml-1 text-xs">
+                {tab === "All"
+                  ? localRows.length
+                  : localRows.filter((row) => row.status === tab).length}
+              </span>
+            </button>
+          ))}
         </div>
-        {canExport &&
-          filtered.length > 0 &&
-          (!exportableIds || filtered.every((row) => exportableIds.includes(row.id))) && (
-            <ExportButton
-              exportAction={() =>
-                auditedExportAction({
-                  path: "/field-submissions",
-                  routeTemplate: "/field-submissions",
-                  query: { search: search || undefined, stage_event_status: stageStatus },
-                })
-              }
-            />
-          )}
-      </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Submission status">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => {
-              setActive(tab);
+        <label className="flex h-10 w-60 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm">
+          <Search size={18} aria-hidden="true" className="text-creaw-faint" />
+          <span className="sr-only">Search submissions</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
               setPage(1);
             }}
-            aria-pressed={active === tab}
-            className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "bg-white text-creaw-body"}`}
-          >
-            {tab}{" "}
-            <span className="ml-1 text-xs">
-              {tab === "All"
-                ? localRows.length
-                : localRows.filter((row) => row.status === tab).length}
-            </span>
-          </button>
-        ))}
+            placeholder="Filter this list"
+            className="min-w-0 flex-1 bg-transparent outline-none"
+          />
+        </label>
       </div>
-      <label className="flex max-w-sm items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm">
-        <Search size={16} aria-hidden="true" />
-        <span className="sr-only">Search submissions</span>
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Search submissions…"
-          className="min-w-0 flex-1 outline-none"
-        />
-      </label>
       {feedback && (
         <p
           role="status"
@@ -141,60 +151,20 @@ export function SubmissionsContent({
         </p>
       )}
       {visible.length === 0 ? (
-        <div className="rounded-2xl border bg-white p-10 text-center text-sm text-creaw-muted">
+        <div className="rounded-2xl border bg-white p-10 text-center text-sm text-creaw-faint">
           No submissions match these filters.
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {visible.map((row) => {
-            const reviewable = reviewableIds ? reviewableIds.includes(row.id) : canReview;
-            return (
-              <article key={row.id} className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-lg bg-creaw-orange-soft px-2.5 py-1 text-xs font-semibold text-primary">
-                    <Camera size={14} />
-                    {row.type}
-                  </span>
-                  <StatusBadge tone={tone[row.status]}>{row.status}</StatusBadge>
-                </div>
-                <h3 className="mt-4 font-heading text-xl font-bold">{row.title}</h3>
-                <p className="mt-1 text-sm text-creaw-muted">
-                  {row.pillar} · Captured{" "}
-                  {new Date(row.captured).toLocaleDateString("en-KE", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </p>
-                <p className="mt-2 flex items-center gap-1 text-xs text-creaw-muted">
-                  <MapPin size={13} aria-hidden="true" />
-                  Location not recorded in this event
-                </p>
-                {row.flag && (
-                  <p className="mt-3 rounded-lg bg-[#fff1d8] px-3 py-2 text-xs text-[#94570d]">
-                    Flag: {row.flag}
-                  </p>
-                )}
-                <div className="mt-5 border-t pt-4">
-                  <Button
-                    variant="outline"
-                    disabled={!reviewable || row.status === "Approved"}
-                    title={
-                      !reviewable
-                        ? "You do not have review permission"
-                        : row.status === "Approved"
-                          ? "Already approved"
-                          : undefined
-                    }
-                    onClick={() => setSelected(row)}
-                    aria-label={`Review ${row.title}`}
-                  >
-                    Review submission →
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map((row) => (
+            <SubmissionCard
+              key={row.id}
+              row={row}
+              reviewable={isReviewable(row)}
+              onReview={() => setReviewing(row)}
+              onApprove={() => setApproving(row)}
+            />
+          ))}
         </div>
       )}
       <Pagination
@@ -204,37 +174,18 @@ export function SubmissionsContent({
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
-      <Dialog
-        open={selected !== null}
-        onOpenChange={(open) => {
-          if (!open && !busy) setSelected(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogTitle>{selected?.title}</DialogTitle>
-          <DialogDescription>
-            {selected?.pillar} · {selected?.type} · Captured via {selected?.source}
-          </DialogDescription>
-          {selected && (
-            <div className="space-y-4 text-sm">
-              <p>Review the mobile update before merging it into the linked programme record.</p>
-              {selected.flag && (
-                <p className="rounded-lg bg-[#fff1d8] p-3">Flag: {selected.flag}</p>
-              )}
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="outline" disabled={busy} onClick={() => decide("flag")}>
-                  <Flag size={16} />
-                  Flag for follow-up
-                </Button>
-                <Button disabled={busy} onClick={() => decide("approve")}>
-                  <Check size={16} />
-                  Approve submission
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ReviewDialog
+        submission={reviewing}
+        busy={busy}
+        onClose={() => setReviewing(null)}
+        onDecide={(decision) => reviewing && void decide(reviewing, decision)}
+      />
+      <ApproveDialog
+        submission={approving}
+        busy={busy}
+        onClose={() => setApproving(null)}
+        onConfirm={() => approving && void decide(approving, "approve")}
+      />
     </div>
   );
 }

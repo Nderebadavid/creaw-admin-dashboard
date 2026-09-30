@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
 import { submissionsApi } from "@/features/submissions/api";
@@ -28,18 +27,16 @@ export default async function FieldSubmissionsPage() {
     )
     .map((row) => row.id);
   return (
-    <>
-      <PageHeading
-        title="Field submissions"
-        section="Overview"
-        description="Data captured on the MERL mobile app, waiting for verification"
-      />
-      <SubmissionsContent
-        rows={rows}
-        reviewableIds={reviewableIds}
-        canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
-        exportableIds={exportableIds}
-      />
-    </>
+    <SubmissionsContent
+      heading={{
+        title: "Field submissions",
+        section: "Overview",
+        description: "Data captured on the MERL mobile app, waiting for verification",
+      }}
+      rows={rows}
+      reviewableIds={reviewableIds}
+      canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
+      exportableIds={exportableIds}
+    />
   );
 }
