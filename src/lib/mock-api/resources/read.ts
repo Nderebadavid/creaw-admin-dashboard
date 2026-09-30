@@ -18,23 +18,36 @@ import { makeRow } from "../rows";
 import { tableDefinitions } from "../schema";
 import { filterSubmissionRows } from "@/features/submissions/filter";
 import { type ApiEnvelope, type PaginatedData } from "@/types/api";
+import type { MockStore, TableName } from "@/types/db";
 
-/** Serves `GET` for a resolved resource: single rows, related views and paginated lists. */
-export function readResource(ctx: ResourceContext): ApiEnvelope<unknown> {
-  const {
-    request,
-    store,
-    query,
-    userId,
-    grants,
-    family,
-    pillar,
-    table,
-    id,
-    rows,
-    existing,
-    permission,
-  } = ctx;
+type Envelope = ApiEnvelope<unknown>;
+
+/** Query keys the list endpoint interprets itself; any other key filters a column by equality. */
+const RESERVED_KEYS = new Set([
+  "page",
+  "pageSize",
+  "pillarId",
+  "countyId",
+  "table",
+  "search",
+  "q",
+  "sortBy",
+  "sortOrder",
+  "format",
+  "includeDeleted",
+  "ids",
+]);
+
+/** Rows as the API returns them: referrals and enrollments carry derived fields, all are masked. */
+function presentRow(store: MockStore, table: TableName, row: Row): Row {
+  if (table === "referral") return referralRead(store, row);
+  if (table === "enrollment") return enrollmentRead(store, row);
+  return masked(table, row);
+}
+
+/** Named views that bypass the generic row/list handling; undefined when none applies. */
+function readSpecialView(ctx: ResourceContext): Envelope | undefined {
+  const { request, store, query, userId, grants, table, id, existing } = ctx;
   if (table === "grant_application" && existing && query.get("signoffs") === "true") {
     if (!allowed(store, grants, "GRANT_APPLICATION_VIEW", table, existing)) return envelope(403);
     return envelope(200, signoffActors(store, existing.id));
@@ -64,72 +77,69 @@ export function readResource(ctx: ResourceContext): ApiEnvelope<unknown> {
         .map((item) => ({ id: item.id, name: item.name })),
     });
   }
-  if (existing) {
-    if (!allowed(store, grants, permission, table, existing)) return envelope(403);
-    const result =
-      table === "referral"
-        ? referralRead(store, existing)
-        : table === "enrollment"
-          ? enrollmentRead(store, existing)
-          : masked(table, existing);
-    if (query.has("reveal")) {
-      const field = query.get("reveal")!;
-      if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
-      if (
-        !allowed(store, grants, "SENSITIVE_REVEAL", table, existing) ||
-        (pillar && !hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: pillar.id }))
-      )
-        return envelope(403);
-      result[field] = existing[field];
-      auditWrite(store, request, userId, table, existing, existing, "REVEAL");
-    }
-    if (query.has("download")) {
-      if (table !== "document" || query.get("download") !== "true") return envelope(422);
-      if (!allowed(store, grants, "DOCUMENT_DOWNLOAD", table, existing)) return envelope(403);
-      auditWrite(store, request, userId, table, existing, existing, "DOWNLOAD");
-      return envelope(
-        200,
-        { ...result, file_url: existing.file_url, simulated: true },
-        "Mock metadata only; no remote file was uploaded or downloaded"
-      );
-    }
-    return envelope(200, result);
+  return undefined;
+}
+
+/** One row, optionally with an audited reveal of a sensitive field or a document download. */
+function readSingle(ctx: ResourceContext, existing: Row): Envelope {
+  const { request, store, query, userId, grants, pillar, table, permission } = ctx;
+  if (!allowed(store, grants, permission, table, existing)) return envelope(403);
+  const result = presentRow(store, table, existing);
+  if (query.has("reveal")) {
+    const field = query.get("reveal")!;
+    if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
+    if (
+      !allowed(store, grants, "SENSITIVE_REVEAL", table, existing) ||
+      (pillar && !hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: pillar.id }))
+    )
+      return envelope(403);
+    result[field] = existing[field];
+    auditWrite(store, request, userId, table, existing, existing, "REVEAL");
   }
-  const page = Number(query.get("page") ?? 1),
-    pageSize = Number(query.get("pageSize") ?? 20);
-  if (
-    !Number.isInteger(page) ||
-    page < 1 ||
-    !Number.isInteger(pageSize) ||
-    pageSize < 1 ||
-    pageSize > 100
-  )
-    return envelope(422);
+  if (query.has("download")) {
+    if (table !== "document" || query.get("download") !== "true") return envelope(422);
+    if (!allowed(store, grants, "DOCUMENT_DOWNLOAD", table, existing)) return envelope(403);
+    auditWrite(store, request, userId, table, existing, existing, "DOWNLOAD");
+    return envelope(
+      200,
+      { ...result, file_url: existing.file_url, simulated: true },
+      "Mock metadata only; no remote file was uploaded or downloaded"
+    );
+  }
+  return envelope(200, result);
+}
+
+interface ListParams {
+  page: number;
+  pageSize: number;
+  pillarFilter: number | undefined;
+  search: string;
+  countyId: number | undefined;
+  /** Rows chosen for a lookup CSV export, or null when not exporting a selection. */
+  exportIds: number[] | null;
+}
+
+/** Validates paging, filters and export options; a 422 envelope for anything malformed. */
+function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
+  const { query, grants, family, pillar, table } = ctx;
+  const page = Number(query.get("page") ?? 1);
+  const pageSize = Number(query.get("pageSize") ?? 20);
+  if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize)) return envelope(422);
+  if (pageSize < 1 || pageSize > 100) return envelope(422);
+
   const pillarFilter =
     pillar?.id ?? (query.has("pillarId") ? Number(query.get("pillarId")) : undefined);
   if (pillarFilter !== undefined && (!Number.isInteger(pillarFilter) || pillarFilter < 1))
     return envelope(422);
-  const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
+
   const countyId = query.has("countyId") ? Number(query.get("countyId")) : undefined;
   if (
     countyId !== undefined &&
     (table !== "participant" || !Number.isSafeInteger(countyId) || countyId < 1)
   )
     return envelope(422);
-  const reserved = new Set([
-    "page",
-    "pageSize",
-    "pillarId",
-    "countyId",
-    "table",
-    "search",
-    "q",
-    "sortBy",
-    "sortOrder",
-    "format",
-    "includeDeleted",
-    "ids",
-  ]);
+
+  // `ids` selects rows for a lookup CSV export only.
   if (
     query.has("ids") &&
     (family !== "lookups" ||
@@ -137,145 +147,164 @@ export function readResource(ctx: ResourceContext): ApiEnvelope<unknown> {
       !/^(?:[1-9]\d*(?:,[1-9]\d*)*)?$/.test(query.get("ids") ?? ""))
   )
     return envelope(422);
-  const exportIds = query.has("ids")
-    ? query.get("ids")
-      ? query.get("ids")!.split(",").map(Number)
-      : []
-    : null;
-  if (
-    exportIds &&
-    (exportIds.length > 5000 || exportIds.some((value) => !Number.isSafeInteger(value)))
-  )
+  const idsText = query.get("ids");
+  const exportIds = query.has("ids") ? (idsText ? idsText.split(",").map(Number) : []) : null;
+  if (exportIds && (exportIds.length > 5000 || exportIds.some((v) => !Number.isSafeInteger(v))))
     return envelope(422);
-  if (
-    query.has("includeDeleted") &&
-    (!(
-      table === "user_role" ||
-      table === "role_permission" ||
-      (family === "lookups" && hasPermission(grants, "LOOKUP_MANAGE"))
-    ) ||
-      query.get("includeDeleted") !== "true")
-  )
+
+  // Deleted rows are visible only for grant links and to lookup managers.
+  const mayIncludeDeleted =
+    table === "user_role" ||
+    table === "role_permission" ||
+    (family === "lookups" && hasPermission(grants, "LOOKUP_MANAGE"));
+  if (query.has("includeDeleted") && (!mayIncludeDeleted || query.get("includeDeleted") !== "true"))
     return envelope(422);
+
+  // Column filters must name a real, non-sensitive column.
   for (const [key] of query)
     if (
-      !reserved.has(key) &&
+      !RESERVED_KEYS.has(key) &&
       (!Object.hasOwn(tableDefinitions[table], key) || isSensitiveField(table, key))
     )
       return envelope(422);
-  let filtered = rows.filter(
+
+  const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
+  return { page, pageSize, pillarFilter, search, countyId, exportIds };
+}
+
+/** Rows the caller may see after scope, county, column, selection and search filters. */
+function filterRows(ctx: ResourceContext, params: ListParams): Row[] {
+  const { store, query, grants, table, rows, permission } = ctx;
+  const includeDeleted = query.get("includeDeleted") === "true";
+  let result = rows.filter(
     (row) =>
-      (visible(row) || query.get("includeDeleted") === "true") &&
+      (visible(row) || includeDeleted) &&
       allowed(store, grants, permission, table, row) &&
-      (pillarFilter === undefined || scopes(store, table, row).includes(pillarFilter))
+      (params.pillarFilter === undefined || scopes(store, table, row).includes(params.pillarFilter))
   );
-  if (countyId !== undefined)
-    filtered = filtered.filter((row) => {
+  if (params.countyId !== undefined)
+    result = result.filter((row) => {
       const ward = store.ward.find((item) => item.id === row.ward_id);
       return store.sub_county.some(
-        (item) => item.id === ward?.sub_county_id && item.county_id === countyId
+        (item) => item.id === ward?.sub_county_id && item.county_id === params.countyId
       );
     });
   for (const [key, value] of query)
-    if (!reserved.has(key)) filtered = filtered.filter((row) => String(row[key]) === value);
-  if (exportIds) {
-    const selected = new Set(exportIds);
-    filtered = filtered.filter((row) => selected.has(row.id));
+    if (!RESERVED_KEYS.has(key)) result = result.filter((row) => String(row[key]) === value);
+  if (params.exportIds) {
+    const selected = new Set(params.exportIds);
+    result = result.filter((row) => selected.has(row.id));
   }
   // Search uses the visible representation so it cannot become an oracle for
   // masked identity numbers or other hidden data.
-  if (search)
-    filtered = filtered.filter((row) =>
+  if (params.search)
+    result = result.filter((row) =>
       table === "participant_stage_event"
-        ? filterSubmissionRows([submissionSummary(store, row)], { search }).length > 0
+        ? filterSubmissionRows([submissionSummary(store, row)], { search: params.search }).length >
+          0
         : Object.values(masked(table, row)).some(
-            (value) => typeof value === "string" && value.toLowerCase().includes(search)
+            (value) => typeof value === "string" && value.toLowerCase().includes(params.search)
           )
     );
-  const sortBy = query.get("sortBy") ?? "id",
-    sortOrder = query.get("sortOrder") ?? "asc";
+  return result;
+}
+
+/** Sorts in place by a non-sensitive column; a 422 envelope for an invalid sort. */
+function sortRows(ctx: ResourceContext, rows: Row[]): Envelope | undefined {
+  const { query, table } = ctx;
+  const sortBy = query.get("sortBy") ?? "id";
+  const sortOrder = query.get("sortOrder") ?? "asc";
   if (
     !Object.hasOwn(tableDefinitions[table], sortBy) ||
     !["asc", "desc"].includes(sortOrder) ||
     isSensitiveField(table, sortBy)
   )
     return envelope(422);
-  filtered.sort(
+  const direction = sortOrder === "desc" ? -1 : 1;
+  rows.sort(
     (a, b) =>
       (typeof a[sortBy] === "number" && typeof b[sortBy] === "number"
         ? Number(a[sortBy]) - Number(b[sortBy])
-        : String(a[sortBy] ?? "").localeCompare(String(b[sortBy] ?? ""))) *
-      (sortOrder === "desc" ? -1 : 1)
+        : String(a[sortBy] ?? "").localeCompare(String(b[sortBy] ?? ""))) * direction
   );
-  if (query.has("format")) {
-    if (query.get("format") !== "csv") return envelope(422);
-    if (
-      (family === "lookups" && !hasPermission(grants, "LOOKUP_MANAGE")) ||
-      !hasModulePermission(grants, "REPORT_EXPORT_CSV") ||
-      (pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id })) ||
-      filtered.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))
+  return undefined;
+}
+
+/** Quotes a CSV cell and neutralises spreadsheet formulas (=, +, -, @ …). */
+function csvCell(value: unknown) {
+  const text =
+    value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+  return '"' + (/^[=+\-@\t\r\n]/.test(text) ? "'" + text : text).replaceAll('"', '""') + '"';
+}
+
+/** Audited CSV of the filtered rows, masked the same way as the list. */
+function exportCsv(ctx: ResourceContext, rows: Row[]): Envelope {
+  const { request, store, query, userId, grants, family, pillar, table } = ctx;
+  if (query.get("format") !== "csv") return envelope(422);
+  if (
+    (family === "lookups" && !hasPermission(grants, "LOOKUP_MANAGE")) ||
+    !hasModulePermission(grants, "REPORT_EXPORT_CSV") ||
+    (pillar && !hasPermission(grants, "REPORT_EXPORT_CSV", { pillarId: pillar.id })) ||
+    rows.some((row) => !allowed(store, grants, "REPORT_EXPORT_CSV", table, row))
+  )
+    return envelope(403);
+  const submissions = table === "participant_stage_event";
+  const columns = submissions
+    ? ["id", "pillar", "captured", "status", "source"]
+    : Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
+  const safeRow = (row: Row): Record<string, unknown> => {
+    if (!submissions) return masked(table, row);
+    const { id, pillar: pillarName, captured, status, source } = submissionSummary(store, row);
+    return { id, pillar: pillarName, captured, status, source };
+  };
+  const content = [
+    columns.join(","),
+    ...rows.map((row) => {
+      const safe = safeRow(row);
+      return columns.map((key) => csvCell(safe[key])).join(",");
+    }),
+  ].join("\r\n");
+  const now = new Date().toISOString();
+  store.audit_logs.push(
+    makeRow(
+      "audit_logs",
+      {
+        entity_type: table,
+        action: "EXPORT",
+        source: "HTTP",
+        performed_by: userId,
+        performed_at: now,
+        endpoint: request.routeTemplate,
+      },
+      Math.max(0, ...store.audit_logs.map((row) => row.id)) + 1,
+      now
     )
-      return envelope(403);
-    const columns =
-      table === "participant_stage_event"
-        ? ["id", "pillar", "captured", "status", "source"]
-        : Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
-    const csvCell = (value: unknown) => {
-      const text =
-        value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
-      return '"' + (/^[=+\-@\t\r\n]/.test(text) ? "'" + text : text).replaceAll('"', '""') + '"';
-    };
-    const content = [
-      columns.join(","),
-      ...filtered.map((row) => {
-        const safe =
-          table === "participant_stage_event"
-            ? (() => {
-                const summary = submissionSummary(store, row);
-                return {
-                  id: summary.id,
-                  pillar: summary.pillar,
-                  captured: summary.captured,
-                  status: summary.status,
-                  source: summary.source,
-                };
-              })()
-            : masked(table, row);
-        return columns.map((key) => csvCell(safe[key as keyof typeof safe])).join(",");
-      }),
-    ].join("\r\n");
-    const now = new Date().toISOString();
-    store.audit_logs.push(
-      makeRow(
-        "audit_logs",
-        {
-          entity_type: table,
-          action: "EXPORT",
-          source: "HTTP",
-          performed_by: userId,
-          performed_at: now,
-          endpoint: request.routeTemplate,
-        },
-        Math.max(0, ...store.audit_logs.map((row) => row.id)) + 1,
-        now
-      )
-    );
-    return envelope(200, { filename: `${table}.csv`, content, totalItems: filtered.length });
-  }
+  );
+  return envelope(200, { filename: `${table}.csv`, content, totalItems: rows.length });
+}
+
+/** Serves `GET` for a resolved resource: named views, single rows, CSV exports and paged lists. */
+export function readResource(ctx: ResourceContext): Envelope {
+  const special = readSpecialView(ctx);
+  if (special) return special;
+  if (ctx.existing) return readSingle(ctx, ctx.existing);
+
+  const params = parseListQuery(ctx);
+  if ("resultCode" in params) return params;
+  const rows = filterRows(ctx, params);
+  const invalidSort = sortRows(ctx, rows);
+  if (invalidSort) return invalidSort;
+  if (ctx.query.has("format")) return exportCsv(ctx, rows);
+
+  const { page, pageSize } = params;
   const data: PaginatedData<Row> = {
-    items: filtered
+    items: rows
       .slice((page - 1) * pageSize, page * pageSize)
-      .map((row) =>
-        table === "referral"
-          ? referralRead(store, row)
-          : table === "enrollment"
-            ? enrollmentRead(store, row)
-            : masked(table, row)
-      ),
+      .map((row) => presentRow(ctx.store, ctx.table, row)),
     page,
     pageSize,
-    totalItems: filtered.length,
-    totalPages: Math.ceil(filtered.length / pageSize),
+    totalItems: rows.length,
+    totalPages: Math.ceil(rows.length / pageSize),
   };
   return envelope(200, data);
 }
