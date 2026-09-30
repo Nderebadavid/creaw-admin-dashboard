@@ -81,3 +81,11 @@ export interface SessionWorkspace {
   /** People an attendee can be picked from, labelled "<masked name> · #<id>". */
   participants: { id: number; label: string }[];
 }
+
+/** What the signed-in user may do on the sessions page. */
+export interface SessionPermissions {
+  log: boolean;
+  attach: boolean;
+  download: boolean;
+  export: boolean;
+}
