@@ -7,15 +7,12 @@ import { loginAction } from "@/lib/auth/actions";
 import { AuthShell } from "./auth-shell";
 
 export function safeRedirectTarget(value: string | null): string {
-  if (
-    value &&
-    value.startsWith("/") &&
-    !value.startsWith("//") &&
-    !value.includes("\\") &&
-    !/[\r\n]/.test(value)
-  )
-    return value;
-  return "/dashboard";
+  if (!value || !value.startsWith("/")) return "/dashboard";
+  // Resolve the way the browser will: URL parsing drops tabs and newlines, so
+  // "/\t/evil.com" becomes "//evil.com". Only a same-origin result is safe.
+  const base = "http://portal.invalid";
+  const url = new URL(value, base);
+  return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : "/dashboard";
 }
 
 export function LoginForm() {

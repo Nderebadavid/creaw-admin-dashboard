@@ -54,4 +54,12 @@ describe("DateRangePicker", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Apply" })).not.toBeInTheDocument();
   });
+
+  it("will not apply a range with a cleared date", () => {
+    const onChange = setup();
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

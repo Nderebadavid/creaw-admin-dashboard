@@ -126,20 +126,21 @@ export function createDashboardApi(client: ApiClient, token: string) {
             )
           )
         ),
-        optional(() =>
-          all((page, pageSize) =>
-            client.request(
-              {
-                method: "GET",
-                path: "/audit-logs",
-                routeTemplate: "/audit-logs",
-                token,
-                query: { page, pageSize, sortBy: "performed_at", sortOrder: "desc" },
-              },
-              dashboardAuditSchema
-            )
-          )
-        ),
+        // Only the newest five entries are shown; the API sorts, so one page is enough.
+        optional(async () => {
+          const result = await client.request(
+            {
+              method: "GET",
+              path: "/audit-logs",
+              routeTemplate: "/audit-logs",
+              token,
+              query: { page: 1, pageSize: 5, sortBy: "performed_at", sortOrder: "desc" },
+            },
+            dashboardAuditSchema
+          );
+          if (!result.success || !result.data) throw new Error(result.message);
+          return result.data.items;
+        }),
         ...dto.pillars.map((pillar) =>
           optional(() =>
             all((page, pageSize) =>

@@ -202,6 +202,14 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   },
 ];
 
+/** Pages that check their permission platform-wide, so a pillar-scoped grant can't open them. */
+const globalOnlyRoutes: ReadonlySet<string> = new Set([
+  "/audit",
+  "/admin/users",
+  "/admin/permissions",
+  "/admin/lookups/pillar",
+]);
+
 export function permittedNavigation(
   grants: readonly EffectiveGrant[],
   availableRoutes: readonly string[] = implementedPortalRoutes
@@ -215,7 +223,7 @@ export function permittedNavigation(
           grants.some(
             (grant) =>
               item.permissions.includes(grant.permissionCode) &&
-              (item.href !== "/admin/lookups/pillar" || grant.pillarId === null) &&
+              (!globalOnlyRoutes.has(item.href) || grant.pillarId === null) &&
               (item.pillarId === undefined ||
                 grant.pillarId === null ||
                 grant.pillarId === item.pillarId)

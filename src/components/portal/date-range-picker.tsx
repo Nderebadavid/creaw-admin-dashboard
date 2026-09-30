@@ -47,9 +47,11 @@ function presets(today: Date): [string, DateRange][] {
   ];
 }
 
-/** Whole days in an inclusive range; zero or less when the end precedes the start. */
+/** Whole days in an inclusive range; zero or less when the end precedes the start or a date is cleared. */
 function spanDays({ from, to }: DateRange) {
-  return Math.round((Date.parse(`${to}T00:00:00`) - Date.parse(`${from}T00:00:00`)) / 864e5) + 1;
+  const days =
+    Math.round((Date.parse(`${to}T00:00:00`) - Date.parse(`${from}T00:00:00`)) / 864e5) + 1;
+  return Number.isNaN(days) ? 0 : days;
 }
 
 /** Header control for the portal-wide created-date range; edits apply on "Apply". */
@@ -65,6 +67,9 @@ export function DateRangePicker({
   const { ref, open, toggle, close } = usePopover();
   const [draft, setDraft] = useState(value);
   const days = spanDays(draft);
+  let spanLabel = `${days} day${days === 1 ? "" : "s"}`;
+  if (!draft.from || !draft.to) spanLabel = "Choose both dates";
+  else if (days < 1) spanLabel = "End date is before start date";
 
   const openPanel = () => {
     setDraft(value);
@@ -120,8 +125,7 @@ export function DateRangePicker({
             ))}
           </div>
           <p className="text-[12.5px] text-creaw-faint">
-            {days > 0 ? `${days} day${days === 1 ? "" : "s"}` : "End date is before start date"} ·
-            filters records by their created date
+            {spanLabel} · filters records by their created date
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={close}>

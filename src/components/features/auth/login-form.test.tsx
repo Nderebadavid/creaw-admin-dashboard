@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: () => redirectState.value }),
 }));
 vi.mock("@/lib/auth/actions", () => ({ loginAction }));
-import { LoginForm } from "./login-form";
+import { LoginForm, safeRedirectTarget } from "./login-form";
 
 afterEach(() => {
   cleanup();
@@ -74,5 +74,19 @@ describe("CREAW login form", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Permission denied");
+  });
+});
+
+describe("safeRedirectTarget", () => {
+  it.each([
+    ["/participants?page=2#top", "/participants?page=2#top"],
+    ["/\t/evil.com", "/dashboard"],
+    ["/\n/evil.com", "/dashboard"],
+    ["//evil.com", "/dashboard"],
+    ["/\\evil.com", "/dashboard"],
+    ["https://evil.com", "/dashboard"],
+    [null, "/dashboard"],
+  ])("sends %j to %j", (input, expected) => {
+    expect(safeRedirectTarget(input)).toBe(expected);
   });
 });

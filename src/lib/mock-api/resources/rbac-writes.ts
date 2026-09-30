@@ -80,6 +80,33 @@ export function checkAccessControlWrite(
       )
         return envelope(403, null, "Role exceeds your grants");
     }
+    if (
+      existing &&
+      (body.is_deleted === true || (body.status && body.status !== "ACTIVE")) &&
+      hasPermission(grants, "PERMISSION_MANAGE")
+    ) {
+      // Same last-admin guard as role_permission below: disabling the role
+      // that carries the caller's only global PERMISSION_MANAGE locks everyone out.
+      const hypothetical = {
+        ...store,
+        role: store.role.map((row) =>
+          row.id === existing.id
+            ? {
+                ...row,
+                is_deleted:
+                  body.is_deleted === undefined ? row.is_deleted : (body.is_deleted as boolean),
+                status: body.status === undefined ? row.status : (body.status as string),
+              }
+            : row
+        ),
+      };
+      if (!hasPermission(getEffectiveGrants(userId, hypothetical), "PERMISSION_MANAGE"))
+        return envelope(
+          403,
+          null,
+          "You cannot remove your last global permission-management grant"
+        );
+    }
   }
   if (table === "permission") {
     const permitted =

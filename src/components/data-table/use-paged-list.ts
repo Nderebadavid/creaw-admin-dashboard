@@ -5,6 +5,18 @@ import type { PaginatedData } from "@/types/api";
 type ListResult<T> = { success: boolean; message: string; data?: PaginatedData<T> | null };
 type BaseQuery = { page?: number; pageSize?: number; search?: string };
 
+/** A rejected Server Action (network drop, server error) becomes an error result, so loading always ends. */
+async function safeLoad<T, Q>(
+  load: (query: Q) => Promise<ListResult<T>>,
+  query: Q
+): Promise<ListResult<T>> {
+  try {
+    return await load(query);
+  } catch {
+    return { success: false, message: "Could not load this list. Please try again." };
+  }
+}
+
 /**
  * State for a server-paginated list backed by a Server Action. Filter changes
  * reset to page 1, and a search is debounced so typing doesn't send a request
@@ -33,7 +45,7 @@ export function usePagedList<T, Q extends BaseQuery>(
     let active = true;
     const timer = setTimeout(
       async () => {
-        const response = await loader.current(query);
+        const response = await safeLoad(loader.current, query);
         if (!active) return;
         if (response.success && response.data) {
           setData(response.data);
@@ -59,7 +71,7 @@ export function usePagedList<T, Q extends BaseQuery>(
   async function refresh() {
     setLoading(true);
     setError("");
-    const response = await loader.current(query);
+    const response = await safeLoad(loader.current, query);
     if (response.success && response.data) setData(response.data);
     else setError(response.message);
     setLoading(false);

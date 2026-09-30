@@ -150,3 +150,19 @@ it("hides the reporting window from users without the calendar", () => {
   );
   expect(screen.queryByText("Q3 reporting window")).not.toBeInTheDocument();
 });
+
+it("hides platform-wide admin pages from pillar-scoped grants", () => {
+  render(
+    <PortalSidebar
+      pathname="/dashboard"
+      grants={[
+        { permissionCode: "AUDIT_LOG_VIEW", pillarId: 2 },
+        { permissionCode: "USER_MANAGE", pillarId: 2 },
+        { permissionCode: "DASHBOARD_VIEW", pillarId: 2 },
+      ]}
+    />
+  );
+  expect(screen.queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Users & roles" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
+});

@@ -1,7 +1,7 @@
 "use client";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
-import { hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
+import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
 import { GlobalSearch, type SearchDestination } from "./global-search";
 import { Button } from "@/components/ui/button";
 import type { NavigationStatus } from "./navigation";
@@ -58,8 +58,9 @@ export function PortalHeader({
         <NotificationsMenu status={status} />
         <UserMenu
           user={user}
-          canManageUsers={hasModulePermission(grants, "USER_MANAGE")}
-          canViewAudit={hasModulePermission(grants, "AUDIT_LOG_VIEW")}
+          // /admin/users and /audit require platform-wide grants.
+          canManageUsers={hasPermission(grants, "USER_MANAGE")}
+          canViewAudit={hasPermission(grants, "AUDIT_LOG_VIEW")}
         />
       </div>
     </header>

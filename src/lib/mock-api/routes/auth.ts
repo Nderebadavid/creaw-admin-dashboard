@@ -33,14 +33,17 @@ export function handleSessionRoutes(ctx: MockContext): ApiEnvelope<unknown> | un
 /** `GET /auth/me`: the signed-in user and their effective grants. */
 export function handleCurrentUser(ctx: MockContext): ApiEnvelope<unknown> | undefined {
   const { request, store, url, userId, grants } = ctx;
-  if (url.pathname === "/auth/me")
+  if (url.pathname === "/auth/me") {
+    const user = store.user.find((row) => row.id === userId)!;
     return request.method === "GET"
       ? envelope(200, {
-          user: masked("user", store.user.find((row) => row.id === userId)! as unknown as Row),
+          // The caller's own email is shown in the account menu, so it is not masked.
+          user: { ...masked("user", user as unknown as Row), email: user.email },
           grants,
           roles: activeRoleNames(store, userId),
         })
       : envelope(422);
+  }
   return undefined;
 }
 

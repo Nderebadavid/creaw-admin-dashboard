@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import { cache } from "react";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
@@ -175,7 +176,10 @@ export const submissionsApi = {
   async list(query: SubmissionQuery = {}) {
     return (await withSessionApi(createSubmissionsApi)).list(query);
   },
-  async listAll() {
-    return (await withSessionApi(createSubmissionsApi)).listAll();
-  },
+  /**
+   * Every submission in scope. Cached per request: the portal layout's badge
+   * count and the submissions or pillar page would otherwise each page
+   * through all submissions and enrollments.
+   */
+  listAll: cache(async () => (await withSessionApi(createSubmissionsApi)).listAll()),
 };
