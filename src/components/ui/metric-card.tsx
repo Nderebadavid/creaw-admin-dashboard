@@ -4,11 +4,16 @@ export function MetricCard({
   value,
   icon,
   detail,
+  tint,
+  ink,
 }: {
   label: string;
   value: ReactNode;
   icon?: ReactNode;
   detail?: ReactNode;
+  /** Icon tile background and icon colour, e.g. a pillar's tint and ink. */
+  tint?: string;
+  ink?: string;
 }) {
   return (
     <article className="rounded-2xl border bg-white p-6">
@@ -16,6 +21,7 @@ export function MetricCard({
         <div
           aria-hidden="true"
           className="mb-4 flex size-12 items-center justify-center rounded-xl bg-accent text-primary"
+          style={tint || ink ? { backgroundColor: tint, color: ink } : undefined}
         >
           {icon}
         </div>

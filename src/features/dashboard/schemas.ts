@@ -68,6 +68,8 @@ export const dashboardAuditSchema = createEnvelopeSchema(
         action: z.string(),
         entity_type: z.string(),
         performed_at: z.string(),
+        performed_by_name: z.string().nullable().default(null),
+        source: z.string().nullable().default(null),
       })
     ),
     z.null(),

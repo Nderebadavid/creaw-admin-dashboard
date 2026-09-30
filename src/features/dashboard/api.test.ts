@@ -33,6 +33,9 @@ describe("dashboard API", () => {
     expect(overview.recentSubmissions.length).toBeGreaterThan(0);
     expect(overview.upcomingReports.length).toBeGreaterThan(0);
     expect(overview.recentActivity.length).toBeGreaterThan(0);
+    expect(overview.recentActivity.every((item) => item.who.length > 0)).toBe(true);
+    expect(overview.reportingAlerts.length).toBeGreaterThan(0);
+    for (const alert of overview.reportingAlerts) expect(alert).toMatch(/ is \d+ days? overdue$/);
   });
 
   it("keeps a pillar lead inside their scope", async () => {

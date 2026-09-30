@@ -37,7 +37,8 @@ export interface DashboardOverview {
     captured: string;
   }[];
   upcomingReports: { id: number; title: string; status: string; periodEnd: string }[];
-  recentActivity: { id: number; action: string; entity: string; when: string }[];
+  /** Newest audit entries; `who` is the officer, or "System" for background jobs. */
+  recentActivity: { id: number; action: string; entity: string; when: string; who: string }[];
 }
 
 const pillarPresentation: Record<string, { slug: string; target: number; color: string }> = {
@@ -199,10 +200,16 @@ export function createDashboardApi(client: ApiClient, token: string) {
           date.startsWith(`${year}-${String(index + 1).padStart(2, "0")}`)
         ).length,
       }));
+      const daysLate = (end: string) =>
+        Math.max(0, Math.floor((Date.now() - Date.parse(`${end}T00:00:00`)) / 86_400_000));
+      // e.g. "SRHR narrative report is 12 days overdue"
       const reportingAlerts =
         reports
           ?.filter((row) => row.report_status === "overdue")
-          .map((row) => row.notes || "A report is overdue") ?? [];
+          .map((row) => {
+            const days = daysLate(row.reporting_period_end);
+            return `${row.notes || "A report"} is ${days} day${days === 1 ? "" : "s"} overdue`;
+          }) ?? [];
       const enrollmentPillars = new Map(
         enrollments.flatMap(
           (rows, index) => rows?.map((row) => [row.id, pillarCards[index]?.name] as const) ?? []
@@ -254,6 +261,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
             action: row.action,
             entity: row.entity_type,
             when: row.performed_at,
+            who: row.performed_by_name ?? (row.source === "KAFKA" ? "System" : "Unknown user"),
           })) ?? [],
       };
     },
