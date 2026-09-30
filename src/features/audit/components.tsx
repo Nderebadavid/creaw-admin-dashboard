@@ -1,78 +1,53 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Search, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DataTable, type DataColumn } from "@/components/data-table/data-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
+import { TableCard } from "@/components/data-table/table-card";
+import { usePagedList } from "@/components/data-table/use-paged-list";
 import { ExportButton } from "@/components/ui/export-button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { PageHeading } from "@/components/portal/page-heading";
 import { listAuditAction, exportAuditAction } from "./actions";
 import type { AuditPage, AuditRow } from "./api";
 import type { AuditQuery } from "./schemas";
+import { auditColumns } from "./trail/columns";
+import { AuditEntryDetail } from "./trail/entry-detail";
 
-const displayDate = (iso: string) =>
-  new Date(iso).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
-function formattedJson(text: string | null) {
-  if (!text) return "—";
-  try {
-    return JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    return text;
-  }
-}
+const sources: [AuditQuery["source"], string][] = [
+  [undefined, "All sources"],
+  ["HTTP", "Portal"],
+  ["KAFKA", "Kafka (system)"],
+];
+const select = "h-10 rounded-[10px] border border-creaw-line-strong bg-white px-2.5 text-sm";
+
+/**
+ * Immutable audit trail of creates, edits, reveals, uploads and exports.
+ * Clicking an entry expands its input and before/after states in place.
+ */
 export function AuditContent({
+  heading,
   initial,
   initialQuery = { page: 1, pageSize: 25 },
   canExport,
 }: {
+  heading?: { title: string; section: string; description: string };
   initial: AuditPage;
+  /** Pre-applied filters, e.g. a record's history or "My activity". */
   initialQuery?: AuditQuery;
   canExport: boolean;
 }) {
-  const [data, setData] = useState(initial),
-    [query, setQuery] = useState<AuditQuery>(initialQuery);
-  const [loading, setLoading] = useState(false),
-    [error, setError] = useState(""),
-    [selected, setSelected] = useState<AuditRow | null>(null);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    let active = true;
-    const timer = setTimeout(
-      async () => {
-        const response = await listAuditAction(query);
-        if (!active) return;
-        if (response.success && response.data) {
-          setData(response.data);
-          setError("");
-        } else setError(response.message);
-        setLoading(false);
-      },
-      query.search ? 250 : 0
-    );
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [query]);
-  const filter = (patch: Partial<AuditQuery>) => {
-    setLoading(true);
-    setQuery((current) => ({ ...current, ...patch, page: 1 }));
-  };
+  const list = usePagedList<AuditRow, AuditQuery>(initial, initialQuery, listAuditAction);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const { query } = list;
+  // Filter options come from the entries seen so far; the API does the filtering.
+  const seen = [...initial.items, ...list.data.items];
   const modules = [
-    ...new Set(
-      [...initial.items, ...data.items]
-        .map((row) => row.entity_type)
-        .filter((item): item is string => !!item)
-    ),
+    ...new Set(seen.map((row) => row.entity_type).filter((item): item is string => !!item)),
   ].sort();
-  const actions = [...new Set([...initial.items, ...data.items].map((row) => row.action))].sort();
+  const actions = [...new Set(seen.map((row) => row.action))].sort();
   const actors = [
     ...new Map(
-      [...initial.items, ...data.items]
+      seen
         .filter((row) => row.performed_by && row.performed_by_name)
         .map((row) => [row.performed_by!, row.performed_by_name!])
     ).entries(),
@@ -87,106 +62,56 @@ export function AuditContent({
     query.from ||
     query.to
   );
-  const columns: DataColumn<AuditRow>[] = [
-    {
-      id: "entity",
-      header: "Entity",
-      cell: (row) => (
-        <span className="font-semibold">
-          {row.entity_type ?? "System"}
-          {row.entity_id ? (
-            <span className="block font-mono text-xs text-creaw-faint">#{row.entity_id}</span>
-          ) : null}
-        </span>
-      ),
-    },
-    {
-      id: "action",
-      header: "Action",
-      cell: (row) => (
-        <span className="rounded-full bg-creaw-orange-soft px-2.5 py-1 text-xs font-semibold text-creaw-orange">
-          {row.action}
-        </span>
-      ),
-    },
-    {
-      id: "source",
-      header: "Source",
-      cell: (row) => (
-        <span className="text-sm">
-          {row.source === "KAFKA"
-            ? "Kafka (system)"
-            : row.source === "HTTP"
-              ? "Portal / API"
-              : "System"}
-        </span>
-      ),
-    },
-    {
-      id: "actor",
-      header: "Performed by",
-      cell: (row) => row.performed_by_name ?? "System (background job)",
-    },
-    {
-      id: "when",
-      header: "Performed at",
-      cell: (row) => (
-        <time dateTime={row.performed_at} className="whitespace-nowrap text-creaw-body">
-          {displayDate(row.performed_at)}
-        </time>
-      ),
-    },
-  ];
+
+  const exportButton = (
+    <span title={!canExport ? "CSV export permission required" : undefined}>
+      <ExportButton disabled={!canExport} exportAction={() => exportAuditAction(query)} />
+    </span>
+  );
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-xl font-bold">Activity trail</h2>
-          <p className="text-sm text-creaw-faint">
-            Portal, integration and background activity. Records are immutable.
-          </p>
+      {heading ? <PageHeading {...heading} actions={exportButton} /> : exportButton}
+      {query.targetId && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full bg-creaw-orange-soft px-3 py-1 font-semibold text-creaw-orange">
+            History for {query.module ?? "record"} #{query.targetId}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => list.filter({ targetId: undefined, module: undefined })}
+          >
+            Clear record filter
+          </Button>
         </div>
-        <span title={!canExport ? "CSV export permission required" : undefined}>
-          <ExportButton disabled={!canExport} exportAction={() => exportAuditAction(query)} />
-        </span>
-      </div>
-      <section
-        aria-label="Audit filters"
-        className="rounded-2xl border border-creaw-line bg-white p-4 sm:p-5"
-      >
-        {query.targetId && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-            <span className="rounded-full bg-creaw-orange-soft px-3 py-1 font-semibold text-creaw-orange">
-              History for {query.module ?? "record"} #{query.targetId}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => filter({ targetId: undefined, module: undefined })}
-            >
-              Clear record filter
-            </Button>
-          </div>
-        )}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="flex items-center gap-2 rounded-lg border bg-creaw-canvas px-3 py-2 sm:col-span-2">
-            <Search size={17} aria-hidden="true" />
-            <span className="sr-only">Search audit entries</span>
-            <input
-              type="search"
-              value={query.search ?? ""}
-              onChange={(event) => filter({ search: event.target.value || undefined })}
-              placeholder="Search entity, target or performed by"
-              className="min-w-0 w-full bg-transparent text-sm outline-none"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
-            Module
+      )}
+      {list.error && (
+        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
+          {list.error}
+        </p>
+      )}
+      <TableCard
+        title="Activity trail"
+        subtitle="Portal, integration and background activity. Records are immutable."
+        chipsLabel="Source"
+        chips={sources.map(([source, label]) => ({
+          label,
+          active: query.source === source,
+          onSelect: () => list.filter({ source }),
+        }))}
+        search={{
+          value: query.search ?? "",
+          label: "Search audit entries",
+          onChange: (value) => list.filter({ search: value || undefined }),
+        }}
+        filters={
+          <>
             <select
               aria-label="Module"
               value={query.module ?? ""}
-              onChange={(event) => filter({ module: event.target.value || undefined })}
-              className="rounded-lg border bg-white p-2 text-sm font-normal"
+              onChange={(event) => list.filter({ module: event.target.value || undefined })}
+              className={select}
             >
               <option value="">All modules</option>
               {modules.map((module) => (
@@ -195,45 +120,22 @@ export function AuditContent({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
-            Action
             <select
               aria-label="Action"
               value={query.action ?? ""}
-              onChange={(event) => filter({ action: event.target.value || undefined })}
-              className="rounded-lg border bg-white p-2 text-sm font-normal"
+              onChange={(event) => list.filter({ action: event.target.value || undefined })}
+              className={select}
             >
               <option value="">All actions</option>
               {actions.map((action) => (
                 <option key={action}>{action}</option>
               ))}
             </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
-            Source
-            <select
-              aria-label="Source"
-              value={query.source ?? ""}
-              onChange={(event) =>
-                filter({
-                  source: event.target.value ? (event.target.value as "HTTP" | "KAFKA") : undefined,
-                })
-              }
-              className="rounded-lg border bg-white p-2 text-sm font-normal"
-            >
-              <option value="">All sources</option>
-              <option value="HTTP">Portal / API</option>
-              <option value="KAFKA">Kafka (system)</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
-            Performed by
             <select
               aria-label="Performed by"
               value={query.userId ?? ""}
-              onChange={(event) => filter({ userId: Number(event.target.value) || undefined })}
-              className="rounded-lg border bg-white p-2 text-sm font-normal"
+              onChange={(event) => list.filter({ userId: Number(event.target.value) || undefined })}
+              className={select}
             >
               <option value="">All users</option>
               {actors.map(([id, name]) => (
@@ -242,113 +144,50 @@ export function AuditContent({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
-            From date
             <input
               aria-label="From date"
               type="date"
               value={query.from ?? ""}
               max={query.to}
-              onChange={(event) => filter({ from: event.target.value || undefined })}
-              className="rounded-lg border bg-white p-2 text-sm font-normal"
+              onChange={(event) => list.filter({ from: event.target.value || undefined })}
+              className={select}
             />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-creaw-body">
-            To date
             <input
               aria-label="To date"
               type="date"
               value={query.to ?? ""}
               min={query.from}
-              onChange={(event) => filter({ to: event.target.value || undefined })}
-              className="rounded-lg border bg-white p-2 text-sm font-normal"
+              onChange={(event) => list.filter({ to: event.target.value || undefined })}
+              className={select}
             />
-          </label>
-        </div>
-      </section>
-      {error && (
-        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
-      <div className="rounded-2xl border border-creaw-line bg-white p-3 sm:p-5">
-        <DataTable
-          label="Audit entries"
-          columns={columns}
-          rows={data.items}
-          getRowId={(row) => row.id}
-          loading={loading}
-          filtered={filtered}
-          rowActions={(row) => (
-            <Button size="sm" variant="outline" onClick={() => setSelected(row)}>
-              View changes
-            </Button>
-          )}
-        />
-        <Pagination
-          page={data.page}
-          pageSize={data.pageSize as PageSize}
-          totalItems={data.totalItems}
-          onPageChange={(page) => {
-            setLoading(true);
-            setQuery((current) => ({ ...current, page }));
-          }}
-          onPageSizeChange={(pageSize) => {
-            setLoading(true);
-            setQuery((current) => ({ ...current, pageSize, page: 1 }));
-          }}
-        />
-      </div>
-      <Dialog
-        open={selected !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
+          </>
+        }
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click an entry to see what changed"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck size={20} />
-            Audit entry #{selected?.id}
-          </DialogTitle>
-          <DialogDescription>
-            {selected?.action} · {selected?.entity_type ?? "System"} ·{" "}
-            {selected && displayDate(selected.performed_at)}
-          </DialogDescription>
-          {selected && (
-            <div className="space-y-4 text-sm">
-              <dl className="grid grid-cols-2 gap-3 rounded-xl bg-creaw-canvas p-3">
-                <div>
-                  <dt className="text-creaw-faint">Performed by</dt>
-                  <dd>{selected.performed_by_name ?? "System"}</dd>
-                </div>
-                <div>
-                  <dt className="text-creaw-faint">Source</dt>
-                  <dd>{selected.source ?? "System"}</dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="text-creaw-faint">Endpoint / event</dt>
-                  <dd className="break-all font-mono text-xs">
-                    {selected.endpoint ?? selected.event_name ?? "—"}
-                  </dd>
-                </div>
-              </dl>
-              {[
-                ["Input", selected.input_payload],
-                ["Before", selected.previous_state],
-                ["After", selected.new_state],
-              ].map(([label, value]) => (
-                <section key={label}>
-                  <h3 className="mb-1 font-semibold">{label}</h3>
-                  <pre className="max-h-52 overflow-auto rounded-xl border bg-creaw-surface p-3 text-xs whitespace-pre-wrap break-words">
-                    {formattedJson(value)}
-                  </pre>
-                </section>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        <DataTable
+          framed={false}
+          label="Audit entries"
+          columns={auditColumns}
+          rows={list.data.items}
+          getRowId={(row) => row.id}
+          loading={list.loading}
+          filtered={filtered}
+          onRowOpen={(row) => setOpenId((current) => (current === row.id ? null : row.id))}
+          rowOpenLabel={(row) =>
+            `${openId === row.id ? "Collapse" : "Expand"} audit entry ${row.id}`
+          }
+          renderExpanded={(row) => (openId === row.id ? <AuditEntryDetail row={row} /> : null)}
+        />
+      </TableCard>
     </div>
   );
 }

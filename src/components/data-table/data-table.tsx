@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import { Fragment, type MouseEvent, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TableState } from "./table-state";
@@ -25,6 +25,8 @@ export interface DataTableProps<T> {
   rowOpenLabel?: (row: T) => string;
   /** Draws its own card border; pass false inside a TableCard. */
   framed?: boolean;
+  /** Detail shown in a full-width row under a record, e.g. an opened audit entry. */
+  renderExpanded?: (row: T) => ReactNode;
 }
 
 /** Clicks on a row's own controls (menus, links, reveal buttons) must not also open it. */
@@ -44,7 +46,9 @@ export function DataTable<T>({
   onRowOpen,
   rowOpenLabel = () => "Open record",
   framed = true,
+  renderExpanded,
 }: DataTableProps<T>) {
+  const span = columns.length + (rowActions ? 1 : 0) + (onRowOpen ? 1 : 0);
   return (
     <div className={cn("overflow-hidden bg-white", framed && "rounded-2xl border")}>
       {loading || error || !rows.length ? (
@@ -76,38 +80,51 @@ export function DataTable<T>({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={getRowId(row)}
-                  onClick={onRowOpen ? (event) => fromControl(event) || onRowOpen(row) : undefined}
-                  className={cn(
-                    "border-b border-creaw-divider last:border-b-0 hover:bg-creaw-surface",
-                    onRowOpen && "cursor-pointer"
-                  )}
-                >
-                  {columns.map((column) => (
-                    <td
-                      key={column.id}
-                      className={`px-3.5 py-3 align-middle first:pl-5 ${column.className ?? ""}`}
+              {rows.map((row) => {
+                const expanded = renderExpanded?.(row);
+                return (
+                  <Fragment key={getRowId(row)}>
+                    <tr
+                      onClick={
+                        onRowOpen ? (event) => fromControl(event) || onRowOpen(row) : undefined
+                      }
+                      className={cn(
+                        "border-b border-creaw-divider last:border-b-0 hover:bg-creaw-surface",
+                        onRowOpen && "cursor-pointer"
+                      )}
                     >
-                      {column.cell(row)}
-                    </td>
-                  ))}
-                  {rowActions && <td className="px-3 py-2 text-right">{rowActions(row)}</td>}
-                  {onRowOpen && (
-                    <td className="py-3 pr-3.5 text-right">
-                      <button
-                        type="button"
-                        aria-label={rowOpenLabel(row)}
-                        onClick={() => onRowOpen(row)}
-                        className="rounded-md p-0.5 text-[#A39A92] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
-                      >
-                        <ChevronRight size={20} aria-hidden="true" />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
+                      {columns.map((column) => (
+                        <td
+                          key={column.id}
+                          className={`px-3.5 py-3 align-middle first:pl-5 ${column.className ?? ""}`}
+                        >
+                          {column.cell(row)}
+                        </td>
+                      ))}
+                      {rowActions && <td className="px-3 py-2 text-right">{rowActions(row)}</td>}
+                      {onRowOpen && (
+                        <td className="py-3 pr-3.5 text-right">
+                          <button
+                            type="button"
+                            aria-label={rowOpenLabel(row)}
+                            onClick={() => onRowOpen(row)}
+                            className="rounded-md p-0.5 text-[#A39A92] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+                          >
+                            <ChevronRight size={20} aria-hidden="true" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                    {expanded && (
+                      <tr className="border-b border-creaw-divider bg-creaw-surface">
+                        <td colSpan={span} className="px-5 py-4">
+                          {expanded}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

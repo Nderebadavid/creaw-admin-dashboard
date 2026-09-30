@@ -130,3 +130,21 @@ it("labels the visible range like the design", () => {
   expect(screen.getByText("11–20 of 32")).toBeInTheDocument();
   expect(screen.getByText("Click a row to open the record")).toBeInTheDocument();
 });
+
+it("renders an expanded detail row beneath its record", () => {
+  render(
+    <DataTable
+      columns={columns}
+      rows={[
+        { id: 1, name: "Faith" },
+        { id: 2, name: "Grace" },
+      ]}
+      getRowId={(row) => row.id}
+      label="Entries"
+      renderExpanded={(row) => (row.id === 2 ? <p>Grace details</p> : null)}
+    />
+  );
+  const detail = screen.getByText("Grace details");
+  expect(detail.closest("td")).toHaveAttribute("colspan", "1");
+  expect(screen.getAllByRole("row")).toHaveLength(4);
+});

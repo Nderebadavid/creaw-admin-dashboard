@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { auditApi } from "@/features/audit/api";
@@ -25,17 +24,15 @@ export default async function AuditPage({
   if (!parsed.success) notFound();
   const initial = await auditApi.list(parsed.data);
   return (
-    <>
-      <PageHeading
-        title="Audit log"
-        section="Reporting"
-        description="Every create, edit, reveal, upload and export — portal and mobile"
-      />
-      <AuditContent
-        initial={initial}
-        initialQuery={parsed.data}
-        canExport={hasPermission(session.grants, "REPORT_EXPORT_CSV")}
-      />
-    </>
+    <AuditContent
+      heading={{
+        title: "Audit log",
+        section: "Reporting",
+        description: "Every create, edit, reveal, upload and export — portal and mobile",
+      }}
+      initial={initial}
+      initialQuery={parsed.data}
+      canExport={hasPermission(session.grants, "REPORT_EXPORT_CSV")}
+    />
   );
 }
