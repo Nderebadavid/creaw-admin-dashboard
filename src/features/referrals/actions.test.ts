@@ -172,3 +172,22 @@ describe("referral provenance", () => {
     expect((await api.get(created.data!.id))?.referredBy).toBe("Judy Mwangi");
   });
 });
+
+describe("referral counts", () => {
+  it("counts referrals by status without resolving the caller's grants", async () => {
+    const requests: string[] = [];
+    const api = createReferralsApi(
+      createApiClient(
+        new MockApiTransport((request) => {
+          requests.push(request.path);
+          return handleMockRequest(request);
+        })
+      ),
+      issueMockToken(1)
+    );
+    const count = await api.countByStatus("NEW");
+    expect(requests).toEqual(["/referrals"]);
+    expect(count).toBe((await api.list({ status: "NEW", pageSize: 1 })).totalItems);
+    expect(count).toBeGreaterThan(0);
+  });
+});

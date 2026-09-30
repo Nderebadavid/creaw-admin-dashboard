@@ -30,10 +30,7 @@ export async function loadNavigationStatus(
       canOpen(grants, ["FIELD_SUBMISSION_VIEW"]),
       async () => (await submissionsApi.listAll()).filter((row) => row.status !== "Approved").length
     ),
-    count(
-      canOpen(grants, ["REFERRAL_VIEW"]),
-      async () => (await referralsApi.list({ status: "NEW", pageSize: 1 })).totalItems
-    ),
+    count(canOpen(grants, ["REFERRAL_VIEW"]), () => referralsApi.countByStatus("NEW")),
     count(canOpen(grants, ["GRANT_APPLICATION_VIEW"]), async () => {
       const rows = await collectPages((page, pageSize) => grantsApi.list({ page, pageSize }));
       return rows.filter((row) => row.status !== "APPROVED").length;

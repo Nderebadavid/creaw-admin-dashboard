@@ -196,6 +196,21 @@ export function createReferralsApi(client: ApiClient, token: string) {
       if (!response.success || !response.data) throw new Error(response.message);
       return { ...response.data, items: await enrich(response.data.items) };
     },
+    /** Referrals in the caller's scope with this status; skips the per-row permission work. */
+    async countByStatus(status: string): Promise<number> {
+      const response = await client.request(
+        {
+          method: "GET",
+          path: "/referrals",
+          routeTemplate: "/referrals",
+          token,
+          query: { page: 1, pageSize: 1, status },
+        },
+        referralListSchema
+      );
+      if (!response.success || !response.data) throw new Error(response.message);
+      return response.data.totalItems;
+    },
     async get(id: number): Promise<ReferralView | null> {
       const row = await this.getRaw(id);
       return row ? (await enrich([row]))[0] : null;
@@ -261,6 +276,9 @@ export function createReferralsApi(client: ApiClient, token: string) {
 export const referralsApi = {
   async list(query: ReferralQuery = {}) {
     return (await withSessionApi(createReferralsApi)).list(query);
+  },
+  async countByStatus(status: string) {
+    return (await withSessionApi(createReferralsApi)).countByStatus(status);
   },
   async pillars() {
     return (await withSessionApi(createReferralsApi)).pillars();
