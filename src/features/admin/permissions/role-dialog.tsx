@@ -1,8 +1,9 @@
 "use client";
 import { fieldClass } from "@/components/ui/form-styles";
-import { useState, type FormEvent } from "react";
+import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { ActionDialog } from "@/components/ui/action-dialog";
+import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { createRoleAction, updateRoleAction } from "../actions";
 import type { RoleView } from "../api";
 
@@ -19,82 +20,70 @@ export function RoleDialog({
   onClose: () => void;
   onSaved: (message: string) => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const { busy, error, run, clearError } = useActionSubmit(onSaved);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
-    setError("");
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") ?? "");
     const description = String(form.get("description") ?? "");
-    const response = role
-      ? await updateRoleAction({ id: role.id, name, description })
-      : await createRoleAction({ code: String(form.get("code") ?? ""), name, description });
-    setBusy(false);
-    if (response.success) onSaved(role ? "Role updated." : "Role created.");
-    else setError(response.message);
+    void run(
+      role
+        ? updateRoleAction({ id: role.id, name, description })
+        : createRoleAction({ code: String(form.get("code") ?? ""), name, description }),
+      role ? "Role updated." : "Role created."
+    );
   }
 
   return (
-    <Dialog
+    <ActionDialog
       open={open}
-      onOpenChange={(value) => {
-        if (!value && !busy) {
-          setError("");
-          onClose();
-        }
+      busy={busy}
+      onClose={() => {
+        clearError();
+        onClose();
       }}
+      title={role ? "Edit role" : "New role"}
+      description="Roles group permissions and can be assigned to staff within a pillar."
+      error={error}
     >
-      <DialogContent>
-        <DialogTitle>{role ? "Edit role" : "New role"}</DialogTitle>
-        <DialogDescription>
-          Roles group permissions and can be assigned to staff within a pillar.
-        </DialogDescription>
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <form onSubmit={submit} className="space-y-3">
-          {!role && (
-            <label className="block text-sm">
-              Code
-              <input
-                name="code"
-                required
-                pattern="[A-Z][A-Z0-9_]+"
-                maxLength={40}
-                placeholder="ROLE_CODE"
-                className={fieldClass}
-              />
-            </label>
-          )}
+      <form onSubmit={submit} className="space-y-3">
+        {!role && (
           <label className="block text-sm">
-            Name
+            Code
             <input
-              name="name"
+              name="code"
               required
-              maxLength={120}
-              defaultValue={role?.name ?? ""}
+              pattern="[A-Z][A-Z0-9_]+"
+              maxLength={40}
+              placeholder="ROLE_CODE"
               className={fieldClass}
             />
           </label>
-          <label className="block text-sm">
-            Description
-            <textarea
-              name="description"
-              maxLength={500}
-              defaultValue={role?.description ?? ""}
-              className={fieldClass}
-            />
-          </label>
-          <Button type="submit" disabled={busy}>
-            {busy ? "Saving…" : "Save role"}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+        )}
+        <label className="block text-sm">
+          Name
+          <input
+            name="name"
+            required
+            maxLength={120}
+            defaultValue={role?.name ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <label className="block text-sm">
+          Description
+          <textarea
+            name="description"
+            maxLength={500}
+            defaultValue={role?.description ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <Button type="submit" disabled={busy}>
+          {busy ? "Saving…" : "Save role"}
+        </Button>
+      </form>
+    </ActionDialog>
   );
 }

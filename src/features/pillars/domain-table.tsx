@@ -1,9 +1,10 @@
 "use client";
 
+import { useClientPaging } from "@/components/data-table/use-client-paging";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination, type PageSize } from "@/components/data-table/pagination";
+import { Pagination } from "@/components/data-table/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -18,8 +19,6 @@ export function PillarDomainTable({
 }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
   const [selected, setSelected] = useState<PillarDomainRecord | null>(null);
   const statuses = useMemo(
     () => ["All", ...new Set(domain.rows.map((row) => row.status))],
@@ -37,6 +36,7 @@ export function PillarDomainTable({
       ),
     [domain.rows, search, status]
   );
+  const { pageRows, pager, resetPage } = useClientPaging(filtered);
   const columns: DataColumn<PillarDomainRecord>[] = domain.columns.map((header, index) => ({
     id: String(index),
     header,
@@ -70,7 +70,7 @@ export function PillarDomainTable({
             aria-pressed={status === value}
             onClick={() => {
               setStatus(value);
-              setPage(1);
+              resetPage();
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${status === value ? "border-primary bg-creaw-orange-soft text-primary" : "bg-white text-creaw-body"}`}
           >
@@ -87,14 +87,14 @@ export function PillarDomainTable({
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
-            setPage(1);
+            resetPage();
           }}
           className="min-w-0 flex-1 outline-none"
         />
       </label>
       <DataTable
         columns={columns}
-        rows={filtered.slice((page - 1) * pageSize, page * pageSize)}
+        rows={pageRows}
         getRowId={(row) => row.id}
         label={domain.title}
         filtered={filtered.length === 0 && (status !== "All" || search.length > 0)}
@@ -109,13 +109,7 @@ export function PillarDomainTable({
           </Button>
         )}
       />
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalItems={filtered.length}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-      />
+      <Pagination {...pager} />
       <Dialog
         open={selected !== null}
         onOpenChange={(open) => {

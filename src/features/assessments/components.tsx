@@ -1,4 +1,5 @@
 "use client";
+import { usePagedList } from "@/components/data-table/use-paged-list";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
@@ -30,38 +31,33 @@ export function AssessmentsContent({
   canAttach: boolean;
   canDownload?: boolean;
 }) {
-  const [data, setData] = useState(initial);
+  const list = usePagedList<AssessmentView, { page?: number; pageSize?: number }>(
+    initial,
+    { page: 1, pageSize: 25 },
+    (query) => listAssessmentsAction(query.page ?? 1, query.pageSize ?? 25)
+  );
+  const data = list.data;
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [checkId, setCheckId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const error = actionError || list.error;
   const [feedback, setFeedback] = useState("");
   // Look the selection up in the latest page so the drawer shows fresh data after a save.
   const selected: AssessmentView | null = data.items.find((item) => item.id === selectedId) ?? null;
-
-  async function load(page: number, pageSize: number) {
-    setLoading(true);
-    const response = await listAssessmentsAction(page, pageSize);
-    if (response.success && response.data) {
-      setData(response.data);
-      setError("");
-    } else setError(response.message);
-    setLoading(false);
-  }
 
   const done = (message: string) => {
     setModal(null);
     setCheckId(null);
     setFeedback(message);
-    void load(data.page, data.pageSize);
+    void list.refresh();
   };
 
   async function viewDocument(documentId: number) {
     if (!selected) return;
     const response = await viewAssessmentDocumentAction(selected.id, documentId);
     if (response.success) setFeedback("Document access audited. Mock mode provides metadata only.");
-    else setError(response.message);
+    else setActionError(response.message);
   }
 
   return (
@@ -69,13 +65,13 @@ export function AssessmentsContent({
       {heading && <PageHeading {...heading} />}
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{error}</FormBanner>
-      {loading && <p role="status">Loading assessments…</p>}
+      {list.loading && <p role="status">Loading assessments…</p>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data.items.map((item) => (
           <AssessmentCard key={item.id} assessment={item} onOpen={() => setSelectedId(item.id)} />
         ))}
       </div>
-      {!loading && !data.items.length && (
+      {!list.loading && !data.items.length && (
         <p className="rounded-2xl border bg-white p-8 text-center text-sm text-creaw-faint">
           No assessments available.
         </p>
@@ -84,8 +80,8 @@ export function AssessmentsContent({
         page={data.page}
         pageSize={data.pageSize as PageSize}
         totalItems={data.totalItems}
-        onPageChange={(page) => void load(page, data.pageSize)}
-        onPageSizeChange={(pageSize) => void load(1, pageSize)}
+        onPageChange={(page) => list.filter({ page }, false)}
+        onPageSizeChange={(pageSize) => list.filter({ pageSize })}
       />
       <AssessmentDrawer
         assessment={modal === null && checkId === null ? selected : null}

@@ -1,11 +1,13 @@
 "use client";
+import { useClientPaging } from "@/components/data-table/use-client-paging";
+import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Pagination, type PageSize } from "@/components/data-table/pagination";
+import { Pagination } from "@/components/data-table/pagination";
 import { ExportButton } from "@/components/ui/export-button";
 import type { LookupView } from "./api";
 import type { LookupTable } from "./schemas";
@@ -52,12 +54,13 @@ export function LookupContent({
   const isGeo = isGeoTable(table);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
   const [modal, setModal] = useState<Modal>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  const { busy, error, run, clearError } = useActionSubmit((message) => {
+    setFeedback(message);
+    setModal(null);
+    router.refresh();
+  });
 
   const filtered = useMemo(
     () =>
@@ -74,30 +77,12 @@ export function LookupContent({
       ),
     [rows, query, status, config.columns, counties, subCounties, pillars]
   );
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const { pageRows, pager, resetPage } = useClientPaging(filtered);
 
   const open = (next: Modal) => {
-    setError("");
+    clearError();
     setModal(next);
   };
-
-  /** Runs a mutation, then closes the dialog and refreshes on success. */
-  async function run(action: Promise<{ success: boolean; message: string }>, message: string) {
-    setBusy(true);
-    setError("");
-    try {
-      const response = await action;
-      if (response.success) {
-        setFeedback(message);
-        setModal(null);
-        router.refresh();
-      } else setError(response.message);
-    } catch {
-      setError("Could not save this entry. Please retry.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   function saveEntry(values: Record<string, unknown>) {
     if (modal?.kind === "edit") {
@@ -110,11 +95,12 @@ export function LookupContent({
     void run(createLookupAction({ table, values }), `${config.singular} added.`);
   }
 
-  const resetPage =
+  /** Filter changes start again from the first page. */
+  const refilter =
     <T,>(setter: (value: T) => void) =>
     (value: T) => {
       setter(value);
-      setPage(1);
+      resetPage();
     };
 
   return (
@@ -138,7 +124,6 @@ export function LookupContent({
         })}
       </nav>
       <FormBanner tone="success">{feedback}</FormBanner>
-      {!modal && <FormBanner tone="error">{error}</FormBanner>}
       <section className="min-w-0 overflow-hidden rounded-2xl border border-creaw-line bg-white">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
           <div>
@@ -178,7 +163,7 @@ export function LookupContent({
             <input
               type="search"
               value={query}
-              onChange={(event) => resetPage(setQuery)(event.target.value)}
+              onChange={(event) => refilter(setQuery)(event.target.value)}
               placeholder={`Search ${config.label.toLowerCase()}`}
               className="min-w-0 w-full bg-transparent text-sm outline-none"
             />
@@ -187,7 +172,7 @@ export function LookupContent({
             Status
             <select
               value={status}
-              onChange={(event) => resetPage(setStatus)(event.target.value)}
+              onChange={(event) => refilter(setStatus)(event.target.value)}
               className="ml-2 rounded-lg border bg-white p-2"
             >
               <option value="all">All</option>
@@ -209,13 +194,7 @@ export function LookupContent({
           onToggle={(row) => open({ kind: "toggle", row })}
         />
         <div className="px-5">
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            totalItems={filtered.length}
-            onPageChange={setPage}
-            onPageSizeChange={resetPage(setPageSize)}
-          />
+          <Pagination {...pager} />
         </div>
         {table === "pillar" && (
           <p className="mx-5 mb-5 rounded-lg bg-creaw-canvas p-3 text-sm text-creaw-body">

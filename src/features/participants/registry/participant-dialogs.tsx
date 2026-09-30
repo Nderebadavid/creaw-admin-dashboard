@@ -1,6 +1,7 @@
 "use client";
 import { fieldClass } from "@/components/ui/form-styles";
-import { useState, type FormEvent } from "react";
+import type { FormEvent } from "react";
+import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { registerParticipantAction, updateParticipantAction } from "../actions";
@@ -23,29 +24,26 @@ export function RegisterParticipantDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const { busy, error, run, clearError } = useActionSubmit(onDone);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
-    setError("");
     const form = new FormData(event.currentTarget);
-    const response = await registerParticipantAction({
-      firstName: String(form.get("firstName") ?? ""),
-      lastName: String(form.get("lastName") ?? ""),
-      gender: optional(form, "gender"),
-      dateOfBirth: optional(form, "dateOfBirth"),
-      phoneNumber: optional(form, "phoneNumber"),
-      idNumber: optional(form, "idNumber"),
-      wardId: Number(form.get("wardId")) || undefined,
-      pillarId: Number(form.get("pillarId")),
-      remarks: optional(form, "remarks"),
-      consentGiven: form.get("consentGiven") === "on",
-    });
-    setBusy(false);
-    if (response.success) onDone("Participant registered. Attach the signed consent form next.");
-    else setError(response.message);
+    void run(
+      registerParticipantAction({
+        firstName: String(form.get("firstName") ?? ""),
+        lastName: String(form.get("lastName") ?? ""),
+        gender: optional(form, "gender"),
+        dateOfBirth: optional(form, "dateOfBirth"),
+        phoneNumber: optional(form, "phoneNumber"),
+        idNumber: optional(form, "idNumber"),
+        wardId: Number(form.get("wardId")) || undefined,
+        pillarId: Number(form.get("pillarId")),
+        remarks: optional(form, "remarks"),
+        consentGiven: form.get("consentGiven") === "on",
+      }),
+      "Participant registered. Attach the signed consent form next."
+    );
   }
 
   return (
@@ -53,7 +51,7 @@ export function RegisterParticipantDialog({
       open={open}
       busy={busy}
       onClose={() => {
-        setError("");
+        clearError();
         onClose();
       }}
       title="Register participant"
@@ -141,23 +139,20 @@ export function EditParticipantDialog({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const { busy, error, run, clearError } = useActionSubmit(onDone);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!participant) return;
-    setBusy(true);
-    setError("");
     const form = new FormData(event.currentTarget);
-    const response = await updateParticipantAction({
-      id: participant.id,
-      remarks: String(form.get("remarks") ?? ""),
-      consentGiven: form.get("consentGiven") === "on",
-    });
-    setBusy(false);
-    if (response.success) onDone("Participant updated.");
-    else setError(response.message);
+    void run(
+      updateParticipantAction({
+        id: participant.id,
+        remarks: String(form.get("remarks") ?? ""),
+        consentGiven: form.get("consentGiven") === "on",
+      }),
+      "Participant updated."
+    );
   }
 
   return (
@@ -165,7 +160,7 @@ export function EditParticipantDialog({
       open={participant !== null}
       busy={busy}
       onClose={() => {
-        setError("");
+        clearError();
         onClose();
       }}
       title="Edit participant"

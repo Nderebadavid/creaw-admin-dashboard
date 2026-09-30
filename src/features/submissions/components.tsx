@@ -1,11 +1,12 @@
 "use client";
 
+import { useClientPaging } from "@/components/data-table/use-client-paging";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
-import { Pagination, type PageSize } from "@/components/data-table/pagination";
+import { Pagination } from "@/components/data-table/pagination";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { reviewSubmissionAction } from "./actions";
@@ -46,8 +47,6 @@ export function SubmissionsContent({
   const router = useRouter();
   const [active, setActive] = useState<"All" | SubmissionStatus>("All");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
   const [reviewing, setReviewing] = useState<SubmissionRow | null>(null);
   const [approving, setApproving] = useState<SubmissionRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,7 +57,7 @@ export function SubmissionsContent({
     () => filterSubmissionRows(localRows, { status: active, search }),
     [localRows, active, search]
   );
-  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const { pageRows: visible, pager, resetPage } = useClientPaging(filtered);
   const isReviewable = (row: SubmissionRow) =>
     reviewableIds ? reviewableIds.includes(row.id) : canReview;
 
@@ -114,7 +113,7 @@ export function SubmissionsContent({
               type="button"
               onClick={() => {
                 setActive(tab);
-                setPage(1);
+                resetPage();
               }}
               aria-pressed={active === tab}
               className={`rounded-[9px] border px-3 py-[7px] text-[13px] font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "border-creaw-line-strong bg-white text-creaw-body"}`}
@@ -136,7 +135,7 @@ export function SubmissionsContent({
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
-              setPage(1);
+              resetPage();
             }}
             placeholder="Filter this list"
             className="min-w-0 flex-1 bg-transparent outline-none"
@@ -161,13 +160,7 @@ export function SubmissionsContent({
           ))}
         </div>
       )}
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalItems={filtered.length}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-      />
+      <Pagination {...pager} />
       <ReviewDialog
         submission={reviewing}
         busy={busy}

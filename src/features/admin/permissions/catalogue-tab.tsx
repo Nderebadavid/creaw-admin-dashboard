@@ -1,8 +1,9 @@
 "use client";
+import { useClientPaging } from "@/components/data-table/use-client-paging";
 import { useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Pagination, type PageSize } from "@/components/data-table/pagination";
+import { Pagination } from "@/components/data-table/pagination";
 import type { PermissionView, RoleView } from "../api";
 
 /** Searchable, paginated list of every permission and the roles that hold it. */
@@ -21,8 +22,6 @@ export function CatalogueTab({
 }) {
   const [query, setQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(10);
 
   const modules = [...new Set(permissions.map((permission) => permission.module))].sort();
   const filtered = permissions.filter(
@@ -32,7 +31,7 @@ export function CatalogueTab({
         .toLowerCase()
         .includes(query.toLowerCase())
   );
-  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const { pageRows: visible, pager, resetPage } = useClientPaging(filtered);
 
   return (
     <section className="rounded-2xl border border-creaw-line bg-white">
@@ -56,7 +55,7 @@ export function CatalogueTab({
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              setPage(1);
+              resetPage();
             }}
             placeholder="Search code, name or description"
             className="min-w-0 w-full bg-transparent text-sm outline-none"
@@ -68,7 +67,7 @@ export function CatalogueTab({
             value={moduleFilter}
             onChange={(event) => {
               setModuleFilter(event.target.value);
-              setPage(1);
+              resetPage();
             }}
             className="ml-2 rounded-lg border bg-white p-2"
           >
@@ -121,16 +120,7 @@ export function CatalogueTab({
         )}
       </div>
       <div className="px-4">
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          totalItems={filtered.length}
-          onPageChange={setPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPage(1);
-          }}
-        />
+        <Pagination {...pager} />
       </div>
     </section>
   );
