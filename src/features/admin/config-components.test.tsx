@@ -58,8 +58,8 @@ describe("configuration controls", () => {
     );
     expect(screen.getByRole("button", { name: "Move Intake up" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Move Closure down" })).toBeDisabled();
-    expect(screen.getByText("Entry")).toBeInTheDocument();
-    expect(screen.getByText("Exit")).toBeInTheDocument();
+    expect(screen.getByText("Entry stage")).toBeInTheDocument();
+    expect(screen.getByText("Exit stage")).toBeInTheDocument();
   });
 
   it("renders the 101st stage with the correct exit position", () => {

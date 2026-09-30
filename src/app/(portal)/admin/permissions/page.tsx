@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/portal/page-heading";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { adminApi } from "@/features/admin/api";
@@ -16,19 +15,17 @@ export default async function PermissionsPage() {
     canManagePermissions ? adminApi.rolePermissions() : [],
   ]);
   return (
-    <>
-      <PageHeading
-        title="Roles & permissions"
-        section="Admin"
-        description="Create roles and permissions, then choose exactly what each role can do"
-      />
-      <PermissionsContent
-        roles={roles}
-        permissions={permissions}
-        grants={grants}
-        canManageRoles={canManageRoles}
-        canManagePermissions={canManagePermissions}
-      />
-    </>
+    <PermissionsContent
+      heading={{
+        title: "Roles & permissions",
+        section: "Admin",
+        description: "Create roles and permissions, then choose exactly what each role can do",
+      }}
+      roles={roles}
+      permissions={permissions}
+      grants={grants}
+      canManageRoles={canManageRoles}
+      canManagePermissions={canManagePermissions}
+    />
   );
 }

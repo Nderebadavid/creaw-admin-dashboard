@@ -25,8 +25,24 @@ export function MatrixTab({
       <div className="p-5">
         <h2 className="font-heading text-xl font-bold">Role × permission matrix</h2>
         <p className="text-sm text-creaw-faint">
-          Click a cell to stage a grant or revocation, then review and save.
+          Click any cell to grant or revoke. Changes are staged until you save.
         </p>
+        <ul aria-label="Legend" className="mt-3 flex flex-wrap gap-4 text-xs text-creaw-body">
+          <li className="flex items-center gap-1.5">
+            <span className="flex size-5 items-center justify-center rounded-md bg-[#E3F3EA] text-[11px] font-bold text-[#1F7A4D]">
+              ✓
+            </span>
+            Granted
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="size-5 rounded-md border border-creaw-line-strong bg-white" />
+            Not granted
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="size-5 rounded-md border-2 border-[#E0822F] bg-white" />
+            Unsaved
+          </li>
+        </ul>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse text-sm">

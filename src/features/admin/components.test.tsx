@@ -196,6 +196,30 @@ describe("administration screens", () => {
     expect(screen.getByText(/built-in roles cannot be edited/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /view audit log/i })).toBeDisabled();
   });
+  it("puts role and permission creation beside the heading and explains the matrix", () => {
+    render(
+      <PermissionsContent
+        heading={{
+          title: "Roles & permissions",
+          section: "Admin",
+          description: "Create roles and permissions, then choose exactly what each role can do",
+        }}
+        roles={[]}
+        permissions={[]}
+        grants={[]}
+        canManageRoles
+        canManagePermissions
+      />
+    );
+    const header = screen
+      .getByRole("heading", { level: 1, name: "Roles & permissions" })
+      .closest("[data-page-heading]") as HTMLElement;
+    expect(within(header).getByRole("button", { name: "New permission" })).toBeInTheDocument();
+    expect(within(header).getByRole("button", { name: "New role" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Matrix overview/ }));
+    for (const label of ["Granted", "Not granted", "Unsaved"])
+      expect(screen.getByText(label)).toBeInTheDocument();
+  });
   it("reconciles refreshed authoritative grants while retaining only unresolved drafts", async () => {
     const first = permission(1, "AUDIT_LOG_VIEW", "View audit log"),
       second = permission(2, "USER_MANAGE", "Manage users");

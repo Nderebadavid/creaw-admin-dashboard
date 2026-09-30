@@ -163,12 +163,12 @@ export function PipelineContent({
                       <span className="font-semibold">{stage.name}</span>
                       {index === 0 && (
                         <span className="ml-2 rounded-md bg-creaw-canvas px-2 py-1 text-xs text-creaw-faint">
-                          Entry
+                          Entry stage
                         </span>
                       )}
                       {index === stages.length - 1 && (
                         <span className="ml-2 rounded-md bg-creaw-canvas px-2 py-1 text-xs text-creaw-faint">
-                          Exit
+                          Exit stage
                         </span>
                       )}
                     </div>
