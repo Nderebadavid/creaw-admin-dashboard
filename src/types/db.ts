@@ -71,6 +71,13 @@ export interface ActivityTypeDefinition extends StandardColumns {
   description: string | null;
 }
 
+export interface ActivityTopic extends StandardColumns {
+  activity_type_id: number;
+  name: string;
+  description: string | null;
+  sequence_no: number;
+}
+
 export interface Role extends StandardColumns {
   code: string;
   name: string;
@@ -292,6 +299,7 @@ export interface ActivitySession extends StandardColumns {
   pillar_id: number;
   enrollment_id: number | null;
   activity_type_id: number;
+  activity_topic_id: number | null;
   session_date: string;
   venue: string | null;
   topic: string | null;
@@ -379,6 +387,7 @@ export interface DbTables {
   case_type: CaseType;
   partner_institution: PartnerInstitution;
   activity_type_definition: ActivityTypeDefinition;
+  activity_topic: ActivityTopic;
   role: Role;
   user_role: UserRole;
   permission: Permission;

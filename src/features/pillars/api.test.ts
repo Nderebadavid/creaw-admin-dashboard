@@ -54,7 +54,11 @@ describe("pillar API", () => {
     for (const [code, title, table] of expected) {
       const view = await api.get(code);
       expect(view.domain?.title).toBe(title);
-      expect(view.domain?.rows).toHaveLength(getMockStore()[table].length);
+      // Sessions are shared across pillars in the store; each route shows only its own.
+      const stored = getMockStore()[table] as { pillar_id?: number }[];
+      const own =
+        table === "activity_session" ? stored.filter((row) => row.pillar_id === 3) : stored;
+      expect(view.domain?.rows).toHaveLength(own.length);
     }
   });
   it("labels the legal case ruling date without implying a future appointment", async () => {
