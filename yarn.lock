@@ -625,13 +625,6 @@
   resolved "https://registry.yarnpkg.com/@hono/node-server/-/node-server-2.1.1.tgz#9cfa8649e9ecbcd48edf505b103002402ea51e70"
   integrity sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==
 
-"@hookform/resolvers@^5.9.1":
-  version "5.9.1"
-  resolved "https://registry.yarnpkg.com/@hookform/resolvers/-/resolvers-5.9.1.tgz#2010c1b542ce6fa75fa5d8fee5cc911ece009f5c"
-  integrity sha512-7b7vsbraJxKgjVSA1Nur9tLwj539WGJUBLA7QNvXnFoT2pM5Z7G+6rlukk4B2/QrTZy6huRtH6wKeESPKuIr6w==
-  dependencies:
-    "@standard-schema/utils" "^0.3.0"
-
 "@humanfs/core@^0.19.2":
   version "0.19.2"
   resolved "https://registry.yarnpkg.com/@humanfs/core/-/core-0.19.2.tgz#a8272ca03b2acf492670222b2320b6c421bfde60"
@@ -972,18 +965,6 @@
   resolved "https://registry.yarnpkg.com/@nolyfill/is-core-module/-/is-core-module-1.0.39.tgz#3dc35ba0f1e66b403c00b39344f870298ebb1c8e"
   integrity sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==
 
-"@radix-ui/react-compose-refs@1.1.5":
-  version "1.1.5"
-  resolved "https://registry.yarnpkg.com/@radix-ui/react-compose-refs/-/react-compose-refs-1.1.5.tgz#883e642c5ec0ba393dd1bf586e7e772985770d87"
-  integrity sha512-+48PbAAbq3didjJxa+OaWY2ZwgAKsNiRGyeHKszblZMQ+kcpd9pAaT11cMkGEie0vsOi3QdeTE6d5Fe3Gn61kA==
-
-"@radix-ui/react-slot@^1.3.3":
-  version "1.3.3"
-  resolved "https://registry.yarnpkg.com/@radix-ui/react-slot/-/react-slot-1.3.3.tgz#ccc8c8936fff12f7e324d6917fe5167357097676"
-  integrity sha512-qx7oqnYbxnK9kYI9m317qmFmEgo6ywqWvbTogdj7cL9p3/yx4M48p7Rnw5z3H890cL/ow/EeWJsuTykeZVXP5Q==
-  dependencies:
-    "@radix-ui/react-compose-refs" "1.1.5"
-
 "@rollup/rollup-android-arm-eabi@4.63.5":
   version "4.63.5"
   resolved "https://registry.yarnpkg.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.63.5.tgz#7bb325dcd3430b3d7af484099beed53808b1a5a8"
@@ -1124,11 +1105,6 @@
   resolved "https://registry.yarnpkg.com/@sindresorhus/merge-streams/-/merge-streams-4.0.0.tgz#abb11d99aeb6d27f1b563c38147a72d50058e339"
   integrity sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==
 
-"@standard-schema/utils@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@standard-schema/utils/-/utils-0.3.0.tgz#3d5e608f16c2390c10528e98e59aef6bf73cae7b"
-  integrity sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==
-
 "@swc/helpers@0.5.23":
   version "0.5.23"
   resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.5.23.tgz#19287d0d86d962b111376039a50c792902c9a86a"
@@ -1244,18 +1220,6 @@
     "@tailwindcss/oxide" "4.3.3"
     postcss "^8.5.16"
     tailwindcss "4.3.3"
-
-"@tanstack/react-table@^8.21.3":
-  version "8.21.3"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-table/-/react-table-8.21.3.tgz#2c38c747a5731c1a07174fda764b9c2b1fb5e91b"
-  integrity sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==
-  dependencies:
-    "@tanstack/table-core" "8.21.3"
-
-"@tanstack/table-core@8.21.3":
-  version "8.21.3"
-  resolved "https://registry.yarnpkg.com/@tanstack/table-core/-/table-core-8.21.3.tgz#2977727d8fc8dfa079112d9f4d4c019110f1732c"
-  integrity sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==
 
 "@testing-library/dom@10.4.1":
   version "10.4.1"
@@ -2228,11 +2192,6 @@ data-view-byte-offset@^1.0.1:
     es-errors "^1.3.0"
     is-data-view "^1.0.1"
 
-date-fns@^4.4.0:
-  version "4.4.0"
-  resolved "https://registry.yarnpkg.com/date-fns/-/date-fns-4.4.0.tgz#806539edf45c616b2b76b5f78b88c56ed3c7e036"
-  integrity sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==
-
 debounce-fn@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/debounce-fn/-/debounce-fn-4.0.0.tgz#ed76d206d8a50e60de0dd66d494d82835ffe61c7"
@@ -3082,15 +3041,6 @@ forwarded@0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/forwarded/-/forwarded-0.2.0.tgz#2269936428aad4c15c7ebe9779a84bf0b2a81811"
   integrity sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==
-
-framer-motion@^13.2.0:
-  version "13.2.0"
-  resolved "https://registry.yarnpkg.com/framer-motion/-/framer-motion-13.2.0.tgz#e531f00950f590d5ac0e905a355b8af4ca3923b0"
-  integrity sha512-9E33ebgMaO33w1nN/jEdW8z3/GO483fMi4rqbMG9rt83XgW9QLKRe4NcmJ8s+fQ3O34++UHrIQwlIWGIWTITjA==
-  dependencies:
-    motion-dom "^13.2.0"
-    motion-utils "^13.0.0"
-    tslib "^2.4.0"
 
 fresh@^2.0.0:
   version "2.0.0"
@@ -4144,18 +4094,6 @@ minimist@^1.2.0, minimist@^1.2.6:
   resolved "https://registry.yarnpkg.com/minimist/-/minimist-1.2.8.tgz#c1a464e7693302e082a075cee0c057741ac4772c"
   integrity sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==
 
-motion-dom@^13.2.0:
-  version "13.2.0"
-  resolved "https://registry.yarnpkg.com/motion-dom/-/motion-dom-13.2.0.tgz#d13d09accabdd6775d3bb981895fa2b8b6c07735"
-  integrity sha512-N6gdSoWRDk0Rh/fVtlqUtLs+fEN3ELFZI3cn3IQE9Mnf3E+Mh8wjO6MstzCOPFh4Yf0L1as5m2eUyYWj8ylVSQ==
-  dependencies:
-    motion-utils "^13.0.0"
-
-motion-utils@^13.0.0:
-  version "13.0.0"
-  resolved "https://registry.yarnpkg.com/motion-utils/-/motion-utils-13.0.0.tgz#b2e4dbe21e5488032592f0b0d4e0b7b776466dfa"
-  integrity sha512-7DnN7TmbLcYXcG4RVadXIihWlyuM9afoUww8Y5Agg431kGKiuL2/OMyP4mJ5wLz+pvN3t5ySClLOaVXJ+wekRQ==
-
 ms@^2.1.1, ms@^2.1.3:
   version "2.1.3"
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.3.tgz#574c8138ce1d2b5861f0b44579dbadd60c6615b2"
@@ -4672,11 +4610,6 @@ react-dom@19.2.8:
   integrity sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==
   dependencies:
     scheduler "^0.27.0"
-
-react-hook-form@^7.87.0:
-  version "7.87.0"
-  resolved "https://registry.yarnpkg.com/react-hook-form/-/react-hook-form-7.87.0.tgz#a9dde90aa71f1e303842d2b8de942160de618b61"
-  integrity sha512-zhFzWvLxNHH+8839OnZcUxgMZw88ah2jZWDWvKWgF3Tpbnd0vKL+dlcuU3nZVWESZQjd81EW8K+wU+cYfYAc0w==
 
 react-is@^16.13.1:
   version "16.13.1"

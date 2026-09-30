@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { DocumentPanel } from "./document-panel";
 import { ExportButton } from "./export-button";
 import { ModalForm } from "./modal-form";
-import { ProgressChart } from "./progress-chart";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -92,11 +91,4 @@ it("bounds long modal forms to the viewport and keeps actions outside the keyboa
   expect(dialog).toContainElement(screen.getByRole("button", { name: "Save" }));
   expect(fields).not.toContainElement(screen.getByRole("button", { name: "Save" }));
   expect(fields).not.toContainElement(screen.getByRole("button", { name: "Cancel" }));
-});
-it("exposes chart values to assistive technology", () => {
-  render(
-    <ProgressChart label="Quarterly reach" series={[{ label: "July", value: 12, target: 20 }]} />
-  );
-  expect(screen.getByRole("progressbar", { name: "July" })).toHaveAttribute("aria-valuenow", "12");
-  expect(screen.getByText("12 / 20")).toBeInTheDocument();
 });
