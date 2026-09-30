@@ -130,7 +130,30 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
     });
     return enrich(rows);
   }
+  /** Submissions in scope with one stage_event_status, read as a single-row page. */
+  async function countWithStatus(status: "recorded" | "disputed"): Promise<number> {
+    const response = await client.request(
+      {
+        method: "GET",
+        path: "/field-submissions",
+        routeTemplate: "/field-submissions",
+        token,
+        query: { page: 1, pageSize: 1, stage_event_status: status },
+      },
+      submissionListSchema
+    );
+    if (!response.success || !response.data) throw new Error(response.message);
+    return response.data.totalItems;
+  }
   return {
+    /** Submissions awaiting review or flagged: everything not yet approved. */
+    async countUnapproved(): Promise<number> {
+      const [recorded, disputed] = await Promise.all([
+        countWithStatus("recorded"),
+        countWithStatus("disputed"),
+      ]);
+      return recorded + disputed;
+    },
     async list(query: SubmissionQuery = {}): Promise<SubmissionList> {
       const page = query.page ?? 1,
         pageSize = query.pageSize ?? 25;
@@ -182,4 +205,7 @@ export const submissionsApi = {
    * through all submissions and enrollments.
    */
   listAll: cache(async () => (await withSessionApi(createSubmissionsApi)).listAll()),
+  async countUnapproved() {
+    return (await withSessionApi(createSubmissionsApi)).countUnapproved();
+  },
 };

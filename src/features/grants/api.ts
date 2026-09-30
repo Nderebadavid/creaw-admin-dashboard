@@ -153,6 +153,24 @@ export function createGrantsApi(client: ApiClient, token: string) {
         )
       );
     },
+    /** Applications still in their sign-off chain (not yet approved), without enriching rows. */
+    async countAwaitingSignoff(): Promise<number> {
+      const total = async (status?: string) =>
+        required(
+          await request<import("zod").infer<typeof applicationListSchema>>(
+            {
+              method: "GET",
+              path: "/grants",
+              routeTemplate: "/grants",
+              token,
+              query: { page: 1, pageSize: 1, status },
+            },
+            applicationListSchema
+          )
+        ).totalItems;
+      const [all, approved] = await Promise.all([total(), total("APPROVED")]);
+      return all - approved;
+    },
     async list(query: GrantQuery = {}): Promise<GrantPage> {
       const result = await request<import("zod").infer<typeof applicationListSchema>>(
         {
@@ -352,6 +370,9 @@ function bound() {
 export const grantsApi = {
   async list(query?: GrantQuery) {
     return (await bound()).list(query);
+  },
+  async countAwaitingSignoff() {
+    return (await bound()).countAwaitingSignoff();
   },
   async get(id: number) {
     return (await bound()).get(id);

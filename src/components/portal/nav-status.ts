@@ -1,6 +1,5 @@
 import "server-only";
 import { hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
-import { collectPages } from "@/lib/api/pagination";
 import { grantsApi } from "@/features/grants/api";
 import { referralsApi } from "@/features/referrals/api";
 import { reportingApi } from "@/features/reporting/api";
@@ -26,15 +25,9 @@ export async function loadNavigationStatus(
   grants: readonly EffectiveGrant[]
 ): Promise<NavigationStatus> {
   const [pendingSubmissions, newReferrals, grantsAwaiting, overdueReports] = await Promise.all([
-    count(
-      canOpen(grants, ["FIELD_SUBMISSION_VIEW"]),
-      async () => (await submissionsApi.listAll()).filter((row) => row.status !== "Approved").length
-    ),
+    count(canOpen(grants, ["FIELD_SUBMISSION_VIEW"]), () => submissionsApi.countUnapproved()),
     count(canOpen(grants, ["REFERRAL_VIEW"]), () => referralsApi.countByStatus("NEW")),
-    count(canOpen(grants, ["GRANT_APPLICATION_VIEW"]), async () => {
-      const rows = await collectPages((page, pageSize) => grantsApi.list({ page, pageSize }));
-      return rows.filter((row) => row.status !== "APPROVED").length;
-    }),
+    count(canOpen(grants, ["GRANT_APPLICATION_VIEW"]), () => grantsApi.countAwaitingSignoff()),
     count(
       canOpen(grants, ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW"]),
       async () => (await reportingApi.list({ status: "overdue", pageSize: 1 })).totalItems
