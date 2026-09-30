@@ -11,7 +11,7 @@ import { ExportButton } from "@/components/ui/export-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
 import type { SessionPermissions, SessionView, SessionWorkspace } from "../model";
-import { CoveragePanel } from "./coverage-panel";
+import { CoveragePanel, type TopicFilter } from "./coverage-panel";
 
 const text = "font-medium text-creaw-ink-soft";
 
@@ -68,7 +68,7 @@ export function SessionRegister({
 }: {
   workspace: SessionWorkspace;
   can: SessionPermissions;
-  topic?: string | null;
+  topic?: TopicFilter | null;
   onClearTopic?: () => void;
 }) {
   const [type, setType] = useState("All");
@@ -84,7 +84,7 @@ export function SessionRegister({
       workspace.sessions.filter(
         (row) =>
           (type === "All" || row.activityType === type) &&
-          (!topic || row.topic === topic) &&
+          (!topic || (row.activityTypeId === topic.activityTypeId && row.topic === topic.topic)) &&
           (!needle ||
             [row.activityType, row.topic, row.venue, row.facilitator]
               .join(" ")
@@ -95,6 +95,13 @@ export function SessionRegister({
   );
   const { rows, sorting } = useClientSort(filtered, columns);
   const { pageRows, pager, resetPage } = useClientPaging(rows);
+  // Back to page 1 whenever the topic filter changes (set or cleared).
+  const topicKey = topic ? `${topic.activityTypeId}:${topic.topic}` : "";
+  const [seenTopicKey, setSeenTopicKey] = useState(topicKey);
+  if (seenTopicKey !== topicKey) {
+    setSeenTopicKey(topicKey);
+    resetPage();
+  }
 
   return (
     <TableCard
@@ -120,7 +127,7 @@ export function SessionRegister({
       filters={
         topic ? (
           <p role="status" className="flex items-center gap-3 rounded-xl bg-creaw-line/40 px-4 py-2 text-sm">
-            Showing sessions on {topic}
+            Showing sessions on {topic.topic}
             <button type="button" onClick={onClearTopic} className="font-semibold underline">
               Clear
             </button>
@@ -170,7 +177,7 @@ export function SessionWorkspaceView({
   workspace: SessionWorkspace;
   can: SessionPermissions;
 }) {
-  const [topic, setTopic] = useState<string | null>(null);
+  const [topic, setTopic] = useState<TopicFilter | null>(null);
   return (
     <>
       <CoveragePanel workspace={workspace} onTopic={setTopic} />

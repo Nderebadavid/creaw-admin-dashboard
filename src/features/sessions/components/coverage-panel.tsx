@@ -7,6 +7,11 @@ import { periodLabels, sessionPeriods, type SessionWorkspace } from "../model";
 
 const topicButton =
   "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-creaw-line/40";
+/** A topic picked in the panel; names can repeat across activity types. */
+export interface TopicFilter {
+  activityTypeId: number;
+  topic: string;
+}
 const plural = (count: number) => `${count} ${count === 1 ? "session" : "sessions"}`;
 
 /** Planned topics per activity type, marked covered or not in the chosen period. */
@@ -15,7 +20,7 @@ export function CoveragePanel({
   onTopic,
 }: {
   workspace: SessionWorkspace;
-  onTopic: (topic: string) => void;
+  onTopic: (filter: TopicFilter) => void;
 }) {
   const pathname = usePathname();
   return (
@@ -66,7 +71,7 @@ export function CoveragePanel({
                     <button
                       type="button"
                       aria-label={`Show sessions on ${topic.name}`}
-                      onClick={() => onTopic(topic.name)}
+                      onClick={() => onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })}
                       className={topicButton}
                     >
                       {topic.sessions > 0 ? (
@@ -76,8 +81,8 @@ export function CoveragePanel({
                       )}
                       <span className="font-medium">{topic.name}</span>
                       <span className="ml-auto text-[13px] text-creaw-faint">
-                        {topic.sessions > 0 && topic.lastDelivered
-                          ? `${formatDate(topic.lastDelivered)} · ${plural(topic.sessions)}`
+                        {topic.sessions > 0
+                          ? `${topic.lastDelivered ? `${formatDate(topic.lastDelivered)} · ` : ""}${plural(topic.sessions)}`
                           : "Not yet covered"}
                       </span>
                     </button>
@@ -94,7 +99,7 @@ export function CoveragePanel({
                       <button
                         type="button"
                         aria-label={`Show sessions on ${topic.name}`}
-                        onClick={() => onTopic(topic.name)}
+                        onClick={() => onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })}
                         className={topicButton}
                       >
                         <span className="font-medium">{topic.name}</span>

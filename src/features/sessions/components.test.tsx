@@ -87,6 +87,24 @@ describe("curriculum coverage and session register", () => {
     fireEvent.click(screen.getByRole("button", { name: "All" }));
     fireEvent.click(screen.getByRole("button", { name: "Show sessions on Menstrual health" }));
     expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("button", { name: "Open Facility referral day, 20 Aug 2026" })).toBeInTheDocument();
+  });
+
+  it("returns to page 1 when a topic is picked or cleared", () => {
+    const filler = Array.from({ length: 12 }, (_, i) => ({
+      ...workspace.sessions[1],
+      id: 100 + i,
+      date: `2026-09-${String(28 - i).padStart(2, "0")}`,
+    }));
+    render(<SessionWorkspaceView workspace={{ ...workspace, sessions: [...filler, workspace.sessions[0]] }} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show sessions on Menstrual health" }));
+    expect(screen.getByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getAllByRole("row")).toHaveLength(11);
   });
 
   it("hides the export when the user cannot export", () => {
