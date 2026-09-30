@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AlertBanner } from "@/components/ui/alert-banner";
-import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
+import { hasModulePermission, hasPermission, type EffectiveGrant } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
 import { pillarsApi, PillarApiError } from "@/features/pillars/api";
 import { PillarContent } from "@/features/pillars/components";
@@ -21,45 +21,55 @@ const ids: Record<PillarCode, number> = {
   skilling: 6,
 };
 
-export default async function PillarPage({ params }: { params: Promise<{ pillar: string }> }) {
-  const session = await requireSession();
-  const code = pillarCodeSchema.safeParse((await params).pillar);
-  if (!code.success) notFound();
-  const pillar = await pillarsApi.get(code.data).catch((error) => {
+/** The permission that lets a user add records to each pillar's domain register. */
+const domainPermission = {
+  vawg: "CASE_EDIT",
+  wee: "GRANT_APPLICATION_EDIT",
+  srhr: "ACTIVITY_SESSION_LOG",
+  skilling: "TRAINING_ENROLLMENT_EDIT",
+  wros: "ORGANISATION_EDIT",
+  leadership: "PILLAR_CONFIG_MANAGE",
+} as const satisfies Record<PillarCode, string>;
+
+/** This pillar's field submissions, or none when the user can't view them here. */
+async function loadSubmissions(grants: readonly EffectiveGrant[], pillarId: number) {
+  if (!hasPermission(grants, "FIELD_SUBMISSION_VIEW", { pillarId })) return [];
+  const all = await submissionsApi.listAll().catch(() => []);
+  return all.filter((row) => row.pillarId === pillarId);
+}
+
+/** The pillar, or null when the API refuses access (404 becomes a not-found page). */
+function loadPillar(code: PillarCode) {
+  return pillarsApi.get(code).catch((error) => {
     if (error instanceof PillarApiError && error.status === 404) notFound();
     if (error instanceof PillarApiError && error.status === 403) return null;
     throw error;
   });
+}
+
+export default async function PillarPage({ params }: { params: Promise<{ pillar: string }> }) {
+  const session = await requireSession();
+  const code = pillarCodeSchema.safeParse((await params).pillar);
+  if (!code.success) notFound();
+  // The pillar id is fixed per code, so submissions load alongside the pillar.
+  const [pillar, submissions] = await Promise.all([
+    loadPillar(code.data),
+    loadSubmissions(session.grants, ids[code.data]),
+  ]);
   if (!pillar)
     return <AlertBanner tone="warning">You do not have access to this pillar.</AlertBanner>;
+  const can = (permission: string) =>
+    hasPermission(session.grants, permission, { pillarId: pillar.id });
   const availableCodes = (Object.keys(ids) as PillarCode[]).filter((key) =>
     hasPermission(session.grants, "DASHBOARD_VIEW", { pillarId: ids[key] })
   );
-  const canEdit = hasPermission(session.grants, "PARTICIPANT_EDIT", { pillarId: pillar.id });
+  const canEdit = can("PARTICIPANT_EDIT");
   const canCreate = canEdit && pillar.hasPipeline && pillar.code !== "wros";
-  const domainPermission = (
-    {
-      vawg: "CASE_EDIT",
-      wee: "GRANT_APPLICATION_EDIT",
-      srhr: "ACTIVITY_SESSION_LOG",
-      skilling: "TRAINING_ENROLLMENT_EDIT",
-      wros: "ORGANISATION_EDIT",
-      leadership: "PILLAR_CONFIG_MANAGE",
-    } as const
-  )[pillar.code];
+  // Leadership has no domain register; WRO organisations also need participant edit.
   const canCreateDomain =
     pillar.code !== "leadership" &&
-    hasPermission(session.grants, domainPermission, { pillarId: pillar.id }) &&
-    (pillar.code !== "wros" ||
-      hasPermission(session.grants, "PARTICIPANT_EDIT", { pillarId: pillar.id }));
-  const submissions = hasPermission(session.grants, "FIELD_SUBMISSION_VIEW", {
-    pillarId: pillar.id,
-  })
-    ? await submissionsApi
-        .listAll()
-        .then((list) => list.filter((row) => row.pillarId === pillar.id))
-        .catch(() => [])
-    : [];
+    can(domainPermission[pillar.code]) &&
+    (pillar.code !== "wros" || canEdit);
   return (
     <PillarContent
       heading={{
