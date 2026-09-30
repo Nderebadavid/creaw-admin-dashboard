@@ -1,4 +1,7 @@
 "use client";
+import { filterSelectClass } from "@/components/ui/form-styles";
+import { FormBanner } from "@/components/ui/form-banner";
+import { titleCase } from "@/lib/format";
 import { useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +11,7 @@ import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { ExportButton } from "@/components/ui/export-button";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import type { ReportPage, ReportQuery, ReportView } from "./api";
 import { exportReportsAction, listReportsAction, viewReportDocumentAction } from "./actions";
 import { reportColumns } from "./calendar/columns";
@@ -21,7 +24,6 @@ type Catalog = {
 };
 
 const statuses = ["overdue", "pending", "submitted"];
-const capitalise = (value: string) => value[0].toUpperCase() + value.slice(1);
 
 /**
  * Reporting calendar: narrative and grant-compliance reports due across
@@ -37,7 +39,7 @@ export function ReportingContent({
   narrativePillars = [],
   grantPillars = [],
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: ReportPage;
   catalog: Catalog;
   canManage: boolean;
@@ -112,19 +114,8 @@ export function ReportingContent({
           <span className="ml-2">Follow up with the owner and submit the report.</span>
         </AlertBanner>
       )}
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-xl bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && !modal && (
-        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{error}</FormBanner>}
       <TableCard
         title="Reports due"
         subtitle="Click a report to upload the submission or view what was sent"
@@ -136,7 +127,7 @@ export function ReportingContent({
             onSelect: () => list.filter({ status: undefined }),
           },
           ...statuses.map((status) => ({
-            label: capitalise(status),
+            label: titleCase(status),
             active: list.query.status === status,
             onSelect: () => list.filter({ status }),
           })),
@@ -149,7 +140,7 @@ export function ReportingContent({
               onChange={(event) =>
                 list.filter({ pillarId: Number(event.target.value) || undefined })
               }
-              className="h-10 rounded-[10px] border border-creaw-line-strong bg-white px-3 text-sm"
+              className={filterSelectClass}
             >
               <option value="">All pillars</option>
               {catalog.pillars.map((pillar) => (
@@ -164,7 +155,7 @@ export function ReportingContent({
               onChange={(event) =>
                 list.filter({ ownerId: Number(event.target.value) || undefined })
               }
-              className="h-10 rounded-[10px] border border-creaw-line-strong bg-white px-3 text-sm"
+              className={filterSelectClass}
             >
               <option value="">All owners</option>
               {owners.map((id) => (

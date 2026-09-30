@@ -1,4 +1,5 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,6 @@ import {
 } from "../actions";
 import type { AssessmentView } from "../api";
 import { recommendationLabels } from "./assessment-drawer";
-
-const field = "mt-1 w-full rounded-lg border border-creaw-line-strong bg-white p-2";
 
 /**
  * Records a proposed recommendation, or approves one. Approval needs a
@@ -63,7 +62,7 @@ export function RecommendationDialog({
             name="recommendation"
             defaultValue={assessment?.proposedRecommendation ?? ""}
             required
-            className={field}
+            className={fieldClass}
           >
             <option value="">Select recommendation</option>
             {Object.entries(recommendationLabels).map(([value, label]) => (
@@ -121,7 +120,13 @@ export function AttachDocumentDialog({
       <form className="space-y-3" onSubmit={send}>
         <label className="block text-sm">
           Document URL
-          <input name="fileUrl" type="url" required placeholder="https://…" className={field} />
+          <input
+            name="fileUrl"
+            type="url"
+            required
+            placeholder="https://…"
+            className={fieldClass}
+          />
         </label>
         <p className="text-xs text-creaw-faint">Mock mode stores document metadata only.</p>
         <Button type="submit" disabled={submit.busy}>

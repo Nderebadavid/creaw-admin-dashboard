@@ -1,10 +1,10 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createRoleAction, updateRoleAction } from "../actions";
 import type { RoleView } from "../api";
-import { fieldClass } from "../form-styles";
 
 /** Creates a role, or edits `role`'s name and description when one is given. */
 export function RoleDialog({

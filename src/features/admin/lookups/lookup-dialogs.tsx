@@ -1,20 +1,11 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { ActionDialog } from "@/components/ui/action-dialog";
 import type { LookupView } from "../api";
-import { fieldClass } from "../form-styles";
 import type { LookupTable } from "../schemas";
 import { lookupConfig, readLookupValues, type Field, type Option } from "./config";
-
-function ErrorBanner({ error }: { error: string }) {
-  if (!error) return null;
-  return (
-    <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-      {error}
-    </p>
-  );
-}
 
 /** Add or edit form built from the table's field configuration. */
 export function LookupEntryDialog({
@@ -49,42 +40,38 @@ export function LookupEntryDialog({
   }
 
   return (
-    <Dialog
+    <ActionDialog
       open={open}
-      onOpenChange={(value) => {
-        if (!value && !busy) onClose();
-      }}
+      busy={busy}
+      onClose={onClose}
+      title={entry ? "Edit entry" : `Add ${config.singular}`}
+      description={parentName ? `Under ${parentName}` : config.subtitle}
+      error={error}
+      className="max-h-[85dvh] overflow-y-auto sm:max-w-md"
     >
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
-        <DialogTitle>{entry ? "Edit entry" : `Add ${config.singular}`}</DialogTitle>
-        <DialogDescription>
-          {parentName ? `Under ${parentName}` : config.subtitle}
-        </DialogDescription>
-        <ErrorBanner error={error} />
-        <form onSubmit={submit} className="space-y-3">
-          {config.fields.map((field) => (
-            <FieldInput
-              key={field.key}
-              field={field}
-              value={entry?.[field.key as keyof LookupView]}
-              options={
-                field.source === "county" ? counties : field.source === "pillar" ? pillars : []
-              }
-              // A pillar's code is referenced elsewhere, so it cannot change after creation.
-              readOnly={Boolean(entry) && table === "pillar" && field.key === "code"}
-            />
-          ))}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : entry ? "Save" : "Add"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <form onSubmit={submit} className="space-y-3">
+        {config.fields.map((field) => (
+          <FieldInput
+            key={field.key}
+            field={field}
+            value={entry?.[field.key as keyof LookupView]}
+            options={
+              field.source === "county" ? counties : field.source === "pillar" ? pillars : []
+            }
+            // A pillar's code is referenced elsewhere, so it cannot change after creation.
+            readOnly={Boolean(entry) && table === "pillar" && field.key === "code"}
+          />
+        ))}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Saving…" : entry ? "Save" : "Add"}
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
   );
 }
 
@@ -171,33 +158,31 @@ export function ToggleActiveDialog({
 }) {
   const reactivating = Boolean(entry?.is_deleted);
   return (
-    <Dialog
+    <ActionDialog
       open={entry !== null}
-      onOpenChange={(value) => {
-        if (!value && !busy) onClose();
-      }}
+      busy={busy}
+      onClose={onClose}
+      title={reactivating ? "Reactivate entry?" : "Deactivate entry?"}
+      description={
+        reactivating
+          ? `Reactivate “${entry?.name}”? It will be selectable in forms again.`
+          : `Deactivate “${entry?.name}”? Existing records keep their reference.`
+      }
+      error={error}
+      className="max-h-[85dvh] overflow-y-auto sm:max-w-md"
     >
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-md">
-        <DialogTitle>{reactivating ? "Reactivate entry?" : "Deactivate entry?"}</DialogTitle>
-        <DialogDescription>
-          {reactivating
-            ? `Reactivate “${entry?.name}”? It will be selectable in forms again.`
-            : `Deactivate “${entry?.name}”? Existing records keep their reference.`}
-        </DialogDescription>
-        <ErrorBanner error={error} />
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" disabled={busy} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={busy || !entry}
-            variant={reactivating ? "default" : "destructive"}
-            onClick={() => entry && onConfirm(entry)}
-          >
-            {busy ? "Saving…" : reactivating ? "Reactivate" : "Deactivate"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" disabled={busy} onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          disabled={busy || !entry}
+          variant={reactivating ? "default" : "destructive"}
+          onClick={() => entry && onConfirm(entry)}
+        >
+          {busy ? "Saving…" : reactivating ? "Reactivate" : "Deactivate"}
+        </Button>
+      </div>
+    </ActionDialog>
   );
 }

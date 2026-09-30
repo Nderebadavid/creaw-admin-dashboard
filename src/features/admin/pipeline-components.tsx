@@ -1,6 +1,7 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState, type FormEvent } from "react";
-import { fieldClass } from "./form-styles";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, History, Pencil, Plus, Trash2 } from "lucide-react";
@@ -120,19 +121,8 @@ export function PipelineContent({
           );
         })}
       </div>
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && !modal && (
-        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{error}</FormBanner>}
       <div className="flex flex-wrap items-start gap-5">
         <section className="min-w-0 flex-[2_1_520px] rounded-2xl border border-creaw-line bg-white">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
@@ -311,14 +301,7 @@ export function PipelineContent({
                 ? `Move “${target?.name}” ${direction} in the ${selected?.name} pipeline?`
                 : (selected?.name ?? "Pipeline configuration")}
           </DialogDescription>
-          {error && (
-            <p
-              role="alert"
-              className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger"
-            >
-              {error}
-            </p>
-          )}
+          <FormBanner tone="error">{error}</FormBanner>
           {modal === "move" || modal === "remove" ? (
             <div className="flex justify-end gap-2">
               <Button variant="outline" disabled={busy} onClick={() => setModal(null)}>

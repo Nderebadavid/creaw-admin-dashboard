@@ -1,19 +1,10 @@
 import type { DataColumn } from "@/components/data-table/data-table";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
-import { formatDate } from "@/lib/format";
+import { formatDate, initials } from "@/lib/format";
 import type { ReferralView } from "../api";
 
 const tone = (status: string): StatusTone =>
   status === "NEW" ? "warning" : status === "ACCEPTED" ? "success" : "neutral";
-
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 /** Queue columns from the design: participant, route, reason, referrer, date, status. */
 export const referralColumns: DataColumn<ReferralView>[] = [

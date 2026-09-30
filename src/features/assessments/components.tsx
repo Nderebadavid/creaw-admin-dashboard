@@ -1,7 +1,8 @@
 "use client";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import type { AssessmentPage, AssessmentView } from "./api";
 import { listAssessmentsAction, viewAssessmentDocumentAction } from "./actions";
 import { AssessmentCard } from "./cards/assessment-card";
@@ -22,7 +23,7 @@ export function AssessmentsContent({
   canAttach,
   canDownload = false,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: AssessmentPage;
   canRecommend: boolean;
   canApprove: boolean;
@@ -66,19 +67,8 @@ export function AssessmentsContent({
   return (
     <div className="space-y-5">
       {heading && <PageHeading {...heading} />}
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-xl bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      <FormBanner tone="error">{error}</FormBanner>
       {loading && <p role="status">Loading assessments…</p>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data.items.map((item) => (

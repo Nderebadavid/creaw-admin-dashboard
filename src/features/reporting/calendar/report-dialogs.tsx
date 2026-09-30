@@ -1,4 +1,5 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { ActionDialog } from "@/components/ui/action-dialog";
@@ -6,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import { addDeadlineAction, submitReportAction } from "../actions";
 import type { ReportView } from "../api";
-
-const field = "mt-1 w-full rounded-lg border border-creaw-line-strong bg-white p-2";
 
 /**
  * Adds a narrative-report deadline. The programme determines the pillar and
@@ -56,11 +55,11 @@ export function AddDeadlineDialog({
       <form className="space-y-3" onSubmit={send}>
         <label className="block text-sm">
           Report title
-          <input name="title" required maxLength={255} className={field} />
+          <input name="title" required maxLength={255} className={fieldClass} />
         </label>
         <label className="block text-sm">
           Programme
-          <select name="projectId" required className={field}>
+          <select name="projectId" required className={fieldClass}>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
@@ -71,11 +70,11 @@ export function AddDeadlineDialog({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
             Period start
-            <input name="periodStart" type="date" required className={field} />
+            <input name="periodStart" type="date" required className={fieldClass} />
           </label>
           <label className="block text-sm">
             Due / period end
-            <input name="periodEnd" type="date" required className={field} />
+            <input name="periodEnd" type="date" required className={fieldClass} />
           </label>
         </div>
         <Button type="submit" disabled={submit.busy}>
@@ -128,7 +127,7 @@ export function SubmitReportDialog({
       <form className="space-y-3" onSubmit={send}>
         <label className="block text-sm">
           Submitted date
-          <input name="date" type="date" required className={field} />
+          <input name="date" type="date" required className={fieldClass} />
         </label>
         <label className="block text-sm">
           Document URL
@@ -137,7 +136,7 @@ export function SubmitReportDialog({
             type="url"
             required={report?.type === "grant"}
             placeholder="https://…"
-            className={field}
+            className={fieldClass}
           />
         </label>
         <p className="text-xs text-creaw-faint">Mock mode stores document metadata only.</p>

@@ -1,11 +1,11 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { createUserAction, setUserRoleAction, updateUserAction } from "../actions";
 import type { RoleView, UserRoleView, UserView } from "../api";
-import { fieldClass } from "../form-styles";
 
 type Done = (message: string) => void;
 

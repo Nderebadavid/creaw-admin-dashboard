@@ -1,10 +1,10 @@
+import { MONTHS_SHORT, formatDayMonth, initials } from "@/lib/format";
 import Link from "next/link";
 import { Camera, CircleAlert } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { DashboardOverview } from "../api";
 
 const card = "rounded-2xl border border-creaw-line bg-white p-5 sm:p-6";
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function SectionHeader({
   title,
@@ -89,9 +89,7 @@ export function FieldPreview({
               </p>
               <p className="text-sm font-semibold">{item.title}</p>
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs text-creaw-faint">
-                  {new Date(item.captured).getDate()} {MONTHS[new Date(item.captured).getMonth()]}
-                </p>
+                <p className="text-xs text-creaw-faint">{formatDayMonth(item.captured)}</p>
                 <StatusBadge tone={item.status === "Flagged" ? "danger" : "warning"}>
                   {item.status}
                 </StatusBadge>
@@ -124,7 +122,7 @@ export function CalendarPreview({ reports }: { reports: DashboardOverview["upcom
             <li key={report.id} className="flex items-center gap-3 py-3">
               <span className="flex size-12 shrink-0 flex-col items-center justify-center rounded-xl bg-creaw-canvas leading-tight">
                 <span className="text-[11px] font-semibold uppercase text-creaw-faint">
-                  {MONTHS[due.getMonth()]}
+                  {MONTHS_SHORT[due.getMonth()]}
                 </span>
                 <span className="font-heading text-lg font-bold">{due.getDate()}</span>
               </span>
@@ -142,15 +140,6 @@ export function CalendarPreview({ reports }: { reports: DashboardOverview["upcom
     </section>
   );
 }
-
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 /** Latest audit entries: who did what to which kind of record. */
 export function ActivityFeed({ activity }: { activity: DashboardOverview["recentActivity"] }) {
@@ -172,7 +161,7 @@ export function ActivityFeed({ activity }: { activity: DashboardOverview["recent
               {item.entity.replaceAll("_", " ")}
             </p>
             <time className="text-xs text-creaw-faint" dateTime={item.when}>
-              {new Date(item.when).getDate()} {MONTHS[new Date(item.when).getMonth()]}
+              {formatDayMonth(item.when)}
             </time>
           </li>
         ))}

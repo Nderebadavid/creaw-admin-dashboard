@@ -1,4 +1,7 @@
 "use client";
+import { grantTone } from "./status";
+import { FormBanner } from "@/components/ui/form-banner";
+import { initials } from "@/lib/format";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -6,7 +9,7 @@ import { ArrowLeft, CircleCheck, FolderArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DocumentPanel } from "@/components/ui/document-panel";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import type { GrantDetail } from "./api";
 import { downloadGrantPackAction, viewGrantDocumentAction } from "./actions";
 import {
@@ -16,18 +19,6 @@ import {
   advanceLabel,
 } from "./detail/detail-dialogs";
 import { ComplianceReports, DisbursementPanel, SignoffChain } from "./detail/panels";
-
-const tone = (status: string) =>
-  status === "APPROVED" ? "success" : status === "REVIEWED" ? "warning" : "neutral";
-
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 /**
  * One grant application: its sign-off chain, supporting documents,
@@ -41,7 +32,7 @@ export function GrantDetailContent({
   canDownload,
   canLogReport,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   detail: GrantDetail;
   /** The user holds the next step's permission and has not signed an earlier step. */
   canAdvance: boolean;
@@ -115,7 +106,7 @@ export function GrantDetailContent({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <StatusBadge tone={tone(detail.status)}>{detail.status}</StatusBadge>
+          <StatusBadge tone={grantTone(detail.status)}>{detail.status}</StatusBadge>
           {!heading && packButton}
           {detail.nextStatus && (
             <Button
@@ -129,19 +120,8 @@ export function GrantDetailContent({
           )}
         </div>
       </section>
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-xl bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && !modal && (
-        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{error}</FormBanner>}
       <SignoffChain stage={detail.stage} />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <DocumentPanel

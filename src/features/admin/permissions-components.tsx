@@ -1,8 +1,9 @@
 "use client";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Grid2X2, KeyRound, Plus, ShieldCheck } from "lucide-react";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { Button } from "@/components/ui/button";
 import { setRolePermissionAction } from "./actions";
 import type { PermissionView, RolePermissionView, RoleView } from "./api";
@@ -30,7 +31,7 @@ export function PermissionsContent({
   canManageRoles,
   canManagePermissions,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   roles: RoleView[];
   permissions: PermissionView[];
   /** Current role-permission rows from the server; a new array means a refresh. */
@@ -147,19 +148,8 @@ export function PermissionsContent({
           </button>
         ))}
       </div>
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && !modal && (
-        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{error}</FormBanner>}
       {tab === "roles" && (
         <RolesTab
           roles={roles}

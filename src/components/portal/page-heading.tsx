@@ -1,4 +1,11 @@
 import type { ReactNode } from "react";
+
+/** The text of a page heading; feature screens take this and add their own actions. */
+export interface PageHeadingText {
+  title: string;
+  section: string;
+  description?: string;
+}
 export function PageHeading({
   title,
   section,

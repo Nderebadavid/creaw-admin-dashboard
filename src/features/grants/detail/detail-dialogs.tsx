@@ -1,12 +1,11 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { advanceGrantAction, logGrantReportAction, recordDisbursementAction } from "../actions";
 import type { GrantDetail } from "../api";
-
-const field = "mt-1 w-full rounded-lg border border-creaw-line-strong bg-white p-2";
 
 /** "Approve application" or "Mark as reviewed", matching the next sign-off step. */
 export const advanceLabel = (next: GrantDetail["nextStatus"]) =>
@@ -97,15 +96,15 @@ export function PaymentDialog({
       <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
           Amount (KES)
-          <input name="amount" type="number" min="1" step="0.01" required className={field} />
+          <input name="amount" type="number" min="1" step="0.01" required className={fieldClass} />
         </label>
         <label className="block text-sm">
           Payment date
-          <input name="date" type="date" required className={field} />
+          <input name="date" type="date" required className={fieldClass} />
         </label>
         <label className="block text-sm">
           Reference or note
-          <input name="notes" maxLength={255} className={field} />
+          <input name="notes" maxLength={255} className={fieldClass} />
         </label>
         <Button disabled={submit.busy} type="submit">
           Record payment
@@ -156,15 +155,15 @@ export function ReportPeriodDialog({
       <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
           Period start
-          <input name="periodStart" type="date" required className={field} />
+          <input name="periodStart" type="date" required className={fieldClass} />
         </label>
         <label className="block text-sm">
           Period end
-          <input name="periodEnd" type="date" required className={field} />
+          <input name="periodEnd" type="date" required className={fieldClass} />
         </label>
         <label className="block text-sm">
           Due date
-          <input name="dueDate" type="date" required className={field} />
+          <input name="dueDate" type="date" required className={fieldClass} />
         </label>
         <Button disabled={submit.busy} type="submit">
           Add period

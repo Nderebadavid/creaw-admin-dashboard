@@ -1,4 +1,5 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import { useState, type FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { ActionDialog } from "@/components/ui/action-dialog";
@@ -11,8 +12,6 @@ import {
 } from "../actions";
 import type { ReferralView } from "../api";
 import type { ReferralDestinationCatalog } from "../schemas";
-
-const field = "mt-1 w-full rounded-lg border border-creaw-line-strong bg-white p-2";
 
 export interface ReferralOriginOption {
   enrollmentId: number;
@@ -89,7 +88,7 @@ export function NewReferralDialog({
           <select
             value={originId}
             onChange={(event) => setOriginId(Number(event.target.value))}
-            className={field}
+            className={fieldClass}
           >
             {origins.map((item) => (
               <option key={item.enrollmentId} value={item.enrollmentId}>
@@ -104,7 +103,7 @@ export function NewReferralDialog({
           <select
             value={kind}
             onChange={(event) => setKind(event.target.value as "internal" | "external")}
-            className={field}
+            className={fieldClass}
           >
             <option value="internal">Pillar project</option>
             <option value="external">Partner institution</option>
@@ -112,7 +111,7 @@ export function NewReferralDialog({
         </label>
         <label className="block text-sm">
           {kind === "external" ? "Responsible pillar" : "To pillar"}
-          <select name="toPillarId" required className={field}>
+          <select name="toPillarId" required className={fieldClass}>
             {destinations.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -123,7 +122,7 @@ export function NewReferralDialog({
         {kind === "external" && (
           <label className="block text-sm">
             Partner institution
-            <select name="partnerInstitutionId" required className={field}>
+            <select name="partnerInstitutionId" required className={fieldClass}>
               {catalog.partnerInstitutions.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
@@ -134,11 +133,11 @@ export function NewReferralDialog({
         )}
         <label className="block text-sm">
           Reason
-          <textarea name="reason" required rows={3} className={field} />
+          <textarea name="reason" required rows={3} className={fieldClass} />
         </label>
         <label className="block text-sm">
           Note to receiving team
-          <textarea name="notes" rows={2} className={field} />
+          <textarea name="notes" rows={2} className={fieldClass} />
         </label>
         <Button
           type="submit"
@@ -199,7 +198,7 @@ export function RespondDialog({
         <p>{referral?.reason}</p>
         <label className="block text-sm">
           Decision
-          <select name="decision" className={field}>
+          <select name="decision" className={fieldClass}>
             <option value="ACCEPTED">
               {referral?.external
                 ? `Confirm hand-off to ${referral.destinationName}`
@@ -218,7 +217,7 @@ export function RespondDialog({
                 ? `Referred by ${referral.referredBy}: “${referral.reason}”`
                 : undefined
             }
-            className={field}
+            className={fieldClass}
           />
         </label>
         <Button disabled={submit.busy} type="submit">
@@ -272,7 +271,7 @@ export function EditReferralDialog({
             required
             defaultValue={referral?.reason}
             rows={4}
-            className={field}
+            className={fieldClass}
           />
         </label>
         <Button disabled={submit.busy} type="submit">

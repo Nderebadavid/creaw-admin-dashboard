@@ -1,9 +1,9 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createPermissionAction } from "../actions";
-import { fieldClass } from "../form-styles";
 
 /** Adds a permission code to the catalogue. It grants nothing until assigned to a role. */
 export function PermissionDialog({

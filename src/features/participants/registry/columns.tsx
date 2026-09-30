@@ -1,6 +1,6 @@
 import type { DataColumn } from "@/components/data-table/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { formatDate } from "@/lib/format";
+import { formatDate, initials } from "@/lib/format";
 import type { ParticipantView } from "../api";
 
 /** Registry columns from the design: participant, county, pillars, stage, registered, status. */
@@ -78,12 +78,3 @@ export function participantColumns(
     },
   ];
 }
-
-export const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();

@@ -1,11 +1,11 @@
 "use client";
+import { fieldClass } from "@/components/ui/form-styles";
 import { useState, type FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { registerParticipantAction, updateParticipantAction } from "../actions";
 import type { ParticipantCatalog, ParticipantView } from "../api";
 
-const field = "mt-1 w-full rounded-lg border border-creaw-line-strong bg-white p-2";
 const optional = (form: FormData, name: string) => String(form.get(name) ?? "") || undefined;
 
 /** Creates one participant record and its first pillar enrollment. */
@@ -64,15 +64,15 @@ export function RegisterParticipantDialog({
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={submit}>
         <label className="text-sm">
           First name
-          <input name="firstName" required maxLength={80} className={field} />
+          <input name="firstName" required maxLength={80} className={fieldClass} />
         </label>
         <label className="text-sm">
           Last name
-          <input name="lastName" required maxLength={80} className={field} />
+          <input name="lastName" required maxLength={80} className={fieldClass} />
         </label>
         <label className="text-sm">
           Gender
-          <select name="gender" className={field}>
+          <select name="gender" className={fieldClass}>
             <option value="">Not recorded</option>
             <option value="female">Female</option>
             <option value="male">Male</option>
@@ -81,19 +81,19 @@ export function RegisterParticipantDialog({
         </label>
         <label className="text-sm">
           Date of birth
-          <input name="dateOfBirth" type="date" className={field} />
+          <input name="dateOfBirth" type="date" className={fieldClass} />
         </label>
         <label className="text-sm">
           Phone number
-          <input name="phoneNumber" type="tel" maxLength={30} className={field} />
+          <input name="phoneNumber" type="tel" maxLength={30} className={fieldClass} />
         </label>
         <label className="text-sm">
           National ID number
-          <input name="idNumber" maxLength={40} className={field} />
+          <input name="idNumber" maxLength={40} className={fieldClass} />
         </label>
         <label className="text-sm">
           Ward
-          <select name="wardId" className={field}>
+          <select name="wardId" className={fieldClass}>
             <option value="">Not recorded</option>
             {catalog.wards.map((ward) => (
               <option key={ward.id} value={ward.id}>
@@ -104,7 +104,7 @@ export function RegisterParticipantDialog({
         </label>
         <label className="text-sm">
           Enrol into pillar
-          <select name="pillarId" required className={field}>
+          <select name="pillarId" required className={fieldClass}>
             {pillars.map((pillar) => (
               <option key={pillar.id} value={pillar.id}>
                 {pillar.name}
@@ -114,7 +114,7 @@ export function RegisterParticipantDialog({
         </label>
         <label className="text-sm sm:col-span-2">
           Intake notes
-          <textarea name="remarks" rows={3} className={field} />
+          <textarea name="remarks" rows={3} className={fieldClass} />
         </label>
         <label className="flex items-center gap-2 text-sm sm:col-span-2">
           <input type="checkbox" name="consentGiven" />
@@ -179,7 +179,7 @@ export function EditParticipantDialog({
             name="remarks"
             defaultValue={participant?.remarks ?? ""}
             rows={4}
-            className={field}
+            className={fieldClass}
           />
         </label>
         <label className="flex items-center gap-2 text-sm">

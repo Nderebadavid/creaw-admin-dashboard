@@ -1,4 +1,5 @@
 "use client";
+import { MONTHS_SHORT } from "@/lib/format";
 import { useState } from "react";
 import { CalendarRange, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,6 @@ export interface DateRange {
   to: string;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 /** Local calendar day as `YYYY-MM-DD` (toISOString would shift to UTC). */
 function isoDay(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -21,7 +20,7 @@ function isoDay(date: Date) {
 /** e.g. "07 Sep 2026", with fixed month names so every runtime renders the same text. */
 export function formatRangeDate(day: string) {
   const [year, month, date] = day.split("-");
-  return `${date} ${MONTHS[Number(month) - 1]} ${year}`;
+  return `${date} ${MONTHS_SHORT[Number(month) - 1]} ${year}`;
 }
 
 /** The current quarter so far, e.g. 1 Jul → today. */

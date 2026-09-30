@@ -1,4 +1,5 @@
 "use client";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, KeyRound, Shield, UserPlus, Users } from "lucide-react";
@@ -8,7 +9,7 @@ import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { RowActions } from "@/components/data-table/row-actions";
 import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { listUsersAction } from "./actions";
 import type { AdminPage, RoleView, UserRoleView, UserView } from "./api";
 import { staffColumns, statusLabel } from "./users/columns";
@@ -35,7 +36,7 @@ export function UsersContent({
   canManageRoles,
   currentUserId = 0,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: AdminPage<UserView>;
   roles: RoleView[];
   /** Every user_role row, used for role chips, scope and multi-role counts. */
@@ -119,19 +120,8 @@ export function UsersContent({
           </div>
         ))}
       </div>
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {list.error && !modal && (
-        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {list.error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Staff accounts"
         subtitle="Multiple roles combine their permitted modules and pillar scopes."

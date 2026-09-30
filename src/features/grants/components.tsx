@@ -1,4 +1,6 @@
 "use client";
+import { filterSelectClass } from "@/components/ui/form-styles";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
@@ -7,19 +9,16 @@ import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ExportButton } from "@/components/ui/export-button";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { formatDate } from "@/lib/format";
 import type { GrantPage, GrantQuery, GrantRow } from "./api";
 import { exportGrantsAction, listGrantsAction } from "./actions";
 
 export { GrantDetailContent } from "./detail-content";
+import { grantTone, stageLabel } from "./status";
 
 /** Sign-off stages in order; ACTIVE is a new application not yet prepared. */
 const stages = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"];
-const stageLabel = (status: string) =>
-  status === "ACTIVE" ? "New" : status[0] + status.slice(1).toLowerCase();
-const tone = (status: string) =>
-  status === "APPROVED" ? "success" : status === "REVIEWED" ? "warning" : "neutral";
 
 const columns: DataColumn<GrantRow>[] = [
   {
@@ -38,7 +37,7 @@ const columns: DataColumn<GrantRow>[] = [
   {
     id: "stage",
     header: "Stage",
-    cell: (row) => <StatusBadge tone={tone(row.status)}>{stageLabel(row.status)}</StatusBadge>,
+    cell: (row) => <StatusBadge tone={grantTone(row.status)}>{stageLabel(row.status)}</StatusBadge>,
   },
 ];
 
@@ -49,7 +48,7 @@ export function GrantsContent({
   pillars,
   canExport,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: GrantPage;
   pillars: { id: number; name: string }[];
   canExport: boolean;
@@ -66,11 +65,7 @@ export function GrantsContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
-      {list.error && (
-        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {list.error}
-        </p>
-      )}
+      <FormBanner tone="error">{list.error}</FormBanner>
       <TableCard
         title="Applications queue"
         subtitle="Click an application to work its sign-off chain"
@@ -92,7 +87,7 @@ export function GrantsContent({
             aria-label="Pillar"
             value={list.query.pillarId ?? ""}
             onChange={(event) => list.filter({ pillarId: Number(event.target.value) || undefined })}
-            className="h-10 rounded-[10px] border border-creaw-line-strong bg-white px-3 text-sm"
+            className={filterSelectClass}
           >
             <option value="">All pillars</option>
             {pillars.map((pillar) => (

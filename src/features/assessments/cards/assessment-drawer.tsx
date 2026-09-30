@@ -1,9 +1,10 @@
 "use client";
+import { initials } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { AssessmentView } from "../api";
-import { initials, scorePercent } from "./assessment-card";
+import { scorePercent } from "./assessment-card";
 
 /** Labels for assessment.overall_recommendation values. */
 export const recommendationLabels: Record<string, string> = {

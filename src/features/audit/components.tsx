@@ -1,4 +1,6 @@
 "use client";
+import { filterSelectClass } from "@/components/ui/form-styles";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
@@ -6,7 +8,7 @@ import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { ExportButton } from "@/components/ui/export-button";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { listAuditAction, exportAuditAction } from "./actions";
 import type { AuditPage, AuditRow } from "./api";
 import type { AuditQuery } from "./schemas";
@@ -18,7 +20,6 @@ const sources: [AuditQuery["source"], string][] = [
   ["HTTP", "Portal"],
   ["KAFKA", "Kafka (system)"],
 ];
-const select = "h-10 rounded-[10px] border border-creaw-line-strong bg-white px-2.5 text-sm";
 
 /**
  * Immutable audit trail of creates, edits, reveals, uploads and exports.
@@ -30,7 +31,7 @@ export function AuditContent({
   initialQuery = { page: 1, pageSize: 25 },
   canExport,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: AuditPage;
   /** Pre-applied filters, e.g. a record's history or "My activity". */
   initialQuery?: AuditQuery;
@@ -86,11 +87,7 @@ export function AuditContent({
           </Button>
         </div>
       )}
-      {list.error && (
-        <p role="alert" className="rounded-xl bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {list.error}
-        </p>
-      )}
+      <FormBanner tone="error">{list.error}</FormBanner>
       <TableCard
         title="Activity trail"
         subtitle="Portal, integration and background activity. Records are immutable."
@@ -111,7 +108,7 @@ export function AuditContent({
               aria-label="Module"
               value={query.module ?? ""}
               onChange={(event) => list.filter({ module: event.target.value || undefined })}
-              className={select}
+              className={filterSelectClass}
             >
               <option value="">All modules</option>
               {modules.map((module) => (
@@ -124,7 +121,7 @@ export function AuditContent({
               aria-label="Action"
               value={query.action ?? ""}
               onChange={(event) => list.filter({ action: event.target.value || undefined })}
-              className={select}
+              className={filterSelectClass}
             >
               <option value="">All actions</option>
               {actions.map((action) => (
@@ -135,7 +132,7 @@ export function AuditContent({
               aria-label="Performed by"
               value={query.userId ?? ""}
               onChange={(event) => list.filter({ userId: Number(event.target.value) || undefined })}
-              className={select}
+              className={filterSelectClass}
             >
               <option value="">All users</option>
               {actors.map(([id, name]) => (
@@ -150,7 +147,7 @@ export function AuditContent({
               value={query.from ?? ""}
               max={query.to}
               onChange={(event) => list.filter({ from: event.target.value || undefined })}
-              className={select}
+              className={filterSelectClass}
             />
             <input
               aria-label="To date"
@@ -158,7 +155,7 @@ export function AuditContent({
               value={query.to ?? ""}
               min={query.from}
               onChange={(event) => list.filter({ to: event.target.value || undefined })}
-              className={select}
+              className={filterSelectClass}
             />
           </>
         }

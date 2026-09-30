@@ -4,10 +4,9 @@ import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
-import { formatDate } from "@/lib/format";
+import { formatDate, initials } from "@/lib/format";
 import { revealParticipantAction } from "../actions";
 import type { ParticipantView } from "../api";
-import { initials } from "./columns";
 
 /** One participant across every pillar they are enrolled in, with audited reveals. */
 export function ParticipantDrawer({

@@ -1,5 +1,7 @@
 "use client";
 
+import { filterSelectClass } from "@/components/ui/form-styles";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +9,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
 import { ExportButton } from "@/components/ui/export-button";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { hasPermission, hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
 import type { ParticipantCatalog, ParticipantPage, ParticipantQuery, ParticipantView } from "./api";
 import { exportParticipantsAction, listParticipantsAction } from "./actions";
@@ -27,7 +29,7 @@ export function ParticipantsContent({
   grants,
 }: {
   /** Page heading; the registry's actions render beside it. */
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: ParticipantPage;
   catalog: ParticipantCatalog;
   grants: EffectiveGrant[];
@@ -71,22 +73,8 @@ export function ParticipantsContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions} /> : actions}
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-xl bg-creaw-success-soft px-4 py-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {list.error && !modal && (
-        <p
-          role="alert"
-          className="rounded-xl bg-creaw-danger-soft px-4 py-3 text-sm text-creaw-danger"
-        >
-          {list.error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Participant registry"
         subtitle="IDs masked — reveal inside a record (logged)"
@@ -113,7 +101,7 @@ export function ParticipantsContent({
                 onChange={(event) =>
                   list.filter({ countyId: Number(event.target.value) || undefined })
                 }
-                className="h-10 rounded-[10px] border border-creaw-line-strong bg-white px-3"
+                className={filterSelectClass}
               >
                 <option value="">All counties</option>
                 {catalog.counties.map((county) => (

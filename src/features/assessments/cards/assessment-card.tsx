@@ -1,15 +1,7 @@
+import { initials } from "@/lib/format";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AssessmentView } from "../api";
-
-export const initials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 /** Share of a score's maximum, clamped to 0–100 for bar widths. */
 export const scorePercent = (score: number, max: number | null) =>

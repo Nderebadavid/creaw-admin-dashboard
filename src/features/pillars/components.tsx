@@ -8,7 +8,7 @@ import type { PillarCode } from "./schemas";
 import type { SubmissionRow } from "@/features/submissions/api";
 import { PillarDomainTable } from "./domain-table";
 import { PipelineFunnel } from "./overview/pipeline-funnel";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 
 const columns: DataColumn<PillarRecord>[] = [
   {
@@ -52,7 +52,7 @@ export function PillarContent({
   submissions = [],
 }: {
   /** Page heading; the create action renders beside it. */
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   pillar: PillarView;
   canCreate: boolean;
   canViewSubmissions?: boolean;

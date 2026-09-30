@@ -1,4 +1,5 @@
 "use client";
+import { FormBanner } from "@/components/ui/form-banner";
 import type { ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./dialog";
 
@@ -37,11 +38,7 @@ export function ActionDialog({
       <DialogContent className={className}>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
-        {error && (
-          <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-            {error}
-          </p>
-        )}
+        <FormBanner tone="error">{error}</FormBanner>
         {children}
       </DialogContent>
     </Dialog>

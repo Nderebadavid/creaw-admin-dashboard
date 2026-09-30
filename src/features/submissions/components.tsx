@@ -1,12 +1,13 @@
 "use client";
 
+import { FormBanner } from "@/components/ui/form-banner";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { auditedExportAction } from "@/components/portal/data-actions";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { reviewSubmissionAction } from "./actions";
 import type { SubmissionRow, SubmissionStatus } from "./api";
 import { filterSubmissionRows } from "./filter";
@@ -33,7 +34,7 @@ export function SubmissionsContent({
   canExport = false,
   exportableIds,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   rows: SubmissionRow[];
   canReview?: boolean;
   /** Submissions in pillars the user may review; overrides `canReview` when given. */
@@ -142,14 +143,7 @@ export function SubmissionsContent({
           />
         </label>
       </div>
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-xl border border-[#D5E8D9] bg-creaw-success-soft px-4 py-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
       {visible.length === 0 ? (
         <div className="rounded-2xl border bg-white p-10 text-center text-sm text-creaw-faint">
           No submissions match these filters.

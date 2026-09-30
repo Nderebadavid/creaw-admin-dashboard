@@ -1,9 +1,9 @@
+import { titleCase } from "@/lib/format";
 import type { DataColumn } from "@/components/data-table/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { UserRoleView, UserView } from "../api";
 
-export const statusLabel = (status: string) =>
-  status === "ACTIVE" ? "Active" : status === "DISABLED" ? "Disabled" : "Inactive";
+export const statusLabel = titleCase;
 
 /**
  * Staff columns from the design. Contacts arrive masked; revealing them is an

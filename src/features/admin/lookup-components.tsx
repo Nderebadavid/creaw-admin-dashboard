@@ -1,4 +1,5 @@
 "use client";
+import { FormBanner } from "@/components/ui/form-banner";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -136,19 +137,8 @@ export function LookupContent({
           );
         })}
       </nav>
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-lg bg-creaw-success-soft p-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {error && !modal && (
-        <p role="alert" className="rounded-lg bg-creaw-danger-soft p-3 text-sm text-creaw-danger">
-          {error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{error}</FormBanner>}
       <section className="min-w-0 overflow-hidden rounded-2xl border border-creaw-line bg-white">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-creaw-divider p-5">
           <div>

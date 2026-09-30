@@ -1,5 +1,8 @@
 "use client";
 
+import { filterSelectClass } from "@/components/ui/form-styles";
+import { FormBanner } from "@/components/ui/form-banner";
+import { titleCase } from "@/lib/format";
 import { useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +12,7 @@ import { RowActions } from "@/components/data-table/row-actions";
 import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { ExportButton } from "@/components/ui/export-button";
-import { PageHeading } from "@/components/portal/page-heading";
+import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { hasModulePermission, hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
 import type { ReferralPage, ReferralQuery, ReferralView } from "./api";
 import type { ReferralDestinationCatalog } from "./schemas";
@@ -26,7 +29,6 @@ import {
 export type { ReferralOriginOption };
 
 const statuses = ["NEW", "ACCEPTED", "DECLINED", "WITHDRAWN"];
-const statusLabel = (status: string) => status[0] + status.slice(1).toLowerCase();
 
 type Modal = { kind: "create" } | { kind: "decide" | "edit" | "withdraw"; referral: ReferralView };
 
@@ -43,7 +45,7 @@ export function ReferralsContent({
   catalog = { internalPillarIds: [], partnerInstitutions: [] },
   grants,
 }: {
-  heading?: { title: string; section: string; description: string };
+  heading?: PageHeadingText;
   initial: ReferralPage;
   pillars: { id: number; name: string }[];
   origins: ReferralOriginOption[];
@@ -88,22 +90,8 @@ export function ReferralsContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions} /> : actions}
-      {feedback && (
-        <p
-          role="status"
-          className="rounded-xl bg-creaw-success-soft px-4 py-3 text-sm text-creaw-success"
-        >
-          {feedback}
-        </p>
-      )}
-      {list.error && !modal && (
-        <p
-          role="alert"
-          className="rounded-xl bg-creaw-danger-soft px-4 py-3 text-sm text-creaw-danger"
-        >
-          {list.error}
-        </p>
-      )}
+      <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="All referrals"
         subtitle="Click a new referral to decide, edit or withdraw it"
@@ -115,7 +103,7 @@ export function ReferralsContent({
             onSelect: () => list.filter({ status: undefined }),
           },
           ...statuses.map((status) => ({
-            label: statusLabel(status),
+            label: titleCase(status),
             active: list.query.status === status,
             onSelect: () => list.filter({ status }),
           })),
@@ -125,7 +113,7 @@ export function ReferralsContent({
             aria-label="Pillar"
             value={list.query.pillarId ?? ""}
             onChange={(event) => list.filter({ pillarId: Number(event.target.value) || undefined })}
-            className="h-10 rounded-[10px] border border-creaw-line-strong bg-white px-3 text-sm"
+            className={filterSelectClass}
           >
             <option value="">All pillars</option>
             {pillars.map((pillar) => (
