@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("./actions", () => ({
   createUserAction: vi.fn(),
+  listUsersAction: vi.fn(),
   updateUserAction: vi.fn(),
   setUserRoleAction: vi.fn(),
   createRoleAction: vi.fn(),
@@ -88,8 +89,79 @@ describe("administration screens", () => {
     );
     expect(screen.getByText("Grace Wanjiru")).toBeInTheDocument();
     expect(screen.getByText("System-wide")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /add staff/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add user" })).toBeInTheDocument();
     expect(screen.queryByText("grace@example.org")).not.toBeInTheDocument();
+  });
+  it("lays out staff accounts like the design", () => {
+    render(
+      <UsersContent
+        heading={{
+          title: "Users & roles",
+          section: "Admin",
+          description: "Staff accounts and the roles that drive their navigation",
+        }}
+        initial={{
+          page: 1,
+          pageSize: 25,
+          totalItems: 1,
+          totalPages: 1,
+          items: [
+            {
+              id: 2,
+              first_name: "Grace",
+              middle_name: null,
+              last_name: "Wanjiru",
+              username: "grace.wanjiru",
+              email: "••••org",
+              phone_number: "••••5678",
+              status: "ACTIVE",
+              is_deleted: false,
+            },
+          ],
+        }}
+        roles={[
+          {
+            id: 2,
+            code: "HEAD_MERL",
+            name: "Head of MERL",
+            description: null,
+            status: "ACTIVE",
+            is_deleted: false,
+            is_system_role: true,
+          },
+          {
+            id: 3,
+            code: "PILLAR_LEAD",
+            name: "Pillar Lead",
+            description: null,
+            status: "ACTIVE",
+            is_deleted: false,
+            is_system_role: false,
+          },
+        ]}
+        assignments={[
+          { id: 2, user_id: 2, role_id: 2, pillar_id: null, status: "ACTIVE", is_deleted: false },
+          { id: 3, user_id: 2, role_id: 3, pillar_id: 1, status: "ACTIVE", is_deleted: false },
+        ]}
+        pillars={[{ id: 1, name: "VAWG" }]}
+        permissionCount={42}
+        canManageUsers
+        canManageRoles
+      />
+    );
+    const header = screen
+      .getByRole("heading", { level: 1, name: "Users & roles" })
+      .closest("[data-page-heading]") as HTMLElement;
+    expect(within(header).getByRole("button", { name: "Add user" })).toBeInTheDocument();
+    for (const label of ["Staff accounts", "Roles configured", "Multi-role users", "Permissions"])
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Pillar scope" })).toBeInTheDocument();
+    expect(screen.getByText("System-wide, VAWG")).toBeInTheDocument();
+    expect(
+      screen.getByText("Multi-role users see the union of their roles’ modules")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actions for Grace Wanjiru" })).toBeInTheDocument();
   });
   it("keeps built-in role matrix cells disabled", () => {
     render(
