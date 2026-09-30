@@ -1,3 +1,11 @@
+/**
+ * Typed client for the cross-pillar participant registry and enrollments.
+ *
+ * `create*Api(client, token)` maps API DTOs into view models and is what tests
+ * exercise directly; the exported singleton binds it to the signed-in session
+ * for Server Components. Responses are envelope-validated with Zod; the API
+ * applies permission and pillar-scope filtering and masks sensitive fields.
+ */
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";

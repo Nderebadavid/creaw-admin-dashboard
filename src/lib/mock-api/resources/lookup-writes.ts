@@ -49,6 +49,8 @@ export function checkLookupWrite(
           : table === "activity_type_definition" || table === "case_type"
             ? "pillar_id"
             : undefined;
+    // Moving a ward or sub-county to another parent would silently re-home every
+    // record that references it, so geographic and pillar parents are fixed.
     if (relation && relation in body && body[relation] !== existing[relation])
       return envelope(422, null, "Parent cannot be changed");
     if ("status" in body || "is_deleted" in body) {

@@ -1,3 +1,11 @@
+/**
+ * Typed client for per-pillar overviews, programme records and each pillar's domain register.
+ *
+ * `create*Api(client, token)` maps API DTOs into view models and is what tests
+ * exercise directly; the exported singleton binds it to the signed-in session
+ * for Server Components. Responses are envelope-validated with Zod; the API
+ * applies permission and pillar-scope filtering and masks sensitive fields.
+ */
 import type { ApiClient } from "@/lib/api/client";
 import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";

@@ -6,8 +6,10 @@ import { type MockStore, type TableName } from "@/types/db";
 
 // Audit-log helpers: redaction of sensitive values in stored and returned
 // audit rows, and the writer used by every mutation.
+/** Keys whose values are never shown in audit JSON (PII, credentials, money, notes). */
 export const secretMetadataKey =
   /(?:password|token|secret|credential|authorization|cookie|email|phone|contact|id_number|first_name|middle_name|last_name|salary|amount|notes?|payload|file_url|address|date_of_birth)/i;
+/** Enum-like keys whose string values are safe to show verbatim. */
 export const safeAuditStringKey =
   /^(?:status|stage_event_status|code|module|action|source|entity_type|type|kind|role_code|permission_code)$/i;
 export function redactAuditValue(table: string | null, value: unknown, field?: string): unknown {

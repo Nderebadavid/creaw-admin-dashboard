@@ -1,4 +1,12 @@
 "use server";
+/**
+ * Server Actions for pillar programme records and domain registers.
+ *
+ * Each action re-checks the session and validates its input with Zod before
+ * checking permission (and pillar scope where it applies), then calls the
+ * feature API and revalidates affected routes. The API enforces the same
+ * rules again and writes the audit entry; these checks only fail fast.
+ */
 
 import { revalidatePath } from "next/cache";
 import { readSessionToken } from "@/lib/api/session-api";

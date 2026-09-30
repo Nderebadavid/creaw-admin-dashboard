@@ -1,3 +1,11 @@
+/**
+ * Typed client for the read-only audit trail.
+ *
+ * `create*Api(client, token)` maps API DTOs into view models and is what tests
+ * exercise directly; the exported singleton binds it to the signed-in session
+ * for Server Components. Responses are envelope-validated with Zod; the API
+ * applies permission and pillar-scope filtering and masks sensitive fields.
+ */
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import {

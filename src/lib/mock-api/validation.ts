@@ -33,6 +33,9 @@ export function validate(store: MockStore, table: TableName, row: Row, previous?
         Number.isNaN(Date.parse(value)))
     )
       return false;
+    // A foreign key must point at a live parent, except that an update may keep
+    // an unchanged link to a parent deactivated since (e.g. a removed stage on
+    // an old submission) so historical records stay editable.
     if (
       column.references &&
       !rowsFor(store, column.references).some(

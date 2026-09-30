@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -31,7 +32,12 @@ const meSchema = z.object({
   ]),
 });
 
-export async function getSession(): Promise<Session | null> {
+/**
+ * The signed-in user and their effective grants, resolved through /auth/me.
+ * Returns null for a missing, expired or rejected token. Wrapped in React
+ * cache() so the layout and page of one request share a single lookup.
+ */
+export const getSession = cache(async (): Promise<Session | null> => {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   try {
@@ -50,8 +56,9 @@ export async function getSession(): Promise<Session | null> {
   } catch {
     return null;
   }
-}
+});
 
+/** The session, or a redirect to /login. Use in pages, layouts and Server Actions. */
 export async function requireSession(): Promise<Session> {
   const session = await getSession();
   if (!session) redirect("/login");

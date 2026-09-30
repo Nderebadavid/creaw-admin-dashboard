@@ -31,6 +31,8 @@ export function checkAccessControlWrite(
     )
       return envelope(403, null, "You cannot disable your own account");
     if (existing && existing.status !== "ACTIVE" && body.status === "ACTIVE") {
+      // Apply the change to a copy of the store and recompute the caller's own
+      // grants: if they would lose PERMISSION_MANAGE, no one could undo it.
       const hypothetical = {
         ...store,
         user: store.user.map((row) =>
