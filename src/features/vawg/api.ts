@@ -14,17 +14,22 @@ import type { LegalCaseView, VawgWorkspace } from "./model";
 const id = z.number().int().positive();
 const page = <T extends z.ZodType>(item: T) =>
   createEnvelopeSchema(z.union([createPaginatedSchema(item), z.null()]));
+/** A column an older backend may omit: a missing key reads as null. */
+const optionalText = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
 const caseSchema = z.object({
   id,
   enrollment_id: id,
   case_type_id: id,
   court_status: z.string().nullable(),
-  court_name: z.string().nullable(),
-  assigned_officer: z.string().nullable(),
-  next_court_date: z.string().nullable(),
-  court_file_number: z.string().nullable(),
-  ob_number: z.string().nullable(),
-  counsellor: z.string().nullable(),
+  court_name: optionalText,
+  assigned_officer: optionalText,
+  next_court_date: optionalText,
+  court_file_number: optionalText,
+  ob_number: optionalText,
+  counsellor: optionalText,
   mediation_attempted: z.boolean(),
   mediation_outcome: z.string().nullable(),
   ruling_date: z.string().nullable(),

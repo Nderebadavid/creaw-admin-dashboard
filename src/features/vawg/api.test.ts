@@ -24,6 +24,28 @@ describe("VAWG legal case register", () => {
     });
   });
 
+  it("normalises court columns a backend omits to null", async () => {
+    const row = getMockStore().legal_case[0] as unknown as Record<string, unknown>;
+    for (const key of [
+      "court_name",
+      "assigned_officer",
+      "next_court_date",
+      "court_file_number",
+      "ob_number",
+      "counsellor",
+    ])
+      delete row[key];
+    const { cases } = await apiFor(1).workspace();
+    expect(cases.find((item) => item.id === row.id)).toMatchObject({
+      court: null,
+      assignedOfficer: null,
+      nextCourtDate: null,
+      courtFileNumber: null,
+      obNumber: null,
+      counsellor: null,
+    });
+  });
+
   it("updates court record fields through the legal-case resource", async () => {
     const api = apiFor(1);
     const updated = await api.updateCase(1, { court_name: "Milimani Law Courts" });

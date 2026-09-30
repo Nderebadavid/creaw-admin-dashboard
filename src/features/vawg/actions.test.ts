@@ -98,6 +98,14 @@ describe("VAWG case actions", () => {
     expect(getMockStore().legal_case[0]).toEqual(original);
   });
 
+  it("says so when a case has no OB number to reveal", async () => {
+    getMockStore().legal_case[0].ob_number = null;
+    expect(await revealCaseObNumberAction(1)).toEqual({
+      success: false,
+      error: "No OB number recorded",
+    });
+  });
+
   it("forbids a scoped user from revealing the OB number", async () => {
     cookieStore.get.mockReturnValue({ value: issueMockToken(3) });
     const audits = getMockStore().audit_logs.length;

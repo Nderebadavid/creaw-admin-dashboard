@@ -1,4 +1,5 @@
-// Only columns explicitly labelled “sensitive field” in the SQL DDL.
+// Columns labelled “sensitive field” in the SQL DDL, plus legal_case.ob_number, which the
+// VAWG design mandates as sensitive.
 export const SENSITIVE_FIELDS: Readonly<Record<string, readonly string[]>> = {
   user: ["password_hash", "phone_number", "email"],
   participant: ["first_name", "middle_name", "last_name", "id_number", "phone_number"],

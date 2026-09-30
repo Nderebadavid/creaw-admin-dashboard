@@ -11,7 +11,7 @@ vi.mock("./actions", () => ({
   revealSurvivorNameAction: vi.fn(),
   revealCaseObNumberAction: vi.fn(),
   updateLegalCaseAction: vi.fn(),
-  updateCourtStatusAction: vi.fn(),
+  setCourtStatusAction: vi.fn(),
   attachCaseFileAction: vi.fn(),
   openLegalCaseAction: vi.fn(),
 }));
@@ -100,6 +100,16 @@ describe("VAWG case register", () => {
     fireEvent.click(within(drawer).getByRole("button", { name: "Edit" }));
     expect(screen.getByRole("dialog", { name: "Edit legal case" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: /CRW-VAWG-0142/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps a case's type selected when it is missing from the case type list", () => {
+    const orphan = { ...workspace, caseTypes: [{ id: 5, name: "Other type" }] };
+    render(<CaseRegister workspace={orphan} can={allowed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open CRW-VAWG-0142" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }));
+    const select = screen.getByLabelText("Case type") as HTMLSelectElement;
+    expect(select.value).toBe("2");
+    expect(select.selectedOptions[0]).toHaveTextContent("IPV — physical");
   });
 
   it("disables gated controls without permission", () => {

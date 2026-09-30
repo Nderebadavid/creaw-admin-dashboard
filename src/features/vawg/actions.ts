@@ -78,7 +78,8 @@ export async function revealCaseObNumberAction(caseId: number): Promise<RevealRe
     return { success: false, error: "Permission denied" };
   try {
     const response = await (await api()).revealCaseField(caseId, "ob_number");
-    if (!response.success || !response.data) return { success: false, error: response.message };
+    if (!response.success) return { success: false, error: response.message };
+    if (!response.data) return { success: false, error: "No OB number recorded" };
     return { success: true, value: response.data.value };
   } catch {
     return { success: false, error: "Could not reveal this field" };

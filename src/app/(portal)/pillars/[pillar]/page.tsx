@@ -45,14 +45,18 @@ async function loadSubmissions(grants: readonly EffectiveGrant[], pillarId: numb
   return all.filter((row) => row.pillarId === pillarId);
 }
 
-/** The VAWG case workspace, or none for other pillars and users without case access there. */
-function loadVawgWorkspace(grants: readonly EffectiveGrant[], code: PillarCode) {
+/**
+ * The VAWG case workspace, none for other pillars and users without case access there,
+ * or "failed" when it can't load (the page then degrades instead of erroring).
+ */
+async function loadVawgWorkspace(grants: readonly EffectiveGrant[], code: PillarCode) {
   const pillarId = ids.vawg;
   const allowed =
     code === "vawg" &&
     hasPermission(grants, "CASE_VIEW", { pillarId }) &&
     hasPermission(grants, "PARTICIPANT_VIEW", { pillarId });
-  return allowed ? vawgApi.workspace() : undefined;
+  if (!allowed) return undefined;
+  return vawgApi.workspace().catch(() => "failed" as const);
 }
 
 /** The WRO partner register with the options its dialogs need, trimmed to the user's grants. */
@@ -119,10 +123,21 @@ export default async function PillarPage({ params }: { params: Promise<{ pillar:
     reveal: can("SENSITIVE_REVEAL"),
     export: can("REPORT_EXPORT_CSV"),
   };
-  const vawg = workspace && pillar.code === "vawg";
+  const vawgFailed = workspace === "failed" && pillar.code === "vawg";
+  const vawg = workspace !== "failed" && workspace && pillar.code === "vawg";
   return (
     <PillarContent
-      register={vawg ? <CaseRegister workspace={workspace} can={vawgPermissions} /> : register}
+      register={
+        vawg ? (
+          <CaseRegister workspace={workspace} can={vawgPermissions} />
+        ) : vawgFailed ? (
+          <AlertBanner tone="warning">
+            The legal case register could not be loaded. Refresh the page to try again.
+          </AlertBanner>
+        ) : (
+          register
+        )
+      }
       kpis={
         vawg ? (
           <VawgSummaryCards summary={workspace.summary} color={pillar.color} tint={pillar.tint} />

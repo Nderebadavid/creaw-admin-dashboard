@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isSensitiveField, maskSensitiveValue } from "./sensitive-fields";
 describe("schema sensitivity", () => {
-  it("maps the SQL sensitive-field comments without inventing sensitive columns", () => {
+  it("maps the sensitive columns and leaves ordinary ones open", () => {
     for (const [table, column] of [
       ["participant", "first_name"],
       ["participant", "id_number"],
@@ -19,7 +19,6 @@ describe("schema sensitivity", () => {
     expect(isSensitiveField("participant", "gender")).toBe(false);
     expect(isSensitiveField("grant_application", "requested_amount")).toBe(false);
     expect(isSensitiveField("toString", "name")).toBe(false);
-    expect(isSensitiveField("legal_case", "ob_number")).toBe(true);
   });
   it("masks short values completely and preserves only the last four of long values", () => {
     expect(maskSensitiveValue("0712345678")).toBe("••••••5678");

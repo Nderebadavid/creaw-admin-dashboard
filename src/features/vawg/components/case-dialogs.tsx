@@ -36,6 +36,11 @@ export function EditCaseDialog({
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  // The case's current type stays selectable even when the lookup omits it (deactivated or failed).
+  const typeOptions =
+    legalCase && !caseTypes.some((type) => type.id === legalCase.caseTypeId)
+      ? [{ id: legalCase.caseTypeId, name: legalCase.caseType }, ...caseTypes]
+      : caseTypes;
   const close = () => {
     submit.clearError();
     onClose();
@@ -77,7 +82,7 @@ export function EditCaseDialog({
             defaultValue={legalCase?.caseTypeId}
             className={fieldClass}
           >
-            {caseTypes.map((type) => (
+            {typeOptions.map((type) => (
               <option key={type.id} value={type.id}>
                 {type.name}
               </option>
