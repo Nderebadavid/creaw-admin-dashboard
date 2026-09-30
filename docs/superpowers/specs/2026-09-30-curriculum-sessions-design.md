@@ -135,7 +135,7 @@ The drawer uses the shared `RecordDrawer`.
   - Both actions require `ACTIVITY_SESSION_LOG` and are written to the audit log.
   - A note explains that attendance normally arrives from the mobile app.
 - **Documents & photos:** documents with `owner_type = 'activity_session'` (attendance sheet, group photo), with audited view and download.
-- **Activity:** a newest-first timeline built from the audit log: logged, edited, attendee added or removed, file attached.
+- **Activity:** a newest-first timeline built from the records' own timestamps: session logged (`created_at`), last edited (`updated_at`, when different), each attendee added (the attendance row's `created_at`), and each file attached (the document's `created_at`). It does not read the audit log, because pillar officers usually lack `AUDIT_LOG_VIEW`. The audit log still records every write.
 
 ## Server Actions
 
@@ -151,7 +151,9 @@ All of them live in a new `src/features/sessions/` feature, and each one:
 | `logSessionAction` | `ACTIVITY_SESSION_LOG` | the type belongs to the pillar, the topic belongs to the type, a free-text topic is required when no planned topic is chosen, and the date is ISO |
 | `updateSessionAction` | `ACTIVITY_SESSION_LOG` | same as `logSessionAction` |
 | `addAttendeeAction` | `ACTIVITY_SESSION_LOG` | the participant exists, and duplicates are rejected with a clear message |
-| `removeAttendeeAction` | `ACTIVITY_SESSION_LOG` | the attendance row belongs to the session |
+| `removeAttendeeAction` | `ACTIVITY_SESSION_LOG` | the attendance row belongs to the session; removal is a soft delete (`is_deleted = true`, `status = 'INACTIVE'`) |
+
+The unique key `(session_id, participant_id)` also covers soft-deleted rows. `addAttendeeAction` therefore restores a person's earlier soft-deleted row instead of inserting a duplicate. To find that row, it reads attendance with `includeDeleted=true`, which the API allows for `activity_attendance` when the caller holds `ACTIVITY_SESSION_LOG`.
 | attach document | existing `DOCUMENT_UPLOAD` flow | owner is `activity_session` |
 
 ## Privacy and Permissions
@@ -166,7 +168,11 @@ The live API must provide:
 - the `activity_topic` table and the `activity_session.activity_topic_id` column, as shown above
 - `activity_topic` reads through the lookup endpoints
 - pillar-scoped `activity_session` reads, where `?table=activity_session` on `/pillars/:pillar` returns only that pillar's sessions
-- attendance create and delete written to the audit log
+- attendance create, soft delete and restore written to the audit log
+- `includeDeleted=true` on `activity_attendance` reads, for callers holding `ACTIVITY_SESSION_LOG`
+- a write rule that a session's `activity_topic_id` belongs to its `activity_type_id`, and that the type belongs to the session's `pillar_id`
+
+The mock API already limits `/pillars/:pillar` reads to rows scoped to that pillar, so SRHR never receives Skilling sessions. A page test pins this.
 
 The portal's schemas treat `activity_topic_id` as optional, so they keep working until the backend ships it.
 
