@@ -20,6 +20,27 @@ afterEach(() => {
 });
 
 describe("CREAW login form", () => {
+  it("uses the design's hero copy", () => {
+    render(<LoginForm />);
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Every woman counted. Every outcome measured.",
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Five pillars, one evidence base")).toBeInTheDocument();
+  });
+
+  it("warns when Caps Lock is on while typing the password", () => {
+    render(<LoginForm />);
+    const password = screen.getByLabelText("Password");
+    expect(screen.queryByText("Caps Lock is on")).not.toBeInTheDocument();
+    fireEvent.keyUp(password, { key: "A", modifierCapsLock: true });
+    expect(screen.getByText("Caps Lock is on")).toBeInTheDocument();
+    fireEvent.keyUp(password, { key: "a", modifierCapsLock: false });
+    expect(screen.queryByText("Caps Lock is on")).not.toBeInTheDocument();
+  });
+
   it("shows designer labels and reveals the password", () => {
     render(<LoginForm />);
     expect(screen.getByLabelText("Email or username")).toBeInTheDocument();

@@ -26,11 +26,15 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
             MERL Portal
           </p>
           <h1 className="font-heading text-4xl leading-[1.02] font-bold text-[#3A2418] sm:text-5xl">
-            Evidence for every woman and girl we serve.
+            <span className="block">Every woman counted.</span>{" "}
+            <span className="block">Every outcome measured.</span>
           </h1>
           <p className="text-[17px] leading-relaxed text-[#6B5A4C]">
-            Monitoring, evaluation, research and learning across all five CREAW pillars, from field
-            capture on mobile to donor reporting.
+            Monitoring, evaluation, research and learning for CREAW&apos;s work on rights, safety
+            and economic justice for women and girls across Kenya.
+          </p>
+          <p className="text-xs font-bold tracking-[0.12em] text-[#8A7564] uppercase">
+            Five pillars, one evidence base
           </p>
           <div className="flex flex-wrap gap-2">
             {["VAWG", "WEE", "SRHR", "Leadership", "WROs"].map((pillar) => (

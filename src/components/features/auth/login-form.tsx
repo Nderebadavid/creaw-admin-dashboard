@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { ArrowBigUp, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { loginAction } from "@/lib/auth/actions";
 import { AuthShell } from "./auth-shell";
 
@@ -25,6 +25,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -100,6 +101,8 @@ export function LoginForm() {
               placeholder="Enter your password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              onKeyUp={(event) => setCapsLock(event.getModifierState("CapsLock"))}
+              onBlur={() => setCapsLock(false)}
               disabled={loading}
               className="min-w-0 flex-1 bg-transparent text-[15px] font-normal text-creaw-ink outline-none placeholder:text-[#A39A92]"
             />
@@ -112,6 +115,12 @@ export function LoginForm() {
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </span>
+          {capsLock && (
+            <span role="status" className="flex items-center gap-1.5 text-xs text-[#94570d]">
+              <ArrowBigUp size={14} aria-hidden="true" />
+              Caps Lock is on
+            </span>
+          )}
         </label>
         <label className="flex items-center gap-2.5 text-sm text-creaw-ink-soft">
           <input
