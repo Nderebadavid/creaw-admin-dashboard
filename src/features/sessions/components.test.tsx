@@ -16,6 +16,8 @@ vi.mock("./actions", () => ({
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 import { SessionSummaryCards } from "./components/summary-cards";
 import { SessionWorkspaceView } from "./components/session-register";
+import { LogSessionButton, SessionFormDialog } from "./components/session-dialogs";
+import * as actions from "./actions";
 import type { SessionWorkspace } from "./model";
 
 afterEach(cleanup);
@@ -115,5 +117,124 @@ describe("curriculum coverage and session register", () => {
   it("shows a hint when no topics are planned", () => {
     render(<SessionWorkspaceView workspace={{ ...workspace, coverage: workspace.coverage.map((row) => ({ ...row, topics: [] })) }} can={all} />);
     expect(screen.getAllByText("No planned topics yet").length).toBeGreaterThan(0);
+  });
+});
+
+describe("session drawer", () => {
+  const open = () => {
+    render(<SessionWorkspaceView workspace={workspace} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Open Menstrual health/ }));
+    return screen.getByRole("dialog");
+  };
+
+  it("shows the header, overview and tabs", () => {
+    const drawer = open();
+    expect(drawer).toHaveTextContent("Group session · SRHR");
+    expect(drawer).toHaveTextContent("Menstrual health");
+    expect(drawer).toHaveTextContent("Kibera Ward Office · CREAW staff");
+    expect(drawer).toHaveTextContent("Good turnout");
+    for (const tab of ["Overview", "Attendance (1)", "Documents & photos (1)", "Activity"])
+      expect(within(drawer).getByRole("tab", { name: tab })).toBeInTheDocument();
+  });
+
+  it("lists attendees with masked names and offers add and remove", () => {
+    const drawer = open();
+    fireEvent.click(within(drawer).getByRole("tab", { name: "Attendance (1)" }));
+    expect(drawer).toHaveTextContent("••ith ••••ani");
+    expect(drawer).toHaveTextContent("Laini Saba");
+    expect(within(drawer).getByRole("button", { name: "Add attendee" })).toBeEnabled();
+    expect(within(drawer).getByRole("button", { name: "Remove ••ith ••••ani" })).toBeEnabled();
+  });
+
+  it("builds the activity timeline newest first", () => {
+    const drawer = open();
+    fireEvent.click(within(drawer).getByRole("tab", { name: "Activity" }));
+    const items = within(drawer).getAllByRole("listitem").map((item) => item.textContent);
+    expect(items[0]).toMatch(/Session edited/);
+    expect(items.at(-1)).toMatch(/Session logged/);
+  });
+
+  it("disables every change control without session logging, upload or download", () => {
+    render(<SessionWorkspaceView workspace={workspace} can={{ log: false, attach: false, download: false, export: false }} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Open Menstrual health/ }));
+    const drawer = screen.getByRole("dialog");
+    expect(within(drawer).getByRole("button", { name: "Edit" })).toBeDisabled();
+    expect(within(drawer).getByRole("button", { name: "Attach" })).toBeDisabled();
+    fireEvent.click(within(drawer).getByRole("tab", { name: "Attendance (1)" }));
+    expect(within(drawer).getByRole("button", { name: "Add attendee" })).toBeDisabled();
+    expect(within(drawer).getByRole("button", { name: "Remove ••ith ••••ani" })).toBeDisabled();
+    fireEvent.click(within(drawer).getByRole("tab", { name: "Documents & photos (1)" }));
+    expect(within(drawer).getByRole("button", { name: "View Attendance sheet" })).toBeDisabled();
+  });
+});
+
+describe("session form", () => {
+  it("filters topics by the chosen activity type and needs free text for Other", async () => {
+    render(<LogSessionButton workspace={workspace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log session" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Activity type"), { target: { value: "4" } });
+    const topic = within(dialog).getByLabelText("Topic") as HTMLSelectElement;
+    expect([...topic.options].map((option) => option.text)).toEqual(["Menstrual health", "Contraception", "Other"]);
+    fireEvent.change(topic, { target: { value: "other" } });
+    expect(within(dialog).getByLabelText("Describe the topic")).toBeRequired();
+  });
+
+  it("keeps a retired topic selectable when editing a session that uses it", () => {
+    const retired = { ...workspace, topics: workspace.topics.filter((row) => row.id !== 10) };
+    render(<SessionFormDialog open workspace={retired} session={workspace.sessions[0]} onClose={() => {}} onDone={() => {}} />);
+    const topic = screen.getByLabelText("Topic") as HTMLSelectElement;
+    expect(topic.value).toBe("10");
+    expect(topic.selectedOptions[0].text).toBe("Menstrual health");
+  });
+
+  it("submits the structured values", async () => {
+    render(<LogSessionButton workspace={workspace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log session" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Activity type"), { target: { value: "4" } });
+    fireEvent.change(within(dialog).getByLabelText("Topic"), { target: { value: "11" } });
+    fireEvent.change(within(dialog).getByLabelText("Date"), { target: { value: "2026-09-29" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log session" }));
+    await vi.waitFor(() =>
+      expect(actions.logSessionAction).toHaveBeenCalledWith(
+        expect.objectContaining({ pillar: "srhr", activityTypeId: 4, topicId: 11, topic: "", sessionDate: "2026-09-29" })
+      )
+    );
+  });
+});
+
+describe("attendance corrections", () => {
+  const openAttendance = () => {
+    render(<SessionWorkspaceView workspace={workspace} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Open Menstrual health/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Attendance (1)" }));
+  };
+
+  it("hides the drawer while adding an attendee and offers only people not listed", async () => {
+    vi.mocked(actions.addAttendeeAction).mockResolvedValue({ success: true, message: "ok", resultCode: 201 } as never);
+    openAttendance();
+    fireEvent.click(screen.getByRole("button", { name: "Add attendee" }));
+    const dialog = screen.getByRole("dialog");
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    const options = [...(within(dialog).getByLabelText("Participant") as HTMLSelectElement).options].map((o) => o.text);
+    expect(options).toEqual(["••ce ••••yi · #6"]);
+    fireEvent.change(within(dialog).getByLabelText("Participant"), { target: { value: "6" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add attendee" }));
+    await vi.waitFor(() =>
+      expect(actions.addAttendeeAction).toHaveBeenCalledWith({ pillar: "srhr", sessionId: 2, participantId: 6 })
+    );
+  });
+
+  it("confirms before removing an attendee", async () => {
+    vi.mocked(actions.removeAttendeeAction).mockResolvedValue({ success: true, message: "ok", resultCode: 200 } as never);
+    openAttendance();
+    fireEvent.click(screen.getByRole("button", { name: "Remove ••ith ••••ani" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Remove ••ith ••••ani from this session's attendance?");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
+    await vi.waitFor(() =>
+      expect(actions.removeAttendeeAction).toHaveBeenCalledWith({ pillar: "srhr", sessionId: 2, attendanceId: 1 })
+    );
   });
 });
