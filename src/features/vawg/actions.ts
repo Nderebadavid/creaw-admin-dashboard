@@ -10,6 +10,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ViewedDocument } from "@/components/ui/document-viewer";
+import type { RevealResult } from "@/components/ui/masked-field";
 import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
@@ -22,6 +23,67 @@ import { courtStatuses, VAWG_PILLAR_ID } from "./model";
 const scope = { pillarId: VAWG_PILLAR_ID };
 const id = z.number().int().positive();
 const api = () => withSessionApi(createVawgApi);
+const nullableText = (maxLength: number) =>
+  z
+    .string()
+    .trim()
+    .max(maxLength)
+    .nullable()
+    .transform((value) => value || null);
+const legalCaseUpdateSchema = z.object({
+  caseId: id,
+  caseTypeId: id,
+  court: nullableText(160),
+  courtFileNumber: nullableText(80),
+  obNumber: nullableText(80),
+  assignedOfficer: nullableText(160),
+  counsellor: nullableText(160),
+  nextCourtDate: z
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => value || null)
+    .pipe(z.iso.date().nullable()),
+});
+
+export async function updateLegalCaseAction(input: unknown) {
+  const session = await requireSession();
+  const parsed = legalCaseUpdateSchema.safeParse(input);
+  if (!parsed.success) return actionResult(422, "Check the case details and try again");
+  if (!hasPermission(session.grants, "CASE_EDIT", scope))
+    return actionResult(403, "You cannot update legal cases");
+  try {
+    const response = await (
+      await api()
+    ).updateCase(parsed.data.caseId, {
+      case_type_id: parsed.data.caseTypeId,
+      court_name: parsed.data.court,
+      court_file_number: parsed.data.courtFileNumber,
+      ...(parsed.data.obNumber ? { ob_number: parsed.data.obNumber } : {}),
+      assigned_officer: parsed.data.assignedOfficer,
+      counsellor: parsed.data.counsellor,
+      next_court_date: parsed.data.nextCourtDate,
+    });
+    if (response.success) revalidatePath("/pillars/vawg");
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not update the case");
+  }
+}
+
+export async function revealCaseObNumberAction(caseId: number): Promise<RevealResult> {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(caseId) || caseId < 1) return { success: false, error: "Invalid case" };
+  if (!hasPermission(session.grants, "SENSITIVE_REVEAL", scope))
+    return { success: false, error: "Permission denied" };
+  try {
+    const response = await (await api()).revealCaseField(caseId, "ob_number");
+    if (!response.success || !response.data) return { success: false, error: response.message };
+    return { success: true, value: response.data.value };
+  } catch {
+    return { success: false, error: "Could not reveal this field" };
+  }
+}
 
 export async function setCourtStatusAction(input: unknown) {
   const session = await requireSession();

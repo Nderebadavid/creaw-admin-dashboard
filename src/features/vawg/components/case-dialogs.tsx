@@ -6,7 +6,7 @@ import { FileDropField } from "@/components/ui/file-drop-field";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { createPillarDomainAction } from "@/features/pillars/actions";
-import { attachCaseFileAction, setCourtStatusAction } from "../actions";
+import { attachCaseFileAction, setCourtStatusAction, updateLegalCaseAction } from "../actions";
 import { courtStatuses, type LegalCaseView, type VawgWorkspace } from "../model";
 import { courtStatusLabel } from "./status";
 
@@ -22,6 +22,124 @@ export const caseFileTypes = [
 ] as const;
 export const caseFileCode = (label: string) =>
   caseFileTypes.find(([, name]) => name === label)?.[0] ?? "supporting_document";
+
+/** Edit the court details without placing a masked OB number into the write payload. */
+export function EditCaseDialog({
+  legalCase,
+  caseTypes,
+  onClose,
+  onDone,
+}: {
+  legalCase: LegalCaseView | null;
+  caseTypes: VawgWorkspace["caseTypes"];
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  const close = () => {
+    submit.clearError();
+    onClose();
+  };
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!legalCase) return;
+    const form = new FormData(event.currentTarget);
+    void submit.run(
+      updateLegalCaseAction({
+        caseId: legalCase.id,
+        caseTypeId: Number(form.get("caseTypeId")),
+        court: String(form.get("court") ?? ""),
+        courtFileNumber: String(form.get("courtFileNumber") ?? ""),
+        obNumber: String(form.get("obNumber") ?? ""),
+        assignedOfficer: String(form.get("assignedOfficer") ?? ""),
+        counsellor: String(form.get("counsellor") ?? ""),
+        nextCourtDate: String(form.get("nextCourtDate") ?? ""),
+      }),
+      `${legalCase.number} updated`
+    );
+  }
+  return (
+    <ActionDialog
+      open={legalCase !== null}
+      busy={submit.busy}
+      onClose={close}
+      title="Edit legal case"
+      description={legalCase ? `${legalCase.number} · ${legalCase.survivor}` : undefined}
+      error={submit.error}
+      className="sm:max-w-[640px]"
+    >
+      <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
+        <label className="text-sm sm:col-span-2">
+          Case type
+          <select
+            name="caseTypeId"
+            required
+            defaultValue={caseTypes.find((type) => type.name === legalCase?.caseType)?.id}
+            className={fieldClass}
+          >
+            {caseTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          Court
+          <input name="court" defaultValue={legalCase?.court ?? ""} className={fieldClass} />
+        </label>
+        <label className="text-sm">
+          Court file number
+          <input
+            name="courtFileNumber"
+            defaultValue={legalCase?.courtFileNumber ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <label className="text-sm">
+          OB number
+          <input name="obNumber" aria-label="OB number" defaultValue="" className={fieldClass} />
+          <span className="mt-1 block text-xs text-muted-foreground">
+            Leave blank to keep the current OB number
+          </span>
+        </label>
+        <label className="text-sm">
+          Assigned officer
+          <input
+            name="assignedOfficer"
+            defaultValue={legalCase?.assignedOfficer ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <label className="text-sm">
+          Counsellor
+          <input
+            name="counsellor"
+            defaultValue={legalCase?.counsellor ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <label className="text-sm">
+          Next court date
+          <input
+            name="nextCourtDate"
+            type="date"
+            defaultValue={legalCase?.nextCourtDate ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <div className="sm:col-span-2">
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submit.busy}>
+            Save changes
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
+  );
+}
 
 /** The design's "Status" action: move a case to another court status, noting why. */
 export function CourtStatusDialog({
