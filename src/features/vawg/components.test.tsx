@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { VawgWorkspace } from "./model";
+import { updateLegalCaseAction } from "./actions";
 import { CaseRegister } from "./components/case-register";
 
 vi.mock("server-only", () => ({}));
@@ -65,7 +66,6 @@ describe("VAWG case register", () => {
     const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
     const wanted = ["Case", "Case type", "Court", "Officer", "Next date", "Status"];
     // The table appends an "Open" row-action column after the data columns.
-    expect(headers.slice(0, wanted.length)).toHaveLength(wanted.length);
     expect(headers.slice(wanted.length)).toEqual(["Open"]);
     wanted.forEach((heading, i) => expect(headers[i]).toContain(heading));
     expect(screen.getByText("Kibera Law Courts")).toBeInTheDocument();
@@ -112,5 +112,22 @@ describe("VAWG case register", () => {
     expect(within(drawer).getByRole("button", { name: "View P3 form" })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Download P3 form" })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Attach Medical report" })).toBeDisabled();
+  });
+
+  it("restores the selected case's drawer after a successful save", async () => {
+    vi.mocked(updateLegalCaseAction).mockResolvedValue({
+      success: true,
+      message: "Saved",
+      resultCode: 0,
+      data: null,
+    } as Awaited<ReturnType<typeof updateLegalCaseAction>>);
+    const drawer = open(allowed);
+    fireEvent.click(within(drawer).getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: /CRW-VAWG-0142/ })).toBeInTheDocument()
+    );
+    expect(updateLegalCaseAction).toHaveBeenCalledWith(expect.objectContaining({ caseId: 142 }));
+    expect(screen.queryByRole("dialog", { name: "Edit legal case" })).not.toBeInTheDocument();
   });
 });

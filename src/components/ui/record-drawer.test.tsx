@@ -53,9 +53,7 @@ it("links the selected tab to its panel", () => {
   const overview = screen.getByRole("tab", { name: "Overview" });
   const activity = screen.getByRole("tab", { name: "Activity" });
   expect(overview).toHaveAttribute("aria-selected", "true");
-  expect(overview).toHaveAttribute("tabindex", "0");
   expect(activity).toHaveAttribute("aria-selected", "false");
-  expect(activity).toHaveAttribute("tabindex", "-1");
   expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", overview.id);
   expect(overview).toHaveAttribute("aria-controls", screen.getByRole("tabpanel").id);
   fireEvent.click(activity);

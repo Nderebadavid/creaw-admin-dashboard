@@ -105,7 +105,6 @@ export function RecordDrawer({
                   id={`${baseId}-tab-${tab.id}`}
                   aria-selected={tab.id === current?.id}
                   aria-controls={`${baseId}-panel`}
-                  tabIndex={tab.id === current?.id ? 0 : -1}
                   onClick={() => setActive(tab.id)}
                   className={`border-b-2 px-3 py-2.5 text-sm font-semibold ${tab.id === current?.id ? "border-primary text-primary" : "border-transparent text-creaw-body"}`}
                 >
@@ -116,7 +115,7 @@ export function RecordDrawer({
           )}
         </header>
         <div
-          role={tabs.length > 1 ? "tabpanel" : undefined}
+          role="tabpanel"
           id={`${baseId}-panel`}
           aria-labelledby={tabs.length > 1 && current ? `${baseId}-tab-${current.id}` : undefined}
           className="flex-1 overflow-y-auto bg-creaw-surface px-6 pb-8 pt-[22px] text-sm"
