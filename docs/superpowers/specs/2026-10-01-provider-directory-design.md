@@ -54,7 +54,7 @@ These fields are derived. They are never stored, and a write that includes one i
 - `POST /admin/providers` creates a provider. `PATCH /admin/providers/:id` updates one.
 - All four require `PROVIDER_MANAGE`.
 - `phone_number` and `email` are returned masked. They are already sensitive fields.
-- Writable columns are `first_name`, `middle_name`, `last_name`, `provider_type`, `service_description`, `affiliated_institution_id`, `phone_number`, `email` and `notes`. A PATCH may also send `status`/`is_deleted` to deactivate or reactivate.
+- Writable columns are `first_name`, `middle_name`, `last_name`, `provider_type`, `service_description`, `affiliated_institution_id`, `phone_number`, `email`, `notes` and `status`. Deactivating sets `status` to `INACTIVE` and reactivating sets it to `ACTIVE`. `is_deleted` is not used for providers, so a deactivated provider stays readable and can be reactivated.
 - `provider_type` is one of `counsellor`, `nurse`, `trainer`, `advocate`, `facilitator` or `other`.
 - `GET /admin/providers/:id?reveal=phone_number|email` returns the unmasked value. It is allowed for holders of `PROVIDER_MANAGE` or of `SENSITIVE_REVEAL` in any pillar, and it writes a `SENSITIVE_REVEAL` audit entry.
 - `GET /admin/providers/:id?include=workload` adds `workload` to the response:
