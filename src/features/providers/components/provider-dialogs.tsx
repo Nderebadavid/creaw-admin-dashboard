@@ -54,6 +54,16 @@ export function ProviderFormDialog({
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  // Keep the provider's own institution selectable even when the lookup no longer offers it.
+  const keptInstitution =
+    provider?.institutionId != null &&
+    !institutions.some((item) => item.id === provider.institutionId)
+      ? {
+          id: provider.institutionId,
+          name:
+            provider.institution === "Independent" ? "Unknown institution" : provider.institution,
+        }
+      : null;
   const close = () => {
     submit.clearError();
     onClose();
@@ -77,7 +87,7 @@ export function ProviderFormDialog({
       email: read("email"),
       notes: read("notes"),
     };
-    const name = `${firstName} ${lastName}`;
+    const name = [firstName, read("middleName").trim(), lastName].filter(Boolean).join(" ");
     void submit.run(
       provider ? updateProviderAction(input) : createProviderAction(input),
       provider ? `${name} updated` : `${name} added`
@@ -149,6 +159,7 @@ export function ProviderFormDialog({
             className={fieldClass}
           >
             <option value="">None</option>
+            {keptInstitution && <option value={keptInstitution.id}>{keptInstitution.name}</option>}
             {institutions.map((institution) => (
               <option key={institution.id} value={institution.id}>
                 {institution.name}
@@ -209,7 +220,16 @@ export function DeactivateProviderDialog({
       error={submit.error}
     >
       {provider && (
-        <div className="space-y-4">
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit.run(
+              setProviderActiveAction({ id: provider.id, active: false }),
+              `${provider.name} deactivated`
+            );
+          }}
+        >
           <p className="text-sm">
             {`${provider.name} will no longer appear in pickers. Records already linked to them keep their name.`}
           </p>
@@ -217,20 +237,11 @@ export function DeactivateProviderDialog({
             <Button type="button" variant="outline" disabled={submit.busy} onClick={close}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              disabled={submit.busy}
-              onClick={() =>
-                void submit.run(
-                  setProviderActiveAction({ id: provider.id, active: false }),
-                  `${provider.name} deactivated`
-                )
-              }
-            >
+            <Button type="submit" variant="destructive" disabled={submit.busy}>
               Deactivate
             </Button>
           </div>
-        </div>
+        </form>
       )}
     </ActionDialog>
   );

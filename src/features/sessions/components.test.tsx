@@ -319,6 +319,23 @@ describe("session facilitators in the UI", () => {
     expect(select.selectedOptions[0].text).toBe("Faith Kimani");
   });
 
+  it("does not assign the editor when a session has no facilitator", () => {
+    const unassigned = { ...workspace.sessions[1], facilitatorRef: null };
+    render(
+      <SessionFormDialog
+        open
+        workspace={workspace}
+        session={unassigned}
+        onClose={() => {}}
+        onDone={() => {}}
+      />
+    );
+    const select = screen.getByLabelText("Facilitator") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(select.selectedOptions[0].text).toBe("Choose a facilitator");
+    expect(select.required).toBe(true);
+  });
+
   it("submits the chosen facilitator", async () => {
     render(<LogSessionButton workspace={workspace} />);
     fireEvent.click(screen.getByRole("button", { name: "Log session" }));

@@ -187,7 +187,9 @@ function readSingle(ctx: ResourceContext, existing: Row): Envelope {
   const revealOnly =
     table === "external_provider" && permission === "SENSITIVE_REVEAL" && query.has("reveal");
   if (!revealOnly && !allowed(store, grants, permission, table, existing)) return envelope(403);
-  const result = presentRow(store, table, existing);
+  // A reveal-only holder gets the one field, not the row, so ids cannot be looped to browse.
+  const trimmed = revealOnly && !hasPermission(grants, "PROVIDER_MANAGE");
+  const result = trimmed ? { id: existing.id } : presentRow(store, table, existing);
   if (query.has("reveal")) {
     const field = query.get("reveal")!;
     if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);

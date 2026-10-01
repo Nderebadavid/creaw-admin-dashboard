@@ -57,7 +57,14 @@ describe("provider directory", () => {
 
   it("lets a pillar-scoped SENSITIVE_REVEAL holder reveal a contact but not browse", async () => {
     const userId = SENSITIVE_REVEAL_ONLY_USER;
-    expect((await one(userId, 1, { reveal: "email" })).data.email).toBe("faith.kimani@nwh.example");
+    const revealed = (await one(userId, 1, { reveal: "email" })).data;
+    expect(revealed.email).toBe("faith.kimani@nwh.example");
+    expect(revealed).toEqual({ id: 1, email: "faith.kimani@nwh.example" });
+    expect(revealed).not.toHaveProperty("notes");
+    expect(revealed).not.toHaveProperty("first_name");
+    const full = (await one(1, 1, { reveal: "email" })).data;
+    expect(full.first_name).toBe("Faith");
+    expect(full.email).toBe("faith.kimani@nwh.example");
     expect((await one(userId, 1)).resultCode).toBe(403);
     expect((await list(userId)).resultCode).toBe(403);
   });

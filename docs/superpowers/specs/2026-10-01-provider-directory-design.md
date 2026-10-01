@@ -146,6 +146,7 @@ The live API must provide:
 - `facilitator_option` with the permission and shape above
 - `/admin/providers` CRUD with masking, audited reveal and `include=workload`
 - the `PROVIDER_MANAGE` permission
+- validation of session facilitator writes: exactly one facilitator id set, and an existing, active person, unless unchanged (the mock does not enforce this; the portal action does)
 
 The portal treats every derived name field as optional and falls back as described.
 

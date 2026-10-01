@@ -86,6 +86,7 @@ export function ProviderRegister({
   const [modal, setModal] = useState<"add" | "edit" | "deactivate" | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
+  const [reactivating, setReactivating] = useState(false);
   const selected = directory.providers.find((row) => row.id === selectedId) ?? null;
   const needle = search.trim().toLocaleLowerCase();
   const filtered = useMemo(
@@ -112,15 +113,23 @@ export function ProviderRegister({
     router.refresh();
   };
   async function reactivate() {
-    if (!selected) return;
+    if (!selected || reactivating) return;
     setFeedback("");
     setError("");
+    setReactivating(true);
+    // A failure closes the drawer so the banner is not hidden behind it.
+    const fail = (message: string) => {
+      setSelectedId(null);
+      setError(message);
+    };
     try {
       const result = await setProviderActiveAction({ id: selected.id, active: true });
       if (result.success) done(`${selected.name} reactivated`);
-      else setError(result.message);
+      else fail(result.message);
     } catch {
-      setError("Could not update the provider. Please try again.");
+      fail("Could not update the provider. Please try again.");
+    } finally {
+      setReactivating(false);
     }
   }
 
@@ -216,6 +225,7 @@ export function ProviderRegister({
       <ProviderDrawer
         provider={modal === null ? selected : null}
         can={can}
+        busy={reactivating}
         onClose={() => setSelectedId(null)}
         onEdit={() => setModal("edit")}
         onDeactivate={() => setModal("deactivate")}

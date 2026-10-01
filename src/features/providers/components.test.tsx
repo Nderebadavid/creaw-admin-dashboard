@@ -13,6 +13,7 @@ vi.mock("./actions", () => ({
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 import { permittedNavigation } from "@/components/portal/navigation";
+import * as actions from "./actions";
 import { ProviderRegister } from "./components/provider-register";
 import type { ProviderDirectory, WorkloadGroup } from "./model";
 
@@ -110,6 +111,67 @@ describe("provider directory", () => {
     expect(screen.getByRole("dialog", { name: /Deactivate provider/ })).toHaveTextContent(
       "Faith Kimani will no longer appear in pickers. Records already linked to them keep their name."
     );
+  });
+
+  it("keeps an institution that is missing from the list selected when editing", () => {
+    const orphaned: ProviderDirectory = {
+      ...directory,
+      institutions: [{ id: 7, name: "Other Clinic" }],
+      providers: [
+        { ...directory.providers[0], institutionId: 1, institution: "Unknown institution" },
+      ],
+    };
+    render(<ProviderRegister directory={orphaned} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Faith Kimani" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }));
+    const select = screen.getByLabelText("Affiliated institution") as HTMLSelectElement;
+    expect(select.value).toBe("1");
+    expect(select.selectedOptions[0].text).toBe("Unknown institution");
+    expect([...select.options].map((o) => o.text)).toEqual([
+      "None",
+      "Unknown institution",
+      "Other Clinic",
+    ]);
+  });
+
+  it("shows a failed reactivate and blocks a second click while it runs", async () => {
+    let finish: (value: { success: false; message: string; resultCode: number }) => void = () => {};
+    vi.mocked(actions.setProviderActiveAction).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }) as never
+    );
+    render(<ProviderRegister directory={directory} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Judy Muthoni" }));
+    const button = within(screen.getByRole("dialog")).getByRole("button", { name: "Reactivate" });
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    finish({ success: false, message: "Provider is locked", resultCode: 409 });
+    expect(await screen.findByText("Provider is locked")).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(actions.setProviderActiveAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts the deactivate buttons in the form footer, with a destructive confirm", () => {
+    render(<ProviderRegister directory={directory} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Faith Kimani" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Deactivate" }));
+    const dialog = screen.getByRole("dialog", { name: /Deactivate provider/ });
+    const confirm = within(dialog).getByRole("button", { name: "Deactivate" });
+    expect(confirm.parentElement!.parentElement!.tagName).toBe("FORM");
+    expect(confirm.parentElement!.matches(":last-child")).toBe(true);
+    expect(confirm.className).toContain("text-destructive");
+  });
+
+  it("names the middle name in the saved toast", async () => {
+    render(<ProviderRegister directory={directory} can={all} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add provider" }));
+    const form = screen.getByRole("dialog", { name: /Add provider/ });
+    fireEvent.change(within(form).getByLabelText("First name"), { target: { value: "Grace" } });
+    fireEvent.change(within(form).getByLabelText("Middle name"), { target: { value: "Njeri" } });
+    fireEvent.change(within(form).getByLabelText("Last name"), { target: { value: "Wanjiru" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Add provider" }));
+    expect(await screen.findByText("Grace Njeri Wanjiru added")).toBeInTheDocument();
   });
 
   it("hides management controls without permission", () => {

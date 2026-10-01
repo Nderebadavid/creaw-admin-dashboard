@@ -51,6 +51,7 @@ function WorkGroup({ title, group }: { title: string; group: WorkloadGroup }) {
 export function ProviderDrawer({
   provider,
   can,
+  busy = false,
   onClose,
   onEdit,
   onDeactivate,
@@ -58,6 +59,8 @@ export function ProviderDrawer({
 }: {
   provider: ProviderView | null;
   can: ProviderPermissions;
+  /** A status change is in flight, so the lifecycle buttons wait. */
+  busy?: boolean;
   onClose: () => void;
   onEdit: () => void;
   onDeactivate: () => void;
@@ -117,7 +120,7 @@ export function ProviderDrawer({
               Deactivate
             </Button>
           ) : (
-            <Button size="sm" disabled={!can.manage} onClick={onReactivate}>
+            <Button size="sm" disabled={!can.manage || busy} onClick={onReactivate}>
               <Power />
               Reactivate
             </Button>

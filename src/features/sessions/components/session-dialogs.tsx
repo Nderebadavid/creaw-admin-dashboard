@@ -89,9 +89,9 @@ export function SessionFormDialog({
       : null;
   const defaultFacilitator = ref
     ? `${ref.kind}:${ref.id}`
-    : currentUser
-      ? `staff:${currentUser.id}`
-      : "";
+    : session || !currentUser
+      ? ""
+      : `staff:${currentUser.id}`;
   const close = () => {
     submit.clearError();
     onClose();
@@ -207,6 +207,11 @@ export function SessionFormDialog({
             defaultValue={defaultFacilitator}
             className={fieldClass}
           >
+            {defaultFacilitator === "" && (
+              <option value="" disabled>
+                Choose a facilitator
+              </option>
+            )}
             {keptCurrent && <option value={keptCurrent.value}>{keptCurrent.label}</option>}
             {fallbackMe && <option value={fallbackMe.value}>{fallbackMe.label}</option>}
             {staff.length > 0 && (

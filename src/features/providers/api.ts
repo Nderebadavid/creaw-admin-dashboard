@@ -48,7 +48,9 @@ const workloadSchema = z.object({
   cases: groupSchema,
 });
 const providerWithWorkloadSchema = providerSchema.extend({ workload: workloadSchema.optional() });
-const institutionSchema = z.object({ id, name: z.string() });
+const institutionSchema = z.object({ id, name: z.string(), status: z.string().optional() });
+/** A reveal-only caller gets just the id and the revealed field back. */
+const revealSchema = z.object({ id, phone_number: nullableText, email: nullableText });
 const page = <T extends z.ZodType>(item: T) =>
   createEnvelopeSchema(z.union([createPaginatedSchema(item), z.null()]));
 export const providerMutationSchema = createEnvelopeSchema(
@@ -145,8 +147,10 @@ export function createProvidersApi(client: ApiClient, token: string) {
           service: row.service_description,
           institutionId: row.affiliated_institution_id,
           institution:
-            institutions.find((item) => item.id === row.affiliated_institution_id)?.name ??
-            "Independent",
+            row.affiliated_institution_id === null
+              ? "Independent"
+              : (institutions.find((item) => item.id === row.affiliated_institution_id)?.name ??
+                "Unknown institution"),
           phone: row.phone_number,
           email: row.email,
           notes: row.notes,
@@ -157,7 +161,9 @@ export function createProvidersApi(client: ApiClient, token: string) {
       });
       return {
         providers,
-        institutions: institutions.map(({ id: value, name }) => ({ id: value, name })),
+        institutions: institutions
+          .filter((item) => item.status === undefined || item.status === "ACTIVE")
+          .map(({ id: value, name }) => ({ id: value, name })),
       };
     },
     create: (values: Values) => write("POST", values),
@@ -174,7 +180,7 @@ export function createProvidersApi(client: ApiClient, token: string) {
           token,
           query: { reveal: field },
         },
-        createEnvelopeSchema(z.union([providerSchema, z.null()]))
+        createEnvelopeSchema(z.union([revealSchema, z.null()]))
       );
       return {
         ...result,
