@@ -81,6 +81,39 @@ export function resolvePermission(
         return envelope(403, null, "A different officer must decide this sign-off step");
       return permission;
     }
+    // Sending back undoes the latest sign-off: it needs that step's own permission, a reason,
+    // and nothing downstream (payments or submitted reports) that depends on an award.
+    const position = order.indexOf(String(existing.status));
+    if (position > 0 && change.status === order[position - 1]) {
+      const reason = change.status_description;
+      if (!onlyStatus || typeof reason !== "string" || !reason.trim())
+        return envelope(422, null, "Sending back needs a reason");
+      const awards = store.grant_award.filter(
+        (award) => !award.is_deleted && award.application_id === existing.id
+      );
+      const awardIds = awards.map((award) => award.id);
+      if (
+        store.grant_disbursement.some(
+          (row) => !row.is_deleted && awardIds.includes(Number(row.grant_id))
+        ) ||
+        store.grant_report.some(
+          (row) =>
+            !row.is_deleted && awardIds.includes(Number(row.grant_award_id)) && row.submitted_date
+        )
+      )
+        return envelope(
+          422,
+          null,
+          "Payments or submitted reports exist for this award, so approval cannot be undone"
+        );
+      return (
+        {
+          PREPARED: "GRANT_APPLICATION_PREPARE",
+          REVIEWED: "GRANT_APPLICATION_REVIEW",
+          APPROVED: "GRANT_APPLICATION_APPROVE",
+        }[String(existing.status)] ?? permission
+      );
+    }
     if (
       !onlyStatus ||
       order.indexOf(String(change.status)) !== order.indexOf(String(existing.status)) + 1

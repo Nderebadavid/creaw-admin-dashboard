@@ -32,6 +32,17 @@ export function signoffActors(store: MockStore, applicationId: number) {
       reviewedBy = null;
       approvedBy = null;
     }
+    // A step sent back is no longer signed, nor are the steps after it.
+    if (before === "APPROVED" && after === "REVIEWED") approvedBy = null;
+    if (before === "REVIEWED" && after === "PREPARED") {
+      reviewedBy = null;
+      approvedBy = null;
+    }
+    if (before === "PREPARED" && after === "ACTIVE") {
+      preparedBy = null;
+      reviewedBy = null;
+      approvedBy = null;
+    }
     if (
       before === "PREPARED" &&
       after === "REVIEWED" &&
@@ -55,6 +66,11 @@ export function signoffActors(store: MockStore, applicationId: number) {
   return { preparedBy, reviewedBy, approvedBy };
 }
 const DECISIONS = ["PREPARED", "REVIEWED", "APPROVED", "DECLINED"];
+const SENT_BACK: Record<string, string> = {
+  "APPROVED>REVIEWED": "SENT_BACK_TO_REVIEWED",
+  "REVIEWED>PREPARED": "SENT_BACK_TO_PREPARED",
+  "PREPARED>ACTIVE": "SENT_BACK_TO_NEW",
+};
 
 /**
  * Every recorded decision on an application, oldest first, with the officer's
@@ -78,10 +94,12 @@ export function signoffHistory(store: MockStore, applicationId: number) {
     } catch {
       continue;
     }
-    if (!after || after === before || !DECISIONS.includes(after)) continue;
+    if (!after || after === before) continue;
+    const sentBack = SENT_BACK[`${before}>${after}`];
+    if (!sentBack && !DECISIONS.includes(after)) continue;
     const officer = store.user.find((user) => user.id === entry.performed_by);
     history.push({
-      event: after,
+      event: sentBack ?? after,
       byName: officer ? `${officer.first_name} ${officer.last_name}` : null,
       at: entry.performed_at,
     });

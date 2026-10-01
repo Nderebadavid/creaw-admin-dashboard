@@ -5,7 +5,7 @@ import { initials, titleCase } from "@/lib/format";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CircleCheck, CircleX, Eye, FolderArchive } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleX, Eye, FolderArchive, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DocumentPanel } from "@/components/ui/document-panel";
@@ -16,6 +16,7 @@ import { downloadGrantPackAction, viewGrantDocumentAction } from "./actions";
 import {
   AdvanceDialog,
   DeclineDialog,
+  SendBackDialog,
   PaymentDialog,
   ReportPeriodDialog,
   advanceLabel,
@@ -30,6 +31,7 @@ export function GrantDetailContent({
   heading,
   detail,
   canAdvance,
+  canSendBack = false,
   canDisburse,
   canDownload,
   canLogReport,
@@ -41,12 +43,16 @@ export function GrantDetailContent({
    * that step's permission and (maker-checker) have not signed an earlier step.
    */
   canAdvance: boolean;
+  /** The user holds the permission of the latest sign-off, so may undo it. */
+  canSendBack?: boolean;
   canDisburse: boolean;
   canDownload: boolean;
   canLogReport: boolean;
 }) {
   const router = useRouter();
-  const [modal, setModal] = useState<"advance" | "decline" | "payment" | "report" | null>(null);
+  const [modal, setModal] = useState<
+    "advance" | "decline" | "sendback" | "payment" | "report" | null
+  >(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -127,6 +133,17 @@ export function GrantDetailContent({
         <div className="flex flex-wrap items-center gap-2.5">
           <StatusBadge tone={grantTone(detail.status)}>{stageLabel(detail.status)}</StatusBadge>
           {!heading && packButton}
+          {detail.previousStatus && (
+            <Button
+              variant="outline"
+              disabled={!canSendBack || busy}
+              title={!canSendBack ? "Needs the permission of the latest sign-off step" : undefined}
+              onClick={() => setModal("sendback")}
+            >
+              <Undo2 size={16} />
+              Send back
+            </Button>
+          )}
           {detail.nextStatus && (
             <Button
               variant="destructive"
@@ -152,6 +169,12 @@ export function GrantDetailContent({
       </section>
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{error}</FormBanner>}
+      {detail.sendBackReason && (
+        <section className="rounded-2xl border border-[#F0DFC8] bg-[#FDF6EC] p-5">
+          <h2 className="font-heading text-lg font-bold">Sign-off sent back</h2>
+          <p className="mt-1 text-[15px]">{detail.sendBackReason}</p>
+        </section>
+      )}
       {detail.declineReason !== null && (
         <section className="rounded-2xl border border-[#F3CCC6] bg-creaw-danger-soft p-6">
           <h2 className="font-heading text-[22px] font-bold text-[#6E2019]">
@@ -208,6 +231,12 @@ export function GrantDetailContent({
       <DocumentViewer document={viewing} onClose={() => setViewing(null)} />
       <AdvanceDialog
         open={modal === "advance"}
+        detail={detail}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
+      <SendBackDialog
+        open={modal === "sendback"}
         detail={detail}
         onClose={() => setModal(null)}
         onDone={done}

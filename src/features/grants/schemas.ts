@@ -138,7 +138,15 @@ export const signoffSchema = createEnvelopeSchema(
       history: z
         .array(
           z.object({
-            event: z.enum(["PREPARED", "REVIEWED", "APPROVED", "DECLINED"]),
+            event: z.enum([
+              "PREPARED",
+              "REVIEWED",
+              "APPROVED",
+              "DECLINED",
+              "SENT_BACK_TO_REVIEWED",
+              "SENT_BACK_TO_PREPARED",
+              "SENT_BACK_TO_NEW",
+            ]),
             byName: z.string().nullable(),
             at: z.string(),
           })
@@ -167,6 +175,11 @@ export const applicationCreateSchema = z.object({
   grantType: z.enum(GRANT_TYPES),
   /** The business or purpose, shown to the officers who sign off. */
   notes: z.string().trim().max(500).optional(),
+});
+export const sendBackInputSchema = z.object({
+  id,
+  /** Stored in `status_description`, which holds 255 characters. */
+  reason: z.string().trim().min(1).max(255),
 });
 export const declineInputSchema = z.object({
   id,

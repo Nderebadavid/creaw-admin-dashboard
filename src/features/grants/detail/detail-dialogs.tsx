@@ -9,6 +9,7 @@ import {
   declineGrantAction,
   logGrantReportAction,
   recordDisbursementAction,
+  sendBackGrantAction,
 } from "../actions";
 import type { GrantDetail } from "../api";
 
@@ -56,6 +57,66 @@ export function AdvanceDialog({
       >
         Confirm sign-off
       </Button>
+    </ActionDialog>
+  );
+}
+
+const STEP_NAME = { ACTIVE: "new", PREPARED: "prepared", REVIEWED: "reviewed" } as const;
+
+/** Undoes the latest sign-off; a reason is required and the step can be signed again. */
+export function SendBackDialog({
+  open,
+  detail,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  detail: GrantDetail;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = String(new FormData(event.currentTarget).get("reason") ?? "");
+    void submit.run(sendBackGrantAction({ id: detail.id, reason }), "Sign-off sent back.");
+  }
+  const target = detail.previousStatus ? STEP_NAME[detail.previousStatus] : "";
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Send back sign-off"
+      description={`${detail.applicant} · ${detail.project}`}
+      error={submit.error}
+    >
+      <form className="space-y-4" onSubmit={send}>
+        <p className="text-sm">
+          This undoes the latest sign-off and returns the application to <b>{target}</b>. It can
+          then be signed again.
+          {detail.status === "APPROVED" &&
+            " The award created by approval is withdrawn; this is refused once payments or reports exist."}
+        </p>
+        <label className="block text-sm">
+          Reason for sending back
+          <textarea name="reason" required maxLength={255} rows={4} className={fieldClass} />
+        </label>
+        <p className="-mt-2 text-xs text-creaw-faint">
+          Kept on the record and in the audit trail against your name.
+        </p>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={submit.busy} type="submit">
+            Send back
+          </Button>
+        </div>
+      </form>
     </ActionDialog>
   );
 }

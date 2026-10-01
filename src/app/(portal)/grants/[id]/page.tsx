@@ -38,6 +38,18 @@ export default async function GrantDetailPage({ params }: { params: Promise<{ id
       canAdvance={Boolean(
         code && distinctActor && hasPermission(session.grants, code, { pillarId: detail.pillarId })
       )}
+      canSendBack={
+        detail.previousStatus !== null &&
+        hasPermission(
+          session.grants,
+          {
+            PREPARED: "GRANT_APPLICATION_PREPARE",
+            REVIEWED: "GRANT_APPLICATION_REVIEW",
+            APPROVED: "GRANT_APPLICATION_APPROVE",
+          }[detail.status as "PREPARED" | "REVIEWED" | "APPROVED"] ?? "",
+          { pillarId: detail.pillarId }
+        )
+      }
       canDisburse={hasPermission(session.grants, "GRANT_DISBURSEMENT_RECORD", {
         pillarId: detail.pillarId,
       })}

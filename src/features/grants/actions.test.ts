@@ -136,3 +136,77 @@ describe("grant workflows", () => {
     expect(getMockStore().audit_logs.at(-1)?.action).toBe("DOWNLOAD");
   });
 });
+
+describe("sending a sign-off back", () => {
+  async function approved() {
+    getMockStore().grant_application[2].status = "ACTIVE";
+    await apiFor(3).advance(3, "PREPARED");
+    await apiFor(4).advance(3, "REVIEWED");
+    await apiFor(1).advance(3, "APPROVED");
+  }
+
+  it("undoes one step at a time, with a reason, and records it in the history", async () => {
+    await approved();
+    const application = () => getMockStore().grant_application[2];
+    expect((await apiFor(1).sendBack(3, "REVIEWED", " ")).resultCode).toBe(422);
+    expect((await apiFor(1).sendBack(3, "PREPARED", "Skips a step")).resultCode).toBe(422);
+    expect((await apiFor(1).sendBack(3, "REVIEWED", "Wrong amount")).resultCode).toBe(200);
+    expect(application().status).toBe("REVIEWED");
+    expect(application().status_description).toBe("Wrong amount");
+    const detail = await apiFor(1).get(3);
+    expect(detail).toMatchObject({
+      previousStatus: "PREPARED",
+      nextStatus: "APPROVED",
+      sendBackReason: "Wrong amount",
+    });
+    expect(detail?.signoffs.approvedBy).toBeNull();
+    expect(detail?.history.at(-1)?.event).toBe("SENT_BACK_TO_REVIEWED");
+    // Down to new, then forward again.
+    expect((await apiFor(4).sendBack(3, "PREPARED", "Needs the budget")).resultCode).toBe(200);
+    expect((await apiFor(3).sendBack(3, "ACTIVE", "Start again")).resultCode).toBe(200);
+    expect(application().status).toBe("ACTIVE");
+    expect((await apiFor(1).get(3))?.previousStatus).toBeNull();
+    expect((await apiFor(1).get(3))?.signoffs).toEqual({
+      preparedBy: null,
+      reviewedBy: null,
+      approvedBy: null,
+    });
+  });
+
+  it("withdraws the award on sending back an approval, and approval recreates it", async () => {
+    await approved();
+    const awards = () =>
+      getMockStore().grant_award.filter((row) => row.application_id === 3 && !row.is_deleted);
+    expect(awards()).toHaveLength(1);
+    expect((await apiFor(1).sendBack(3, "REVIEWED", "Wrong amount")).resultCode).toBe(200);
+    expect(awards()).toHaveLength(0);
+    expect((await apiFor(1).advance(3, "APPROVED")).resultCode).toBe(200);
+    expect(awards()).toHaveLength(1);
+  });
+
+  it("refuses to undo an approval once a payment or a submitted report exists", async () => {
+    await approved();
+    const award = getMockStore().grant_award.find((row) => row.application_id === 3)!;
+    expect((await apiFor(1).recordDisbursement(award.id, 1000, "2026-09-01")).resultCode).toBe(201);
+    const result = await apiFor(1).sendBack(3, "REVIEWED", "Wrong amount");
+    expect(result.resultCode).toBe(422);
+    expect(getMockStore().grant_application[2].status).toBe("APPROVED");
+    expect(getMockStore().grant_award.find((row) => row.id === award.id)?.is_deleted).toBe(false);
+  });
+
+  it("needs the permission of the step being undone", async () => {
+    await approved();
+    // User 4 reviews but does not approve.
+    expect((await apiFor(4).sendBack(3, "REVIEWED", "Wrong amount")).resultCode).toBe(403);
+    expect(getMockStore().grant_application[2].status).toBe("APPROVED");
+  });
+
+  it("lets a different officer sign again after a send-back, under the separate-officer rule", async () => {
+    await approved();
+    await apiFor(1).sendBack(3, "REVIEWED", "Wrong amount");
+    // The preparer (3) and reviewer (4) cannot approve; a third officer can.
+    expect((await apiFor(3).advance(3, "APPROVED")).resultCode).toBe(403);
+    expect((await apiFor(4).advance(3, "APPROVED")).resultCode).toBe(403);
+    expect((await apiFor(1).advance(3, "APPROVED")).resultCode).toBe(200);
+  });
+});

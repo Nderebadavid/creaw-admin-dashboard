@@ -22,6 +22,7 @@ import {
   advanceInputSchema,
   applicationCreateSchema,
   declineInputSchema,
+  sendBackInputSchema,
   disburseInputSchema,
   grantPeriodInputSchema,
 } from "./schemas";
@@ -153,6 +154,37 @@ export async function declineGrantAction(input: unknown) {
     return actionResult(response.resultCode, response.message);
   } catch {
     return actionResult(500, "Could not decline the application");
+  }
+}
+/**
+ * Undoes the latest sign-off, returning the application to the step before it. The
+ * officer needs the permission of the step being undone; the reason is kept on the record
+ * and in the audit trail.
+ */
+export async function sendBackGrantAction(input: unknown) {
+  const session = await requireSession();
+  const parsed = sendBackInputSchema.safeParse(input);
+  if (!parsed.success) return actionResult(422, "Give a reason for sending this back");
+  try {
+    const client = await api();
+    const grant = await client.get(parsed.data.id);
+    if (!grant) return actionResult(404, "Application not found");
+    if (!grant.previousStatus) return actionResult(422, "There is no sign-off to send back");
+    const current = grant.status as keyof typeof STEP_PERMISSION;
+    if (
+      !STEP_PERMISSION[current] ||
+      !hasPermission(session.grants, STEP_PERMISSION[current], { pillarId: grant.pillarId })
+    )
+      return actionResult(403, "You cannot send this sign-off back");
+    const response = await client.sendBack(grant.id, grant.previousStatus, parsed.data.reason);
+    if (response.success) {
+      revalidatePath("/grants");
+      revalidatePath(`/grants/${grant.id}`);
+      revalidatePath("/dashboard");
+    }
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not send the sign-off back");
   }
 }
 export async function advanceGrantAction(input: unknown) {
