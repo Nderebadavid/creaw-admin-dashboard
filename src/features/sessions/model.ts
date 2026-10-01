@@ -13,7 +13,11 @@ export const parsePeriod = (value: unknown): SessionPeriod =>
   sessionPeriods.includes(value as SessionPeriod) ? (value as SessionPeriod) : "quarter";
 
 export type FacilitatorLabel = "CREAW staff" | "External provider" | "Not assigned";
-export interface ActivityTypeOption { id: number; name: string; active: boolean }
+export interface ActivityTypeOption {
+  id: number;
+  name: string;
+  active: boolean;
+}
 export interface ActivityTopicOption {
   id: number;
   activityTypeId: number;
@@ -29,7 +33,11 @@ export interface AttendeeView {
   ward: string | null;
   added: string;
 }
-export interface SessionDocument { id: number; name: string; added: string }
+export interface SessionDocument {
+  id: number;
+  name: string;
+  added: string;
+}
 export interface SessionView {
   id: number;
   activityTypeId: number;

@@ -52,7 +52,11 @@ export function CoveragePanel({
       {workspace.coverage.map((type) => {
         const covered = type.topics.filter((topic) => topic.sessions > 0).length;
         return (
-          <details key={type.activityTypeId} open className="rounded-xl border border-creaw-line p-4">
+          <details
+            key={type.activityTypeId}
+            open
+            className="rounded-xl border border-creaw-line p-4"
+          >
             <summary className="flex cursor-pointer items-center justify-between font-semibold">
               <span>{type.name}</span>
               <span className="text-[13px] font-medium text-creaw-faint">
@@ -71,13 +75,23 @@ export function CoveragePanel({
                     <button
                       type="button"
                       aria-label={`Show sessions on ${topic.name}`}
-                      onClick={() => onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })}
+                      onClick={() =>
+                        onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })
+                      }
                       className={topicButton}
                     >
                       {topic.sessions > 0 ? (
-                        <CircleCheck size={16} aria-hidden="true" className="shrink-0 text-creaw-success" />
+                        <CircleCheck
+                          size={16}
+                          aria-hidden="true"
+                          className="shrink-0 text-creaw-success"
+                        />
                       ) : (
-                        <Circle size={16} aria-hidden="true" className="shrink-0 text-creaw-faint" />
+                        <Circle
+                          size={16}
+                          aria-hidden="true"
+                          className="shrink-0 text-creaw-faint"
+                        />
                       )}
                       <span className="font-medium">{topic.name}</span>
                       <span className="ml-auto text-[13px] text-creaw-faint">
@@ -92,18 +106,24 @@ export function CoveragePanel({
             )}
             {type.otherTopics.length > 0 && (
               <div className="mt-3">
-                <h3 className="text-[13px] font-semibold uppercase text-creaw-faint">Other topics</h3>
+                <h3 className="text-[13px] font-semibold uppercase text-creaw-faint">
+                  Other topics
+                </h3>
                 <ul className="mt-1 flex flex-col gap-1">
                   {type.otherTopics.map((topic) => (
                     <li key={topic.name}>
                       <button
                         type="button"
                         aria-label={`Show sessions on ${topic.name}`}
-                        onClick={() => onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })}
+                        onClick={() =>
+                          onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })
+                        }
                         className={topicButton}
                       >
                         <span className="font-medium">{topic.name}</span>
-                        <span className="ml-auto text-[13px] text-creaw-faint">{plural(topic.sessions)}</span>
+                        <span className="ml-auto text-[13px] text-creaw-faint">
+                          {plural(topic.sessions)}
+                        </span>
                       </button>
                     </li>
                   ))}

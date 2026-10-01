@@ -20,13 +20,22 @@ export function periodStart(period: SessionPeriod, today: Date): string | null {
 export interface CoverageInput {
   types: ActivityTypeOption[];
   topics: ActivityTopicOption[];
-  sessions: { id: number; activityTypeId: number; topicId: number | null; freeTopic: string | null; date: string }[];
+  sessions: {
+    id: number;
+    activityTypeId: number;
+    topicId: number | null;
+    freeTopic: string | null;
+    date: string;
+  }[];
   attendance: { sessionId: number; participantId: number }[];
   period: SessionPeriod;
   today: Date;
 }
 
-export function buildCoverage(input: CoverageInput): { coverage: TypeCoverage[]; summary: SessionSummary } {
+export function buildCoverage(input: CoverageInput): {
+  coverage: TypeCoverage[];
+  summary: SessionSummary;
+} {
   const start = periodStart(input.period, input.today);
   const inPeriod = input.sessions.filter((row) => start === null || row.date >= start);
   const ids = new Set(inPeriod.map((row) => row.id));
@@ -37,7 +46,10 @@ export function buildCoverage(input: CoverageInput): { coverage: TypeCoverage[];
       .filter((topic) => topic.activityTypeId === type.id && topic.active)
       .sort((a, b) => a.sequenceNo - b.sequenceNo)
       .map((topic) => {
-        const delivered = ofType.filter((row) => row.topicId === topic.id).map((row) => row.date).sort();
+        const delivered = ofType
+          .filter((row) => row.topicId === topic.id)
+          .map((row) => row.date)
+          .sort();
         return {
           topicId: topic.id,
           name: topic.name,
@@ -48,7 +60,11 @@ export function buildCoverage(input: CoverageInput): { coverage: TypeCoverage[];
       });
     const others = new Map<string, { name: string; sessions: number; lastDelivered: string }>();
     for (const row of ofType.filter((item) => item.topicId === null && item.freeTopic)) {
-      const entry = others.get(row.freeTopic!) ?? { name: row.freeTopic!, sessions: 0, lastDelivered: row.date };
+      const entry = others.get(row.freeTopic!) ?? {
+        name: row.freeTopic!,
+        sessions: 0,
+        lastDelivered: row.date,
+      };
       entry.sessions += 1;
       if (row.date > entry.lastDelivered) entry.lastDelivered = row.date;
       others.set(row.freeTopic!, entry);

@@ -12,8 +12,18 @@ const topics = [
   { id: 12, activityTypeId: 4, name: "Retired topic", sequenceNo: 3, active: false },
   { id: 20, activityTypeId: 1, name: "Savings cycle", sequenceNo: 1, active: true },
 ];
-const session = (id: number, typeId: number, topicId: number | null, date: string, free: string | null = null) => ({
-  id, activityTypeId: typeId, topicId, freeTopic: free, date,
+const session = (
+  id: number,
+  typeId: number,
+  topicId: number | null,
+  date: string,
+  free: string | null = null
+) => ({
+  id,
+  activityTypeId: typeId,
+  topicId,
+  freeTopic: free,
+  date,
 });
 
 describe("periodStart", () => {
@@ -39,7 +49,14 @@ describe("buildCoverage", () => {
   ];
 
   it("marks topics covered in the quarter, counting the quarter's first day", () => {
-    const { coverage, summary } = buildCoverage({ types, topics, sessions, attendance, period: "quarter", today });
+    const { coverage, summary } = buildCoverage({
+      types,
+      topics,
+      sessions,
+      attendance,
+      period: "quarter",
+      today,
+    });
     const health = coverage.find((row) => row.activityTypeId === 4)!;
     expect(health.topics.map((row) => [row.name, row.sessions, row.lastDelivered])).toEqual([
       ["Menstrual health", 2, "2026-09-10"],
@@ -58,12 +75,25 @@ describe("buildCoverage", () => {
   });
 
   it("widens to the year and to all time", () => {
-    expect(buildCoverage({ types, topics, sessions, attendance, period: "year", today }).summary.topicsCovered).toBe(2);
-    expect(buildCoverage({ types, topics, sessions, attendance, period: "all", today }).summary.sessionsHeld).toBe(4);
+    expect(
+      buildCoverage({ types, topics, sessions, attendance, period: "year", today }).summary
+        .topicsCovered
+    ).toBe(2);
+    expect(
+      buildCoverage({ types, topics, sessions, attendance, period: "all", today }).summary
+        .sessionsHeld
+    ).toBe(4);
   });
 
   it("still returns a block per type when no topics are planned", () => {
-    const { coverage } = buildCoverage({ types, topics: [], sessions, attendance, period: "all", today });
+    const { coverage } = buildCoverage({
+      types,
+      topics: [],
+      sessions,
+      attendance,
+      period: "all",
+      today,
+    });
     expect(coverage.map((row) => row.topics.length)).toEqual([0, 0]);
   });
 });

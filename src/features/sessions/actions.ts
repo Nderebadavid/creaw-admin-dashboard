@@ -60,7 +60,8 @@ const done = (
 /** Validates a session form against the pillar's curriculum; the API values, or an error result. */
 async function sessionValues(input: unknown) {
   const parsed = sessionInput.safeParse(input);
-  if (!parsed.success) return { error: actionResult(422, "Check the session details and try again") };
+  if (!parsed.success)
+    return { error: actionResult(422, "Check the session details and try again") };
   const value = parsed.data;
   if (value.topicId === null && !value.topic)
     return { error: actionResult(422, "Choose a planned topic or describe the topic") };
