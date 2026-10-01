@@ -58,6 +58,12 @@ export interface ProjectDetail {
     amount: number;
     grantType: string;
     status: string;
+    /** The award approval created, with its payments; null before approval or without award access. */
+    award: {
+      id: number;
+      amount: number;
+      payments: { id: number; amount: number; date: string | null; notes: string | null }[];
+    } | null;
   }[];
   reports: { id: number; period: string; due: string; submitted: string | null }[];
 }
@@ -126,11 +132,29 @@ export function createProjectsApi(client: ApiClient, token: string) {
           path: `/projects/${id}`,
           routeTemplate: "/projects/:id",
           token,
-          query: { include: "applications,reports" },
+          query: { include: "applications,awards,disbursements,reports" },
         },
         projectDetailSchema
       );
       if (!response.success || !response.data) return null;
+      const { awards, disbursements } = response.data;
+      const awardOf = (applicationId: number) => {
+        const award = awards.find((row) => row.application_id === applicationId);
+        return award
+          ? {
+              id: award.id,
+              amount: award.amount_awarded,
+              payments: disbursements
+                .filter((row) => row.grant_id === award.id)
+                .map((row) => ({
+                  id: row.id,
+                  amount: row.amount,
+                  date: row.disbursement_date,
+                  notes: row.notes,
+                })),
+            }
+          : null;
+      };
       return {
         applications: response.data.applications.map((row) => ({
           id: row.id,
@@ -138,6 +162,7 @@ export function createProjectsApi(client: ApiClient, token: string) {
           amount: row.requested_amount,
           grantType: row.grant_type,
           status: row.status,
+          award: awardOf(row.id),
         })),
         reports: response.data.reports.map((row) => ({
           id: row.id,

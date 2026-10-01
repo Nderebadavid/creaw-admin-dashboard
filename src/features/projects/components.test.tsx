@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+vi.mock("@/features/grants/actions", () => ({
+  updateAwardAction: vi.fn(),
+  updateDisbursementAction: vi.fn(),
+}));
 vi.mock("./actions", () => ({
   listProjectsAction: vi.fn(),
   loadProjectDetailAction: vi.fn(),
@@ -18,6 +22,7 @@ import {
   deleteProjectAction,
 } from "./actions";
 import { ProjectsContent } from "./components";
+import { updateAwardAction, updateDisbursementAction } from "@/features/grants/actions";
 import type { ProjectView } from "./api";
 
 const jasiri: ProjectView = {
@@ -88,6 +93,11 @@ beforeEach(() => {
           amount: 45000,
           grantType: "one_off",
           status: "APPROVED",
+          award: {
+            id: 11,
+            amount: 40000,
+            payments: [{ id: 21, amount: 15000, date: "2026-05-20", notes: "First tranche" }],
+          },
         },
       ],
       reports: [{ id: 3, period: "2026-04-01 – 2026-06-30", due: "2026-08-30", submitted: null }],
@@ -352,5 +362,67 @@ describe("projects register", () => {
     const dialog = await screen.findByRole("dialog", { name: "Delete project" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete project" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("has grant applications");
+  });
+
+  it("edits a grant's awarded amount and its payments from the project, by permission", async () => {
+    vi.mocked(updateAwardAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+    } as never);
+    vi.mocked(updateDisbursementAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+    } as never);
+    vi.mocked(listProjectsAction).mockResolvedValue(page([jasiri]) as never);
+    renderProjects([]);
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    let drawer = screen.getByRole("dialog", { name: "Jasiri business grants" });
+    expect(await within(drawer).findByText("KES 40,000")).toBeInTheDocument();
+    expect(
+      within(drawer).queryByRole("button", { name: /Edit awarded amount/ })
+    ).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole("button", { name: /Edit payment/ })).not.toBeInTheDocument();
+    cleanup();
+    renderProjects([
+      { permissionCode: "GRANT_APPLICATION_APPROVE", pillarId: 2 },
+      { permissionCode: "GRANT_DISBURSEMENT_RECORD", pillarId: 2 },
+    ]);
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    drawer = screen.getByRole("dialog", { name: "Jasiri business grants" });
+    fireEvent.click(
+      await within(drawer).findByRole("button", { name: "Edit awarded amount for Rehema Karisa" })
+    );
+    const award = await screen.findByRole("dialog", { name: "Edit awarded amount" });
+    const amount = within(award).getByLabelText("Awarded amount (KES)");
+    expect(amount).toHaveValue(40000);
+    expect(amount).toHaveAttribute("min", "15000");
+    fireEvent.change(amount, { target: { value: "42000" } });
+    fireEvent.click(within(award).getByRole("button", { name: "Save amount" }));
+    await waitFor(() =>
+      expect(updateAwardAction).toHaveBeenCalledWith({ applicationId: 7, amount: 42000 })
+    );
+    expect(await screen.findByText("Awarded amount updated.")).toBeInTheDocument();
+    drawer = screen.getByRole("dialog", { name: "Jasiri business grants" });
+    fireEvent.click(
+      await within(drawer).findByRole("button", { name: "Edit payment 1 for Rehema Karisa" })
+    );
+    const payment = await screen.findByRole("dialog", { name: "Edit payment" });
+    expect(within(payment).getByLabelText("Payment date")).toHaveValue("2026-05-20");
+    fireEvent.change(within(payment).getByLabelText("Amount (KES)"), {
+      target: { value: "16000" },
+    });
+    fireEvent.click(within(payment).getByRole("button", { name: "Save payment" }));
+    await waitFor(() =>
+      expect(updateDisbursementAction).toHaveBeenCalledWith({
+        applicationId: 7,
+        disbursementId: 21,
+        amount: 16000,
+        date: "2026-05-20",
+        notes: "First tranche",
+      })
+    );
+    expect(await screen.findByText("Payment updated.")).toBeInTheDocument();
   });
 });

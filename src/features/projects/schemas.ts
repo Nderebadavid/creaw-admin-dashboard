@@ -69,6 +69,22 @@ export const projectDetailSchema = createEnvelopeSchema(
         )
         .nullish()
         .transform((value) => value ?? []),
+      awards: z
+        .array(z.object({ id, application_id: id, amount_awarded: z.number() }))
+        .nullish()
+        .transform((value) => value ?? []),
+      disbursements: z
+        .array(
+          z.object({
+            id,
+            grant_id: id,
+            amount: z.number(),
+            disbursement_date: text,
+            notes: text,
+          })
+        )
+        .nullish()
+        .transform((value) => value ?? []),
       reports: z
         .array(
           z.object({
