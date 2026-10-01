@@ -264,10 +264,7 @@ export function createSessionsApi(client: ApiClient, token: string) {
         summary,
         activityTypes: types,
         topics,
-        participants: people.map((row) => ({
-          id: row.id,
-          label: `${row.first_name} ${row.last_name} · #${row.id}`,
-        })),
+        participants: participantOptions(people, wards),
       };
     },
     logSession(pillar: SessionPillar, values: Values) {
@@ -343,3 +340,20 @@ export const sessionsApi = {
     return (await withSessionApi(createSessionsApi)).workspace(pillar, period);
   },
 };
+
+/** "<masked name> · <ward>"; only exact duplicates get " · #<id>" so they stay distinguishable. */
+function participantOptions(
+  people: { id: number; first_name: string; last_name: string; ward_id?: number | null }[],
+  wards: { id: number; name: string }[]
+) {
+  const labels = people.map((row) => ({
+    id: row.id,
+    label: `${row.first_name} ${row.last_name} · ${wards.find((ward) => ward.id === row.ward_id)?.name ?? "Ward not recorded"}`,
+  }));
+  const counts = new Map<string, number>();
+  for (const { label } of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+  return labels.map(({ id, label }) => ({
+    id,
+    label: counts.get(label)! > 1 ? `${label} · #${id}` : label,
+  }));
+}

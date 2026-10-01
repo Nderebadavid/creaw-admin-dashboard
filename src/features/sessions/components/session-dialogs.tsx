@@ -59,11 +59,13 @@ export function SessionFormDialog({
       : topics;
   // The select shows its first option when nothing is chosen, so submit that one.
   const chosenTopic =
-    topicOptions.some((topic) => String(topic.id) === topicValue) || topicValue === "other"
-      ? topicValue
-      : topicOptions[0]
-        ? String(topicOptions[0].id)
-        : "other";
+    typeId === ""
+      ? ""
+      : topicOptions.some((topic) => String(topic.id) === topicValue) || topicValue === "other"
+        ? topicValue
+        : topicOptions[0]
+          ? String(topicOptions[0].id)
+          : "other";
   const close = () => {
     submit.clearError();
     onClose();
@@ -126,6 +128,11 @@ export function SessionFormDialog({
             onChange={(event) => setTopicValue(event.target.value)}
             className={fieldClass}
           >
+            {typeId === "" && (
+              <option value="" disabled>
+                Choose an activity type first
+              </option>
+            )}
             {topicOptions.map((topic) => (
               <option key={topic.id} value={topic.id}>
                 {topic.name}

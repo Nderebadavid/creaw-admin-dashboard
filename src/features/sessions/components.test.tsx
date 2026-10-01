@@ -26,45 +26,102 @@ export const workspace: SessionWorkspace = {
   period: "quarter",
   sessions: [
     {
-      id: 2, activityTypeId: 4, activityType: "Health Talk", topicId: 10, topic: "Menstrual health",
-      freeTopic: null, date: "2026-09-10", venue: "Kibera Ward Office", notes: "Good turnout",
-      facilitator: "CREAW staff", communityWide: true,
-      attendees: [{ attendanceId: 1, participantId: 5, name: "••ith ••••ani", ward: "Laini Saba", added: "2026-09-10T09:00:00Z" }],
+      id: 2,
+      activityTypeId: 4,
+      activityType: "Health Talk",
+      topicId: 10,
+      topic: "Menstrual health",
+      freeTopic: null,
+      date: "2026-09-10",
+      venue: "Kibera Ward Office",
+      notes: "Good turnout",
+      facilitator: "CREAW staff",
+      communityWide: true,
+      attendees: [
+        {
+          attendanceId: 1,
+          participantId: 5,
+          name: "••ith ••••ani",
+          ward: "Laini Saba",
+          added: "2026-09-10T09:00:00Z",
+        },
+      ],
       documents: [{ id: 9, name: "Attendance sheet", added: "2026-09-10T10:00:00Z" }],
-      logged: "2026-09-10T08:00:00Z", updated: "2026-09-11T08:00:00Z",
+      logged: "2026-09-10T08:00:00Z",
+      updated: "2026-09-11T08:00:00Z",
     },
     {
-      id: 3, activityTypeId: 1, activityType: "YSLA", topicId: null, topic: "Facility referral day",
-      freeTopic: "Facility referral day", date: "2026-08-20", venue: null, notes: null,
-      facilitator: "External provider", communityWide: true, attendees: [], documents: [],
-      logged: "2026-08-20T08:00:00Z", updated: "2026-08-20T08:00:00Z",
+      id: 3,
+      activityTypeId: 1,
+      activityType: "YSLA",
+      topicId: null,
+      topic: "Facility referral day",
+      freeTopic: "Facility referral day",
+      date: "2026-08-20",
+      venue: null,
+      notes: null,
+      facilitator: "External provider",
+      communityWide: true,
+      attendees: [],
+      documents: [],
+      logged: "2026-08-20T08:00:00Z",
+      updated: "2026-08-20T08:00:00Z",
     },
   ],
   coverage: [
     {
-      activityTypeId: 4, name: "Health Talk",
+      activityTypeId: 4,
+      name: "Health Talk",
       topics: [
-        { topicId: 10, name: "Menstrual health", sequenceNo: 1, sessions: 1, lastDelivered: "2026-09-10" },
+        {
+          topicId: 10,
+          name: "Menstrual health",
+          sequenceNo: 1,
+          sessions: 1,
+          lastDelivered: "2026-09-10",
+        },
         { topicId: 11, name: "Contraception", sequenceNo: 2, sessions: 0, lastDelivered: null },
       ],
       otherTopics: [],
     },
-    { activityTypeId: 1, name: "YSLA", topics: [], otherTopics: [{ name: "Facility referral day", sessions: 1, lastDelivered: "2026-08-20" }] },
+    {
+      activityTypeId: 1,
+      name: "YSLA",
+      topics: [],
+      otherTopics: [{ name: "Facility referral day", sessions: 1, lastDelivered: "2026-08-20" }],
+    },
   ],
-  summary: { sessionsHeld: 2, peopleReached: 1, topicsCovered: 1, topicsPlanned: 2, activeTypes: 2 },
-  activityTypes: [{ id: 4, name: "Health Talk", active: true }, { id: 1, name: "YSLA", active: true }],
+  summary: {
+    sessionsHeld: 2,
+    peopleReached: 1,
+    topicsCovered: 1,
+    topicsPlanned: 2,
+    activeTypes: 2,
+  },
+  activityTypes: [
+    { id: 4, name: "Health Talk", active: true },
+    { id: 1, name: "YSLA", active: true },
+  ],
   topics: [
     { id: 10, activityTypeId: 4, name: "Menstrual health", sequenceNo: 1, active: true },
     { id: 11, activityTypeId: 4, name: "Contraception", sequenceNo: 2, active: true },
   ],
-  participants: [{ id: 5, label: "••ith ••••ani · #5" }, { id: 6, label: "••ce ••••yi · #6" }],
+  participants: [
+    { id: 5, label: "••ith ••••ani · Laini Saba" },
+    { id: 6, label: "••ce ••••yi · Kibera" },
+  ],
 };
 const all = { log: true, attach: true, download: true, export: true };
 
 describe("session summary cards", () => {
   it("shows the four headline counts", () => {
     render(<SessionSummaryCards summary={workspace.summary} color="#000" tint="#fff" />);
-    for (const label of ["Sessions held", "People reached", "Topics covered", "Active activity types"])
+    for (const label of [
+      "Sessions held",
+      "People reached",
+      "Topics covered",
+      "Active activity types",
+    ])
       expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.getByText("1 of 2")).toBeInTheDocument();
   });
@@ -77,7 +134,10 @@ describe("curriculum coverage and session register", () => {
     expect(within(panel).getByText("Menstrual health")).toBeInTheDocument();
     expect(within(panel).getByText("Not yet covered")).toBeInTheDocument();
     expect(within(panel).getByText("Other topics")).toBeInTheDocument();
-    expect(within(panel).getByRole("link", { name: "This year" })).toHaveAttribute("href", "/pillars/srhr?period=year");
+    expect(within(panel).getByRole("link", { name: "This year" })).toHaveAttribute(
+      "href",
+      "/pillars/srhr?period=year"
+    );
   });
 
   it("shows the register columns and filters by activity type and by a clicked topic", () => {
@@ -85,13 +145,19 @@ describe("curriculum coverage and session register", () => {
     for (const heading of ["Activity type", "Topic", "Date", "Venue", "Facilitator", "Attendees"])
       expect(screen.getByRole("columnheader", { name: new RegExp(heading) })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "YSLA" }));
-    expect(screen.queryByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "All" }));
     fireEvent.click(screen.getByRole("button", { name: "Show sessions on Menstrual health" }));
     expect(screen.getAllByRole("row")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(screen.getByRole("button", { name: "Open Facility referral day, 20 Aug 2026" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open Facility referral day, 20 Aug 2026" })
+    ).toBeInTheDocument();
   });
 
   it("returns to page 1 when a topic is picked or cleared", () => {
@@ -100,10 +166,17 @@ describe("curriculum coverage and session register", () => {
       id: 100 + i,
       date: `2026-09-${String(28 - i).padStart(2, "0")}`,
     }));
-    render(<SessionWorkspaceView workspace={{ ...workspace, sessions: [...filler, workspace.sessions[0]] }} can={all} />);
+    render(
+      <SessionWorkspaceView
+        workspace={{ ...workspace, sessions: [...filler, workspace.sessions[0]] }}
+        can={all}
+      />
+    );
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     fireEvent.click(screen.getByRole("button", { name: "Show sessions on Menstrual health" }));
-    expect(screen.getByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open Menstrual health, 10 Sept 2026" })
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.getAllByRole("row")).toHaveLength(11);
@@ -115,7 +188,15 @@ describe("curriculum coverage and session register", () => {
   });
 
   it("shows a hint when no topics are planned", () => {
-    render(<SessionWorkspaceView workspace={{ ...workspace, coverage: workspace.coverage.map((row) => ({ ...row, topics: [] })) }} can={all} />);
+    render(
+      <SessionWorkspaceView
+        workspace={{
+          ...workspace,
+          coverage: workspace.coverage.map((row) => ({ ...row, topics: [] })),
+        }}
+        can={all}
+      />
+    );
     expect(screen.getAllByText("No planned topics yet").length).toBeGreaterThan(0);
   });
 });
@@ -149,13 +230,20 @@ describe("session drawer", () => {
   it("builds the activity timeline newest first", () => {
     const drawer = open();
     fireEvent.click(within(drawer).getByRole("tab", { name: "Activity" }));
-    const items = within(drawer).getAllByRole("listitem").map((item) => item.textContent);
+    const items = within(drawer)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
     expect(items[0]).toMatch(/Session edited/);
     expect(items.at(-1)).toMatch(/Session logged/);
   });
 
   it("disables every change control without session logging, upload or download", () => {
-    render(<SessionWorkspaceView workspace={workspace} can={{ log: false, attach: false, download: false, export: false }} />);
+    render(
+      <SessionWorkspaceView
+        workspace={workspace}
+        can={{ log: false, attach: false, download: false, export: false }}
+      />
+    );
     fireEvent.click(screen.getByRole("button", { name: /^Open Menstrual health/ }));
     const drawer = screen.getByRole("dialog");
     expect(within(drawer).getByRole("button", { name: "Edit" })).toBeDisabled();
@@ -175,14 +263,26 @@ describe("session form", () => {
     const dialog = screen.getByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Activity type"), { target: { value: "4" } });
     const topic = within(dialog).getByLabelText("Topic") as HTMLSelectElement;
-    expect([...topic.options].map((option) => option.text)).toEqual(["Menstrual health", "Contraception", "Other"]);
+    expect([...topic.options].map((option) => option.text)).toEqual([
+      "Menstrual health",
+      "Contraception",
+      "Other",
+    ]);
     fireEvent.change(topic, { target: { value: "other" } });
     expect(within(dialog).getByLabelText("Describe the topic")).toBeRequired();
   });
 
   it("keeps a retired topic selectable when editing a session that uses it", () => {
     const retired = { ...workspace, topics: workspace.topics.filter((row) => row.id !== 10) };
-    render(<SessionFormDialog open workspace={retired} session={workspace.sessions[0]} onClose={() => {}} onDone={() => {}} />);
+    render(
+      <SessionFormDialog
+        open
+        workspace={retired}
+        session={workspace.sessions[0]}
+        onClose={() => {}}
+        onDone={() => {}}
+      />
+    );
     const topic = screen.getByLabelText("Topic") as HTMLSelectElement;
     expect(topic.value).toBe("10");
     expect(topic.selectedOptions[0].text).toBe("Menstrual health");
@@ -198,7 +298,13 @@ describe("session form", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Log session" }));
     await vi.waitFor(() =>
       expect(actions.logSessionAction).toHaveBeenCalledWith(
-        expect.objectContaining({ pillar: "srhr", activityTypeId: 4, topicId: 11, topic: "", sessionDate: "2026-09-29" })
+        expect.objectContaining({
+          pillar: "srhr",
+          activityTypeId: 4,
+          topicId: 11,
+          topic: "",
+          sessionDate: "2026-09-29",
+        })
       )
     );
   });
@@ -212,29 +318,57 @@ describe("attendance corrections", () => {
   };
 
   it("hides the drawer while adding an attendee and offers only people not listed", async () => {
-    vi.mocked(actions.addAttendeeAction).mockResolvedValue({ success: true, message: "ok", resultCode: 201 } as never);
+    vi.mocked(actions.addAttendeeAction).mockResolvedValue({
+      success: true,
+      message: "ok",
+      resultCode: 201,
+    } as never);
     openAttendance();
     fireEvent.click(screen.getByRole("button", { name: "Add attendee" }));
     const dialog = screen.getByRole("dialog");
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    const options = [...(within(dialog).getByLabelText("Participant") as HTMLSelectElement).options].map((o) => o.text);
-    expect(options).toEqual(["••ce ••••yi · #6"]);
+    const options = [
+      ...(within(dialog).getByLabelText("Participant") as HTMLSelectElement).options,
+    ].map((o) => o.text);
+    expect(options).toEqual(["••ce ••••yi · Kibera"]);
     fireEvent.change(within(dialog).getByLabelText("Participant"), { target: { value: "6" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add attendee" }));
     await vi.waitFor(() =>
-      expect(actions.addAttendeeAction).toHaveBeenCalledWith({ pillar: "srhr", sessionId: 2, participantId: 6 })
+      expect(actions.addAttendeeAction).toHaveBeenCalledWith({
+        pillar: "srhr",
+        sessionId: 2,
+        participantId: 6,
+      })
     );
   });
 
   it("confirms before removing an attendee", async () => {
-    vi.mocked(actions.removeAttendeeAction).mockResolvedValue({ success: true, message: "ok", resultCode: 200 } as never);
+    vi.mocked(actions.removeAttendeeAction).mockResolvedValue({
+      success: true,
+      message: "ok",
+      resultCode: 200,
+    } as never);
     openAttendance();
     fireEvent.click(screen.getByRole("button", { name: "Remove ••ith ••••ani" }));
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Remove ••ith ••••ani from this session's attendance?");
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
     await vi.waitFor(() =>
-      expect(actions.removeAttendeeAction).toHaveBeenCalledWith({ pillar: "srhr", sessionId: 2, attendanceId: 1 })
+      expect(actions.removeAttendeeAction).toHaveBeenCalledWith({
+        pillar: "srhr",
+        sessionId: 2,
+        attendanceId: 1,
+      })
     );
+  });
+});
+
+describe("session form before a type is chosen", () => {
+  it("keeps the topic empty and hides the free-text field", () => {
+    render(<LogSessionButton workspace={workspace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log session" }));
+    const dialog = screen.getByRole("dialog");
+    expect((within(dialog).getByLabelText("Topic") as HTMLSelectElement).value).toBe("");
+    expect(within(dialog).queryByLabelText("Describe the topic")).not.toBeInTheDocument();
   });
 });

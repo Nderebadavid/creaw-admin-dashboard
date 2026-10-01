@@ -16,9 +16,17 @@ describe("sessions workspace", () => {
   it("maps SRHR sessions with type, planned or free topic and facilitator label", async () => {
     const workspace = await apiFor(1).workspace("srhr", "quarter", today);
     expect(workspace.sessions.length).toBeGreaterThanOrEqual(3);
-    expect(workspace.sessions.every((row) => ["Health Talk", "YSLA", "Mentorship", "Male Engagement"].includes(row.activityType))).toBe(true);
+    expect(
+      workspace.sessions.every((row) =>
+        ["Health Talk", "YSLA", "Mentorship", "Male Engagement"].includes(row.activityType)
+      )
+    ).toBe(true);
     const free = workspace.sessions.find((row) => row.topic === "Facility referral day")!;
-    expect(free).toMatchObject({ topicId: null, freeTopic: "Facility referral day", facilitator: "CREAW staff" });
+    expect(free).toMatchObject({
+      topicId: null,
+      freeTopic: "Facility referral day",
+      facilitator: "CREAW staff",
+    });
     const planned = workspace.sessions.find((row) => row.topic === "Menstrual health")!;
     expect(planned.date).toBe("2026-07-01");
     expect(workspace.sessions.map((row) => row.date)).toEqual(
@@ -55,10 +63,12 @@ describe("sessions workspace", () => {
   it("loads with no planned topics when the topic lookup fails", async () => {
     const client = clientFor();
     const request = client.request.bind(client);
-    const spy = vi.spyOn(client, "request").mockImplementation(((req: { path: string }, schema: never) =>
-      req.path === "/lookups/activity_topic"
-        ? Promise.reject(new Error("topic lookup down"))
-        : request(req as never, schema)) as typeof client.request);
+    const spy = vi
+      .spyOn(client, "request")
+      .mockImplementation(((req: { path: string }, schema: never) =>
+        req.path === "/lookups/activity_topic"
+          ? Promise.reject(new Error("topic lookup down"))
+          : request(req as never, schema)) as typeof client.request);
     const workspace = await apiFor(1, client).workspace("srhr", "quarter", today);
     expect(spy.mock.calls.some(([req]) => req.path === "/lookups/activity_topic")).toBe(true);
     expect(workspace.summary.topicsPlanned).toBe(0);
@@ -76,10 +86,34 @@ describe("sessions workspace", () => {
         data: { items: Record<string, unknown>[] } | null;
       };
       if (req.query?.table === "activity_session" && result.data)
-        result.data.items.push({ ...result.data.items[0], id: 9999, pillar_id: 6, topic: "Foreign" });
+        result.data.items.push({
+          ...result.data.items[0],
+          id: 9999,
+          pillar_id: 6,
+          topic: "Foreign",
+        });
       return result;
     }) as typeof client.request);
     const workspace = await apiFor(1, client).workspace("srhr", "all", today);
-    expect(workspace.sessions.some((row) => row.id === 9999 || row.topic === "Foreign")).toBe(false);
+    expect(workspace.sessions.some((row) => row.id === 9999 || row.topic === "Foreign")).toBe(
+      false
+    );
+  });
+});
+
+describe("attendee picker labels", () => {
+  it("uses the ward and adds the id only to identical labels", async () => {
+    const store = getMockStore();
+    const [a, b, c] = store.participant;
+    Object.assign(a, { first_name: "Same", last_name: "Name", ward_id: store.ward[0].id });
+    Object.assign(b, { first_name: "Same", last_name: "Name", ward_id: store.ward[0].id });
+    Object.assign(c, { first_name: "Same", last_name: "Name", ward_id: null });
+    const { participants } = await apiFor(1).workspace("srhr", "all", today);
+    const ward = store.ward[0].name;
+    const label = (id: number) => participants.find((row) => row.id === id)?.label;
+    expect(label(a.id)).toBe(`•••• •••• · ${ward} · #${a.id}`);
+    expect(label(b.id)).toBe(`•••• •••• · ${ward} · #${b.id}`);
+    expect(label(c.id)).toBe("•••• •••• · Ward not recorded");
+    expect(participants.filter((row) => row.label.includes("#"))).toHaveLength(2);
   });
 });

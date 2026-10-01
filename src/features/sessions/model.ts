@@ -78,7 +78,7 @@ export interface SessionWorkspace {
   summary: SessionSummary;
   activityTypes: ActivityTypeOption[];
   topics: ActivityTopicOption[];
-  /** People an attendee can be picked from, labelled "<masked name> · #<id>". */
+  /** People an attendee can be picked from, labelled "<masked name> · <ward>" (plus "#<id>" only to tell identical labels apart). */
   participants: { id: number; label: string }[];
 }
 
