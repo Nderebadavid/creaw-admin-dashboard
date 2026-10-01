@@ -16,7 +16,7 @@ export interface OrganisationView {
   ward: string;
   county: string;
   address: string | null;
-  /** Masked unless revealed; "Yes"/"No" once known. */
+  /** Always masked. */
   bankAccount: string;
   dueDiligence: string;
   registered: string;

@@ -114,13 +114,11 @@ export default async function PillarPage({
     edit: can("CASE_EDIT"),
     attach: can("DOCUMENT_UPLOAD"),
     download: can("DOCUMENT_DOWNLOAD"),
-    reveal: can("SENSITIVE_REVEAL"),
     export: can("REPORT_EXPORT_CSV"),
     counsel: can("COUNSELLING_LOG"),
   };
   const counsellingPermissions = {
     log: can("COUNSELLING_LOG"),
-    reveal: can("COUNSELLING_VIEW") && can("SENSITIVE_REVEAL"),
   };
   const vawgFailed = workspace === "failed" && pillar.code === "vawg";
   const vawg = workspace !== "failed" && workspace && pillar.code === "vawg";
@@ -136,7 +134,6 @@ export default async function PillarPage({
   const trainingPermissions = {
     edit: can("TRAINING_ENROLLMENT_EDIT"),
     recommend: can("TRAINING_ENROLLMENT_EDIT") && can("REFERRAL_CREATE"),
-    reveal: can("SENSITIVE_REVEAL"),
     export: can("REPORT_EXPORT_CSV"),
   };
   const enrolTrainee =

@@ -17,7 +17,6 @@ const raw = (userId: number, request: Record<string, unknown>) =>
 // Cynthia Chelimo (user 6): VAWG case officer and staff counsellor, logs counselling.
 const COUNSELLOR = 6;
 // Lilian Otieno (user 5): VAWG lead with reveal rights but no counselling access.
-const NO_COUNSELLING = 5;
 // Amina Wekesa (user 7): VAWG case officer, not a counsellor.
 const CASE_OFFICER = 7;
 
@@ -114,18 +113,6 @@ describe("reading counselling", () => {
     });
     expect(rows.every((row) => row.notes === null || row.notes.includes("•"))).toBe(true);
     expect(JSON.stringify(rows)).not.toContain("Confidential");
-  });
-
-  it("reveals notes with an audit entry only to counselling viewers who may reveal", async () => {
-    const id = store().counselling_session[0].id;
-    const query = { table: "counselling_session", id, reveal: "notes" };
-    const revealed = await raw(COUNSELLOR, { method: "GET", ...pillar, query });
-    expect(revealed.data.notes).toBe("Initial confidential counselling session.");
-    expect(store().audit_logs.at(-1)).toMatchObject({
-      entity_type: "counselling_session",
-      action: "REVEAL",
-    });
-    expect((await raw(NO_COUNSELLING, { method: "GET", ...pillar, query })).resultCode).toBe(403);
   });
 
   it("offers active staff and external counsellors, names only, to loggers", async () => {

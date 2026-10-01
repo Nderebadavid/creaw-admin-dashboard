@@ -4,17 +4,12 @@ const cookieStore = { get: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
-import {
-  logCounsellingAction,
-  revealCounsellingNotesAction,
-  updateCounsellingAction,
-} from "./actions";
+import { logCounsellingAction, updateCounsellingAction } from "./actions";
 
 // Cynthia Chelimo (user 6): VAWG staff counsellor. Amina Wekesa (user 7): case officer only.
-// Lilian Otieno (user 5): VAWG lead with reveal rights but no counselling access.
+// Lilian Otieno (user 5): VAWG lead with no counselling access.
 const COUNSELLOR = 6;
 const CASE_OFFICER = 7;
-const NO_COUNSELLING = 5;
 const signIn = (userId: number) =>
   cookieStore.get.mockReturnValue({ value: issueMockToken(userId) });
 const store = () => getMockStore();
@@ -109,20 +104,5 @@ describe("editing counselling", () => {
         notes: "••••••••sion.",
       })
     ).toMatchObject({ resultCode: 422 });
-  });
-});
-
-describe("revealing notes", () => {
-  it("reveals to counselling viewers with reveal rights only", async () => {
-    const id = store().counselling_session[0].id;
-    expect(await revealCounsellingNotesAction(id)).toEqual({
-      success: true,
-      value: "Initial confidential counselling session.",
-    });
-    signIn(NO_COUNSELLING);
-    expect(await revealCounsellingNotesAction(id)).toEqual({
-      success: false,
-      error: "Permission denied",
-    });
   });
 });

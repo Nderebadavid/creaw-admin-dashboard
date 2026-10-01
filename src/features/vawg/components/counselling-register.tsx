@@ -16,11 +16,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useRecordDetail } from "@/components/ui/use-record-detail";
 import type { ListQuery } from "@/lib/api/list";
 import { formatDate, initials } from "@/lib/format";
-import {
-  listSurvivorsAction,
-  loadSurvivorSessionsAction,
-  revealCounsellingNotesAction,
-} from "../actions";
+import { listSurvivorsAction, loadSurvivorSessionsAction } from "../actions";
 import {
   counsellingTypeLabels,
   VAWG_PILLAR_ID,
@@ -149,7 +145,7 @@ function SurvivorDrawer({
           label: `Sessions (${survivor.sessionCount})`,
           content: (
             <div className="flex flex-col gap-2.5">
-              <SectionTitle note="Notes are confidential: each reveal is recorded in the audit log.">
+              <SectionTitle note="Notes are confidential and always shown masked.">
                 Counselling sessions
               </SectionTitle>
               {loading && (
@@ -189,11 +185,6 @@ function SurvivorDrawer({
                   <MaskedField
                     label={`Session ${session.number} notes`}
                     maskedValue={session.notes ?? "No notes"}
-                    revealAction={
-                      can.reveal && session.notes
-                        ? () => revealCounsellingNotesAction(session.id)
-                        : undefined
-                    }
                   />
                 </article>
               ))}
@@ -227,7 +218,7 @@ function SurvivorDrawer({
   );
 }
 
-/** Every VAWG survivor's counselling, paged by the API, with logging and audited note reveals. */
+/** Every VAWG survivor's counselling, paged by the API, with logging. */
 export function CounsellingRegister({
   workspace,
   can,

@@ -312,18 +312,6 @@ export function createParticipantsApi(client: ApiClient, token: string) {
         participantMutationSchema
       );
     },
-    reveal(id: number, field: "id_number" | "phone_number") {
-      return client.request(
-        {
-          method: "GET",
-          path: `/participants/${id}`,
-          routeTemplate: "/participants/:id",
-          token,
-          query: { reveal: field },
-        },
-        participantDetailSchema
-      );
-    },
   };
 }
 

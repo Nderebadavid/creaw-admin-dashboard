@@ -36,7 +36,7 @@ export interface DataTableProps<T> {
   onSortChange?: (sort: SortState | undefined) => void;
 }
 
-/** Clicks on a row's own controls (menus, links, reveal buttons) must not also open it. */
+/** Clicks on a row's own controls (menus, links, buttons) must not also open it. */
 const fromControl = (event: MouseEvent) =>
   (event.target as HTMLElement).closest("button, a, input, select, textarea, [role='menuitem']");
 

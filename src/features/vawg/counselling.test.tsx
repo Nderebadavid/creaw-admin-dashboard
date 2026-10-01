@@ -22,7 +22,6 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("./actions", () => ({
   viewCaseFileAction: vi.fn(),
-  revealCaseObNumberAction: vi.fn(),
   updateLegalCaseAction: vi.fn(),
   setCourtStatusAction: vi.fn(),
   attachCaseFileAction: vi.fn(),
@@ -34,7 +33,6 @@ vi.mock("./actions", () => ({
   loadCounsellingOptionsAction: vi.fn(),
   logCounsellingAction: vi.fn(async () => ({ success: true, resultCode: 201, message: "OK" })),
   updateCounsellingAction: vi.fn(async () => ({ success: true, resultCode: 200, message: "OK" })),
-  revealCounsellingNotesAction: vi.fn(),
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 
@@ -139,7 +137,7 @@ const workspace: Pick<VawgWorkspace, "cases" | "counselling" | "currentUserId"> 
   counselling: page([aisha, halima]),
   currentUserId: 6,
 };
-const allowed = { log: true, reveal: true };
+const allowed = { log: true };
 const table = () => within(screen.getByRole("table", { name: "Counselling register" }));
 
 beforeEach(() => {
@@ -234,9 +232,10 @@ describe("survivor drawer", () => {
     ]);
     expect(sessions[0]).toHaveTextContent("Psychological first aid");
     expect(sessions[0]).toHaveTextContent("Staff");
-    expect(
-      within(sessions[0]).getByRole("button", { name: "Reveal Session 1 notes" })
-    ).toBeEnabled();
+    expect(within(sessions[0]).getByLabelText("Session 1 notes")).toHaveTextContent(
+      "••••••••••••ion."
+    );
+    expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
     fireEvent.click(within(drawer).getByRole("tab", { name: "Linked records" }));
     expect(drawer).toHaveTextContent("CRW-VAWG-0002");
   });
@@ -247,11 +246,10 @@ describe("survivor drawer", () => {
     expect(screen.getByRole("dialog")).toHaveTextContent("Loading sessions…");
   });
 
-  it("hides reveal and disables logging without permission", async () => {
-    const drawer = await openSurvivor("Halima Noor", { log: false, reveal: false });
+  it("disables logging without permission", async () => {
+    const drawer = await openSurvivor("Halima Noor", { log: false });
     expect(within(drawer).getByRole("button", { name: /Log session/ })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Edit session 1" })).toBeDisabled();
-    expect(within(drawer).queryByRole("button", { name: /Reveal/ })).toBeNull();
   });
 });
 
@@ -317,7 +315,6 @@ describe("counselling dialog", () => {
           edit: true,
           attach: true,
           download: true,
-          reveal: true,
           export: false,
           counsel: true,
         }}

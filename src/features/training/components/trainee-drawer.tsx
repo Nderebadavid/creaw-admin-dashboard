@@ -19,7 +19,6 @@ import { RecordDrawer } from "@/components/ui/record-drawer";
 import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { formatDate, initials } from "@/lib/format";
-import { revealSalaryAction } from "../actions";
 import {
   acceptedStages,
   pathwayLabels,
@@ -188,14 +187,7 @@ export function TraineeDrawer({
     ["Workplace", trainee.workstation ?? "—"],
     [
       "Monthly salary",
-      <MaskedField
-        key="salary"
-        label="Monthly salary"
-        maskedValue={trainee.salary ?? "—"}
-        revealAction={
-          can.reveal && trainee.salary ? () => revealSalaryAction(trainee.id) : undefined
-        }
-      />,
+      <MaskedField key="salary" label="Monthly salary" maskedValue={trainee.salary ?? "—"} />,
     ],
   ];
   const { handoff } = trainee;

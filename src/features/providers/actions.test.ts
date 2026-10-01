@@ -4,16 +4,10 @@ const cookieStore = { get: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { revalidatePath } from "next/cache";
-import { MockApiTransport } from "@/lib/api/mock-transport";
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
-import {
-  createProviderAction,
-  revealProviderContactAction,
-  setProviderActiveAction,
-  updateProviderAction,
-} from "./actions";
+import { createProviderAction, setProviderActiveAction, updateProviderAction } from "./actions";
 
-// Lead Counsellor (user 4) holds roles 4 and 7 only: no PROVIDER_MANAGE and no SENSITIVE_REVEAL in any pillar.
+// Lead Counsellor (user 4) holds roles 4 and 7 only: no PROVIDER_MANAGE in any pillar.
 const NO_PROVIDER_ACCESS_USER = 4;
 
 beforeEach(() => {
@@ -99,43 +93,9 @@ describe("provider actions", () => {
     expect(getMockStore().external_provider.find((row) => row.id === 2)!.status).toBe("ACTIVE");
   });
 
-  it("reveals a contact with an audit entry", async () => {
-    const before = getMockStore().audit_logs.length;
-    expect(await revealProviderContactAction(1, "phone_number")).toEqual({
-      success: true,
-      value: "0711 900 221",
-    });
-    expect(getMockStore().audit_logs.length).toBe(before + 1);
-  });
-
-  it("lets a SENSITIVE_REVEAL holder reveal but not manage", async () => {
-    cookieStore.get.mockReturnValue({ value: issueMockToken(9) });
-    expect(await revealProviderContactAction(1, "email")).toEqual({
-      success: true,
-      value: "faith.kimani@nwh.example",
-    });
-    expect((await setProviderActiveAction({ id: 2, active: false })).success).toBe(false);
-  });
-
   it("refuses users without PROVIDER_MANAGE", async () => {
     cookieStore.get.mockReturnValue({ value: issueMockToken(3) });
     expect((await setProviderActiveAction({ id: 2, active: false })).success).toBe(false);
     expect((await createProviderAction(form)).success).toBe(false);
-  });
-
-  it("refuses a reveal to users with neither PROVIDER_MANAGE nor SENSITIVE_REVEAL", async () => {
-    cookieStore.get.mockReturnValue({ value: issueMockToken(NO_PROVIDER_ACCESS_USER) });
-    const before = getMockStore().audit_logs.length;
-    // The mock API refuses this user too, so also prove the action stops before calling it.
-    const calls = vi.spyOn(MockApiTransport.prototype, "request");
-    expect(await revealProviderContactAction(1, "phone_number")).toEqual({
-      success: false,
-      error: "Permission denied",
-    });
-    expect(
-      calls.mock.calls.filter(([request]) => request.path.startsWith("/admin/providers"))
-    ).toEqual([]);
-    calls.mockRestore();
-    expect(getMockStore().audit_logs.length).toBe(before);
   });
 });

@@ -1,6 +1,6 @@
 "use server";
 /**
- * Server Actions for participant registration, edits, audited reveals and export.
+ * Server Actions for participant registration, edits and export.
  *
  * Each action re-checks the session and validates its input with Zod before
  * checking permission (and pillar scope where it applies), then calls the
@@ -112,29 +112,6 @@ export async function updateParticipantAction(input: unknown) {
     return actionResult(response.resultCode, response.message);
   } catch {
     return actionResult(500, "Could not save this participant");
-  }
-}
-
-export async function revealParticipantAction(id: number, field: "id_number" | "phone_number") {
-  const session = await requireSession();
-  if (!Number.isSafeInteger(id) || id < 1 || !["id_number", "phone_number"].includes(field))
-    return { success: false as const, error: "Invalid field" };
-  try {
-    const client = await api();
-    const participant = await client.get(id);
-    if (!participant) return { success: false as const, error: "Participant not found" };
-    if (
-      !participant.pillarIds.some((pillarId) =>
-        hasPermission(session.grants, "SENSITIVE_REVEAL", { pillarId })
-      )
-    )
-      return { success: false as const, error: "Permission denied" };
-    const response = await client.reveal(id, field);
-    if (!response.success || !response.data)
-      return { success: false as const, error: response.message };
-    return { success: true as const, value: String(response.data[field] ?? "—") };
-  } catch {
-    return { success: false as const, error: "Could not reveal this field" };
   }
 }
 

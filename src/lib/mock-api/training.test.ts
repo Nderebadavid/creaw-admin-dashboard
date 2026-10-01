@@ -73,18 +73,6 @@ describe("trainee reads", () => {
     });
   });
 
-  it("reveals a salary with an audit entry, only to Skilling reveal holders", async () => {
-    const id = idOf("Tailoring & design");
-    const query = { table: "training_enrollment", id, reveal: "monthly_salary" };
-    const revealed = await raw(SKILLING, { method: "GET", ...pillar, query });
-    expect(revealed.data.monthly_salary).toBe(18000);
-    expect(store().audit_logs.at(-1)).toMatchObject({
-      entity_type: "training_enrollment",
-      action: "REVEAL",
-    });
-    expect((await raw(OUTSIDER, { method: "GET", ...pillar, query })).success).toBe(false);
-  });
-
   it("offers only active trainer providers to trainee editors", async () => {
     const options = await raw(SKILLING, {
       method: "GET",

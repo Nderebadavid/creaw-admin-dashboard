@@ -451,20 +451,6 @@ export function createVawgApi(client: ApiClient, token: string) {
         vawgMutationSchema
       );
     },
-    /** A session's notes, read with an audited reveal. */
-    async revealCounsellingNotes(sessionId: number) {
-      const result = await client.request(
-        {
-          method: "GET",
-          path: PATH,
-          routeTemplate: "/pillars/:pillar",
-          token,
-          query: { table: "counselling_session", id: sessionId, reveal: "notes" },
-        },
-        counsellingReadSchema
-      );
-      return { ...result, value: result.data?.notes ?? null };
-    },
     setCourtStatus(caseId: number, courtStatus: string) {
       return client.request(
         {
@@ -490,22 +476,6 @@ export function createVawgApi(client: ApiClient, token: string) {
         },
         vawgMutationSchema
       );
-    },
-    async revealCaseField(caseId: number, field: "ob_number" | "outcome_notes") {
-      const result = await client.request(
-        {
-          method: "GET",
-          path: PATH,
-          routeTemplate: "/pillars/:pillar",
-          token,
-          query: { table: "legal_case", id: caseId, reveal: field },
-        },
-        createEnvelopeSchema(z.union([caseSchema, z.null()]))
-      );
-      return {
-        ...result,
-        data: result.data?.[field] == null ? null : { value: result.data[field] },
-      };
     },
     attach(caseId: number, documentType: string, fileUrl: string) {
       return client.request(

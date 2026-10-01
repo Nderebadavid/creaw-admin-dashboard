@@ -28,7 +28,7 @@ export default async function AuditPage({
       heading={{
         title: "Audit log",
         section: "Reporting",
-        description: "Every create, edit, reveal, upload and export — portal and mobile",
+        description: "Every create, edit, upload and export — portal and mobile",
       }}
       initial={initial}
       initialQuery={parsed.data}

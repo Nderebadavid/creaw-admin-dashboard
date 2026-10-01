@@ -9,8 +9,8 @@ import { scopesOf, staffSortValues, type StaffLookups } from "./sort-values";
 export const statusLabel = titleCase;
 
 /**
- * Staff columns from the design. Contacts arrive masked; revealing them is an
- * audited action elsewhere. Roles and scope come from active user_role rows.
+ * Staff columns from the design. Contacts arrive masked and stay that way.
+ * Roles and scope come from active user_role rows.
  */
 export function staffColumns(lookups: StaffLookups): DataColumn<UserView>[] {
   const { grantsOf, roleName } = lookups;

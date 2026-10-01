@@ -13,7 +13,6 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("./actions", () => ({
   viewCaseFileAction: vi.fn(),
-  revealCaseObNumberAction: vi.fn(),
   updateLegalCaseAction: vi.fn(),
   setCourtStatusAction: vi.fn(),
   attachCaseFileAction: vi.fn(),
@@ -76,8 +75,8 @@ const workspace: Pick<VawgWorkspace, "cases" | "counselling" | "currentUserId"> 
   counselling: null,
   currentUserId: null,
 };
-const allowed = { edit: true, attach: true, download: true, reveal: true, export: true };
-const denied = { edit: false, attach: false, download: false, reveal: false, export: false };
+const allowed = { edit: true, attach: true, download: true, export: true };
+const denied = { edit: false, attach: false, download: false, export: false };
 type ListQueryLike = import("@/lib/api/list").ListQuery;
 const ok = <T,>(data: T) => ({ success: true, message: "OK", data });
 
@@ -170,8 +169,8 @@ describe("VAWG case register", () => {
     expect(drawer).toHaveTextContent("Grace Otieno");
     expect(drawer).toHaveTextContent("Mercy Achieng");
     expect(within(drawer).getByRole("button", { name: "Edit" })).toBeEnabled();
-    expect(within(drawer).getByRole("button", { name: "Reveal OB number" })).toBeEnabled();
-    expect(within(drawer).queryByRole("button", { name: /Reveal survivor/i })).toBeNull();
+    expect(within(drawer).getByLabelText("OB number")).toBeInTheDocument();
+    expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
     for (const tab of ["Overview", "Documents & photos", "Activity"])
       expect(within(drawer).getByRole("tab", { name: new RegExp(tab) })).toBeInTheDocument();
   });
@@ -211,7 +210,6 @@ describe("VAWG case register", () => {
     expect(within(drawer).getByRole("button", { name: "Edit" })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Status" })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Attach" })).toBeDisabled();
-    expect(within(drawer).queryByRole("button", { name: "Reveal OB number" })).toBeNull();
     fireEvent.click(within(drawer).getByRole("tab", { name: /Documents/ }));
     expect(within(drawer).getByRole("button", { name: "View P3 form" })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Download P3 form" })).toBeDisabled();
@@ -257,16 +255,8 @@ describe("VAWG case register", () => {
     expect(record).toHaveTextContent("Status noteCase withdrawn by the survivor");
     expect(record).toHaveTextContent("Created01 Aug 2026");
     expect(record).toHaveTextContent("Last updated01 Sept 2026");
-    expect(within(record).getByRole("button", { name: "Reveal Outcome notes" })).toBeEnabled();
-  });
-
-  it("offers no outcome-notes reveal without the reveal permission", async () => {
-    const withNotes = {
-      ...workspace,
-      cases: page([{ ...legalCase, outcomeNotes: "•••••••• plan" }]),
-    };
-    const drawer = await open({ ...allowed, reveal: false }, withNotes);
-    expect(within(drawer).queryByRole("button", { name: "Reveal Outcome notes" })).toBeNull();
+    expect(within(record).getByLabelText("Outcome notes")).toHaveTextContent("•••••••• plan");
+    expect(within(record).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
   });
 
   it("shows the advocate in the overview, or Not assigned", async () => {

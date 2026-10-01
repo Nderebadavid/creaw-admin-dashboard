@@ -97,7 +97,6 @@ export async function loadWroRegister(
       canAssess={can("ORG_ASSESSMENT_EDIT")}
       canRegister={canRegister}
       canMove={can("ORGANISATION_EDIT") && can("FIELD_SUBMISSION_REVIEW")}
-      canReveal={can("SENSITIVE_REVEAL")}
     />
   );
 }

@@ -22,7 +22,7 @@ const sources: [AuditQuery["source"], string][] = [
 ];
 
 /**
- * Immutable audit trail of creates, edits, reveals, uploads and exports.
+ * Immutable audit trail of creates, edits, uploads and exports.
  * Clicking an entry expands its input and before/after states in place.
  */
 export function AuditContent({

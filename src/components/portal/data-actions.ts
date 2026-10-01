@@ -3,7 +3,6 @@ import { z } from "zod";
 import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { API_ROUTE_TEMPLATES, type ApiRouteTemplate } from "@/lib/api/transport";
-import type { RevealResult } from "@/components/ui/masked-field";
 import type { ExportResult } from "@/components/ui/export-button";
 
 export interface PortalDataTarget {
@@ -41,23 +40,6 @@ async function read(target: PortalDataTarget, extra: Record<string, string>) {
     },
     envelope
   );
-}
-export async function auditedRevealAction(
-  target: PortalDataTarget,
-  field: string
-): Promise<RevealResult> {
-  if (field === "password_hash") return { success: false, error: "This field cannot be revealed." };
-  try {
-    const result = await read(target, { reveal: field });
-    if (!result.success) return { success: false, error: result.message };
-    const data = z.record(z.string(), z.unknown()).parse(result.data);
-    const value = data[field];
-    if (value !== null && !["string", "number", "boolean"].includes(typeof value))
-      return { success: false, error: "The field is unavailable." };
-    return { success: true, value: value === null ? "—" : String(value) };
-  } catch {
-    return { success: false, error: "Could not reveal this field. Please try again." };
-  }
 }
 export async function auditedExportAction(target: PortalDataTarget): Promise<ExportResult> {
   try {

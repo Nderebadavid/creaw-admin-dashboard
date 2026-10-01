@@ -22,7 +22,6 @@ export default async function ProvidersPage() {
           directory={directory}
           can={{
             manage: true,
-            reveal: true,
             export: hasPermission(session.grants, "REPORT_EXPORT_CSV"),
           }}
         />

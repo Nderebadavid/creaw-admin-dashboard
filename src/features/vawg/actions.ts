@@ -1,8 +1,7 @@
 "use server";
 /**
  * Server Actions for the VAWG page: legal case edits, court status changes, case
- * files, the audited OB-number reveal, and logging and editing counselling sessions
- * with the audited reveal of their notes.
+ * files, and logging and editing counselling sessions.
  *
  * Each action re-checks the session, validates its input and checks the
  * permission in the VAWG pillar before calling the API, which enforces the
@@ -11,7 +10,6 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ViewedDocument } from "@/components/ui/document-viewer";
-import type { RevealResult } from "@/components/ui/masked-field";
 import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
@@ -69,37 +67,6 @@ export async function updateLegalCaseAction(input: unknown) {
     return actionResult(response.resultCode, response.message);
   } catch {
     return actionResult(500, "Could not update the case");
-  }
-}
-
-export async function revealCaseObNumberAction(caseId: number): Promise<RevealResult> {
-  const session = await requireSession();
-  if (!Number.isSafeInteger(caseId) || caseId < 1) return { success: false, error: "Invalid case" };
-  if (!hasPermission(session.grants, "SENSITIVE_REVEAL", scope))
-    return { success: false, error: "Permission denied" };
-  try {
-    const response = await (await api()).revealCaseField(caseId, "ob_number");
-    if (!response.success) return { success: false, error: response.message };
-    if (!response.data) return { success: false, error: "No OB number recorded" };
-    return { success: true, value: response.data.value };
-  } catch {
-    return { success: false, error: "Could not reveal this field" };
-  }
-}
-
-/** Audited reveal of a case's outcome notes, a sensitive field. */
-export async function revealCaseOutcomeNotesAction(caseId: number): Promise<RevealResult> {
-  const session = await requireSession();
-  if (!Number.isSafeInteger(caseId) || caseId < 1) return { success: false, error: "Invalid case" };
-  if (!hasPermission(session.grants, "SENSITIVE_REVEAL", scope))
-    return { success: false, error: "Permission denied" };
-  try {
-    const response = await (await api()).revealCaseField(caseId, "outcome_notes");
-    if (!response.success) return { success: false, error: response.message };
-    if (!response.data) return { success: false, error: "No outcome notes recorded" };
-    return { success: true, value: response.data.value };
-  } catch {
-    return { success: false, error: "Could not reveal this field" };
   }
 }
 
@@ -258,25 +225,6 @@ export async function updateCounsellingAction(input: unknown) {
     return actionResult(response.resultCode, response.message);
   } catch {
     return actionResult(500, "Could not update the session");
-  }
-}
-
-export async function revealCounsellingNotesAction(sessionId: number): Promise<RevealResult> {
-  const session = await requireSession();
-  if (!Number.isSafeInteger(sessionId) || sessionId < 1)
-    return { success: false, error: "Invalid session" };
-  if (
-    !hasPermission(session.grants, "COUNSELLING_VIEW", scope) ||
-    !hasPermission(session.grants, "SENSITIVE_REVEAL", scope)
-  )
-    return { success: false, error: "Permission denied" };
-  try {
-    const result = await (await api()).revealCounsellingNotes(sessionId);
-    if (!result.success) return { success: false, error: result.message };
-    if (result.value === null) return { success: false, error: "No notes recorded" };
-    return { success: true, value: result.value };
-  } catch {
-    return { success: false, error: "Could not reveal the notes" };
   }
 }
 

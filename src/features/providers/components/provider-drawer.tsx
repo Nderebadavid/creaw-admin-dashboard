@@ -7,12 +7,10 @@ import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
-import { revealProviderContactAction } from "../actions";
 import { providerTypeLabel, type ProviderView, type WorkloadGroup } from "../model";
 
 export interface ProviderPermissions {
   manage: boolean;
-  reveal: boolean;
   export: boolean;
 }
 
@@ -68,32 +66,12 @@ export function ProviderDrawer({
   onReactivate: () => void;
 }) {
   if (!provider) return null;
-  const reveal = (field: "phone_number" | "email") =>
-    can.reveal ? () => revealProviderContactAction(provider.id, field) : undefined;
   const fields: [string, React.ReactNode][] = [
     ["Type", providerTypeLabel(provider.type)],
     ["Service", provider.service ?? "—"],
     ["Institution", provider.institution],
-    [
-      "Phone",
-      provider.phone ? (
-        <MaskedField
-          label="Phone"
-          maskedValue={provider.phone}
-          revealAction={reveal("phone_number")}
-        />
-      ) : (
-        "—"
-      ),
-    ],
-    [
-      "Email",
-      provider.email ? (
-        <MaskedField label="Email" maskedValue={provider.email} revealAction={reveal("email")} />
-      ) : (
-        "—"
-      ),
-    ],
+    ["Phone", provider.phone ? <MaskedField label="Phone" maskedValue={provider.phone} /> : "—"],
+    ["Email", provider.email ? <MaskedField label="Email" maskedValue={provider.email} /> : "—"],
   ];
   return (
     <RecordDrawer

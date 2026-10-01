@@ -237,20 +237,6 @@ export function createTrainingApi(client: ApiClient, token: string) {
     update(traineeId: number, values: Values) {
       return write("PATCH", values, traineeId);
     },
-    /** The unmasked salary, read with an audited reveal. */
-    async revealSalary(traineeId: number) {
-      const result = await client.request(
-        {
-          method: "GET",
-          path: PATH,
-          routeTemplate: "/pillars/:pillar",
-          token,
-          query: { table: "training_enrollment", id: traineeId, reveal: "monthly_salary" },
-        },
-        traineeReadSchema
-      );
-      return { ...result, value: result.data?.monthly_salary ?? null };
-    },
   };
 }
 

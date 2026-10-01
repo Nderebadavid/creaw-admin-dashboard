@@ -141,7 +141,6 @@ export function OrganisationRegister({
   canAssess,
   canRegister,
   canMove,
-  canReveal,
 }: {
   /** The first page, rendered by the server. */
   initial: PaginatedData<OrganisationView>;
@@ -151,7 +150,6 @@ export function OrganisationRegister({
   canAssess: boolean;
   canRegister: boolean;
   canMove: boolean;
-  canReveal: boolean;
 }) {
   const router = useRouter();
   const list = usePagedList<OrganisationView, ListQuery>(
@@ -245,7 +243,6 @@ export function OrganisationRegister({
         organisation={modal === null ? selected : null}
         stages={withProgress}
         canMove={canMove}
-        canReveal={canReveal}
         canAssess={canAssess}
         onClose={() => setSelectedId(null)}
         onMove={(stage) => setModal({ kind: "stage", stage })}

@@ -9,7 +9,6 @@ import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate, initials, titleCase } from "@/lib/format";
-import { revealOrganisationBankAction } from "../actions";
 import { WRO_PILLAR_ID, type OrganisationStage, type OrganisationView } from "../model";
 import { dueDiligenceTone } from "./organisation-register";
 
@@ -18,7 +17,6 @@ export function OrganisationDrawer({
   organisation,
   stages,
   canMove,
-  canReveal,
   canAssess,
   onClose,
   onMove,
@@ -28,7 +26,6 @@ export function OrganisationDrawer({
   /** The pipeline's stages, with when this organisation reached each (once loaded). */
   stages: readonly OrganisationStage[];
   canMove: boolean;
-  canReveal: boolean;
   canAssess: boolean;
   onClose: () => void;
   onMove: (stage: OrganisationStage) => void;
@@ -46,12 +43,7 @@ export function OrganisationDrawer({
     ["Office address", organisation.address ?? "Not recorded"],
     [
       "Bank account",
-      <MaskedField
-        key="bank"
-        label="Bank account"
-        maskedValue={organisation.bankAccount}
-        revealAction={canReveal ? () => revealOrganisationBankAction(organisation.id) : undefined}
-      />,
+      <MaskedField key="bank" label="Bank account" maskedValue={organisation.bankAccount} />,
     ],
     ["Programme category", organisation.entryCategory],
     ["Registered", formatDate(organisation.registered)],

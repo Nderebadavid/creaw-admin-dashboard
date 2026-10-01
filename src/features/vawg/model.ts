@@ -151,5 +151,4 @@ export interface VawgWorkspace {
 /** What the signed-in user may do with counselling. */
 export interface CounsellingPermissions {
   log: boolean;
-  reveal: boolean;
 }

@@ -49,7 +49,7 @@ describe("audit screen", () => {
         heading={{
           title: "Audit log",
           section: "Reporting",
-          description: "Every create, edit, reveal, upload and export — portal and mobile",
+          description: "Every create, edit, upload and export — portal and mobile",
         }}
         initial={{
           page: 1,
@@ -61,7 +61,7 @@ describe("audit screen", () => {
               id: 7,
               entity_type: "participant",
               entity_id: 10,
-              action: "REVEAL",
+              action: "UPDATE",
               source: "HTTP",
               performed_by: 1,
               performed_by_name: "Judy Mwangi",

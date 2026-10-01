@@ -10,7 +10,7 @@ it("frames a table with its title, chips, search and actions", () => {
   render(
     <TableCard
       title="Participant registry"
-      subtitle="IDs masked — reveal inside a record (logged)"
+      subtitle="IDs and phone numbers are always masked"
       chips={[
         { label: "All", active: true, onSelect: () => onChip("All") },
         { label: "VAWG", active: false, onSelect: () => onChip("VAWG") },
@@ -22,7 +22,7 @@ it("frames a table with its title, chips, search and actions", () => {
     </TableCard>
   );
   expect(screen.getByRole("heading", { name: "Participant registry" })).toBeInTheDocument();
-  expect(screen.getByText("IDs masked — reveal inside a record (logged)")).toBeInTheDocument();
+  expect(screen.getByText("IDs and phone numbers are always masked")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(screen.getByRole("button", { name: "VAWG" }));
   expect(onChip).toHaveBeenCalledWith("VAWG");

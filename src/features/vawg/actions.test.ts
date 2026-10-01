@@ -8,7 +8,7 @@ vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
-import { revealCaseObNumberAction, updateLegalCaseAction } from "./actions";
+import { updateLegalCaseAction } from "./actions";
 import { EditCaseDialog } from "./components/case-dialogs";
 import type { LegalCaseView } from "./model";
 
@@ -43,12 +43,6 @@ describe("VAWG case actions", () => {
       counsellor: "Mary Achola",
       next_court_date: "2026-10-03",
     });
-  });
-
-  it("audits revealing the OB number", async () => {
-    const result = await revealCaseObNumberAction(1);
-    expect(result).toEqual({ success: true, value: "OB/44/2026" });
-    expect(getMockStore().audit_logs.at(-1)?.action).toBe("REVEAL");
   });
 
   it("forbids a scoped user from updating a case outside their pillar", async () => {
@@ -96,24 +90,6 @@ describe("VAWG case actions", () => {
     const result = await updateLegalCaseAction({ ...editableCase, nextCourtDate: "03/10/2026" });
     expect(result.resultCode).toBe(422);
     expect(getMockStore().legal_case[0]).toEqual(original);
-  });
-
-  it("says so when a case has no OB number to reveal", async () => {
-    getMockStore().legal_case[0].ob_number = null;
-    expect(await revealCaseObNumberAction(1)).toEqual({
-      success: false,
-      error: "No OB number recorded",
-    });
-  });
-
-  it("forbids a scoped user from revealing the OB number", async () => {
-    cookieStore.get.mockReturnValue({ value: issueMockToken(3) });
-    const audits = getMockStore().audit_logs.length;
-    expect(await revealCaseObNumberAction(1)).toEqual({
-      success: false,
-      error: "Permission denied",
-    });
-    expect(getMockStore().audit_logs).toHaveLength(audits);
   });
 });
 
