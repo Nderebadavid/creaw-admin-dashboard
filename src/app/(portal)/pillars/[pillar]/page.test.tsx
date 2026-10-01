@@ -194,6 +194,8 @@ describe("pillar route", () => {
     const srhr = await render("srhr");
     expect(srhr.lastIndexOf("Log session")).toBeGreaterThan(srhr.indexOf("Session register"));
     const vawg = await render("vawg");
-    expect(vawg.lastIndexOf("Open legal case")).toBeGreaterThan(vawg.indexOf("Legal case register"));
+    expect(vawg.lastIndexOf("Open legal case")).toBeGreaterThan(
+      vawg.indexOf("Legal case register")
+    );
   });
 });
