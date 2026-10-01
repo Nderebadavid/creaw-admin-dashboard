@@ -12,6 +12,8 @@ import {
   updateTraineeAction,
 } from "./actions";
 import { trainingApi } from "./api";
+import { listGrantRecommendationsAction } from "@/features/grants/actions";
+import { respondReferralAction } from "@/features/referrals/actions";
 
 // Ann Kamau (user 10): Skilling lead. Samuel Ndegwa (user 3): WEE lead, no Skilling rights.
 // Esther Mwangi (user 9): SRHR lead, no Skilling rights.
@@ -210,5 +212,26 @@ describe("salary reveal", () => {
     expect(await revealSalaryAction(traineeId("Tailoring & design"))).toMatchObject({
       success: false,
     });
+  });
+});
+
+describe("WEE pick-up", () => {
+  it("lists a recommendation for WEE once accepted, and only to application preparers", async () => {
+    const referralId = store().referral.find(
+      (row) => row.source_training_enrollment_id === traineeId("Catering & pastry")
+    )!.id;
+    signIn(WEE);
+    expect((await listGrantRecommendationsAction()).data).toEqual([]);
+    expect((await respondReferralAction({ id: referralId, decision: "ACCEPTED" })).success).toBe(
+      true
+    );
+    expect((await listGrantRecommendationsAction()).data).toEqual([
+      expect.objectContaining({
+        course: "Catering & pastry",
+        suggestedNotes: "Skilling graduate · Catering & pastry · Self-employed, Food kiosk, Kibera",
+      }),
+    ]);
+    signIn(SKILLING);
+    expect(await listGrantRecommendationsAction()).toMatchObject({ resultCode: 403 });
   });
 });

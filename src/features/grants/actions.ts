@@ -45,6 +45,21 @@ export async function listGrantsAction(query: GrantQuery) {
   }
 }
 /**
+ * Skilling graduates WEE has accepted for a grant and not yet filed for: the
+ * "Recommended by Skilling" group on the new-application form. Never includes salary.
+ */
+export async function listGrantRecommendationsAction() {
+  const session = await requireSession();
+  if (!hasModulePermission(session.grants, "GRANT_APPLICATION_PREPARE"))
+    return { ...actionResult(403, "Permission denied"), data: null };
+  try {
+    return { ...actionResult(200, "OK"), data: await (await api()).recommendations() };
+  } catch {
+    return { ...actionResult(500, "Could not load Skilling recommendations"), data: null };
+  }
+}
+
+/**
  * Files a new application from the grants queue. The applicant must already
  * be enrolled in the programme's pillar, and the officer filing it needs the
  * prepare permission there.
