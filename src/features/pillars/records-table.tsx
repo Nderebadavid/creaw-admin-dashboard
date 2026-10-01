@@ -1,15 +1,20 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { dateSortValue } from "@/components/data-table/sorting";
 import { TableCard } from "@/components/data-table/table-card";
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
+import { usePagedList } from "@/components/data-table/use-paged-list";
+import { FormBanner } from "@/components/ui/form-banner";
 import { StatusBadge } from "@/components/ui/status-badge";
+import type { ListQuery } from "@/lib/api/list";
 import { formatDate, titleCase } from "@/lib/format";
+import type { PaginatedData } from "@/types/api";
+import { listPillarRecordsAction } from "./actions";
 import type { PillarRecord } from "./api";
+import { PillarEditButton } from "./record-controls";
+import type { PillarCode } from "./schemas";
 
 const columns: DataColumn<PillarRecord>[] = [
   {
@@ -46,62 +51,70 @@ const columns: DataColumn<PillarRecord>[] = [
   },
 ];
 
-/** A pillar's programme records in the design's list card, sortable by any column. */
+/** A pillar's programme records in the design's list card, paged and sorted by the API. */
 export function PillarRecordsTable({
-  records,
+  code,
+  initial,
   label,
-  actions,
+  canEdit = false,
   headerActions,
 }: {
-  records: readonly PillarRecord[];
+  code: PillarCode;
+  /** The first page, rendered by the server. */
+  initial: PaginatedData<PillarRecord>;
   label: string;
-  /** Each record's action controls, rendered by the page and keyed by record id. */
-  actions?: Record<PillarRecord["id"], ReactNode>;
+  /** Whether each record gets an Edit control. */
+  canEdit?: boolean;
   /** Controls for the card header, e.g. the create button when the page has no heading. */
   headerActions?: ReactNode;
 }) {
-  const [search, setSearch] = useState("");
-  const needle = search.trim().toLocaleLowerCase();
-  const filtered = useMemo(
-    () =>
-      needle
-        ? records.filter((row) =>
-            `${row.title} ${row.category} ${row.status}`.toLocaleLowerCase().includes(needle)
-          )
-        : records,
-    [records, needle]
+  const list = usePagedList<PillarRecord, ListQuery>(
+    initial,
+    { page: 1, pageSize: initial.pageSize },
+    (query) => listPillarRecordsAction(code, query)
   );
-  const { rows, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(rows);
+  const [search, setSearch] = useState("");
   return (
-    <TableCard
-      title="Programme records"
-      subtitle="Records in this pillar; identity details stay masked in the list."
-      search={{
-        value: search,
-        label: `Search ${label}`,
-        onChange: (value) => {
-          setSearch(value);
-          resetPage();
-        },
-      }}
-      actions={headerActions}
-      footer={<Pagination {...pager} />}
-    >
-      <DataTable
-        framed={false}
-        columns={columns}
-        rows={pageRows}
-        getRowId={(row) => row.id}
-        label={label}
-        filtered={needle.length > 0}
-        rowActions={actions ? (row) => actions[row.id] : undefined}
-        sort={sorting.sort}
-        onSortChange={(sort) => {
-          sorting.onSortChange(sort);
-          resetPage();
+    <>
+      <FormBanner tone="error">{list.error}</FormBanner>
+      <TableCard
+        title="Programme records"
+        subtitle="Records in this pillar; identity details stay masked in the list."
+        search={{
+          value: search,
+          label: `Search ${label}`,
+          onChange: (value) => {
+            setSearch(value);
+            list.filter({ search: value || undefined });
+          },
         }}
-      />
-    </TableCard>
+        actions={headerActions}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
+      >
+        <DataTable
+          framed={false}
+          columns={columns}
+          rows={list.data.items}
+          getRowId={(row) => row.id}
+          label={label}
+          filtered={search.trim().length > 0}
+          rowActions={
+            canEdit
+              ? (row) => <PillarEditButton code={code} id={row.id} category={row.category} />
+              : undefined
+          }
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
+        />
+      </TableCard>
+    </>
   );
 }

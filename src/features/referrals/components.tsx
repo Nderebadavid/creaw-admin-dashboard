@@ -13,7 +13,7 @@ import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { ExportButton } from "@/components/ui/export-button";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
-import { hasModulePermission, hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
+import { hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
 import type { ReferralPage, ReferralQuery, ReferralView } from "./api";
 import type { ReferralDestinationCatalog } from "./schemas";
 import { exportReferralsAction, listReferralsAction } from "./actions";
@@ -23,10 +23,7 @@ import {
   NewReferralDialog,
   RespondDialog,
   WithdrawReferralDialog,
-  type ReferralOriginOption,
 } from "./queue/referral-dialogs";
-
-export type { ReferralOriginOption };
 
 const statuses = ["NEW", "ACCEPTED", "DECLINED", "WITHDRAWN"];
 
@@ -41,14 +38,12 @@ export function ReferralsContent({
   heading,
   initial,
   pillars,
-  origins,
   catalog = { internalPillarIds: [], partnerInstitutions: [] },
   grants,
 }: {
   heading?: PageHeadingText;
   initial: ReferralPage;
   pillars: { id: number; name: string }[];
-  origins: ReferralOriginOption[];
   catalog?: ReferralDestinationCatalog;
   grants: EffectiveGrant[];
 }) {
@@ -60,9 +55,10 @@ export function ReferralsContent({
   const [search, setSearch] = useState("");
   const [feedback, setFeedback] = useState("");
   const [modal, setModal] = useState<Modal | null>(null);
-  const allowedOrigins = origins.filter((item) =>
-    hasPermission(grants, "REFERRAL_CREATE", { pillarId: item.pillarId })
-  );
+  // Who the user may refer is read when the dialog opens; the button needs the grants only.
+  const canCreate =
+    hasModulePermission(grants, "REFERRAL_CREATE") &&
+    hasModulePermission(grants, "PARTICIPANT_VIEW");
 
   const close = () => setModal(null);
   const done = (message: string) => {
@@ -78,7 +74,7 @@ export function ReferralsContent({
       {hasModulePermission(grants, "REPORT_EXPORT_CSV") && (
         <ExportButton exportAction={() => exportReferralsAction(list.query)} />
       )}
-      {allowedOrigins.length > 0 && (
+      {canCreate && (
         <Button onClick={() => setModal({ kind: "create" })}>
           <ArrowLeftRight size={16} />
           New referral
@@ -188,7 +184,6 @@ export function ReferralsContent({
       </TableCard>
       <NewReferralDialog
         open={modal?.kind === "create"}
-        origins={allowedOrigins}
         pillars={pillars}
         catalog={catalog}
         onClose={close}

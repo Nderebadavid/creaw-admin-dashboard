@@ -20,7 +20,7 @@ describe("pillar API", () => {
     expect(vawg.records.every((row) => row.pillarId === vawg.id)).toBe(true);
     await expect(api.get("wee")).rejects.toMatchObject({ status: 403 });
   });
-  it("reads all enrollment pages and counts observed stage events", async () => {
+  it("counts every enrollment, pages the first records and counts observed stage events", async () => {
     const store = getMockStore();
     const enrollment = store.enrollment.find((row) => row.pillar_id === 1)!;
     for (let index = 0; index < 110; index += 1)
@@ -38,34 +38,43 @@ describe("pillar API", () => {
       local_ref: "later-stage",
     });
     const view = await createPillarsApi(createPortalApiClient(), issueMockToken(1)).get("vawg");
-    expect(view.records).toHaveLength(115);
+    // The page holds the first page of records; the totals come from the summary.
+    expect(view.recordCount).toBe(115);
+    expect(view.records).toHaveLength(25);
     expect(view.stageCounts?.find((row) => row.name === stage.name)?.count).toBe(1);
-    expect(view.stageCounts?.[0].count).toBeLessThan(view.records.length);
+    expect(view.stageCounts?.[0].count).toBeLessThan(view.recordCount);
   });
-  it("uses the five domain registers rather than enrollment rows as the primary table", async () => {
+  it("names each record and pages them on the server", async () => {
     const api = createPillarsApi(createPortalApiClient(), issueMockToken(1));
-    const expected = [
-      ["vawg", "Legal case register", "legal_case"],
-      ["wee", "Grant applications", "grant_application"],
-      ["srhr", "Outreach sessions", "activity_session"],
-      ["skilling", "Trainee enrollments", "training_enrollment"],
-      ["wros", "Partner organisations", "organisation"],
-    ] as const;
-    for (const [code, title, table] of expected) {
-      const view = await api.get(code);
-      expect(view.domain?.title).toBe(title);
-      // Sessions are shared across pillars in the store; each route shows only its own.
-      const stored = getMockStore()[table] as { pillar_id?: number }[];
-      const own =
-        table === "activity_session" ? stored.filter((row) => row.pillar_id === 3) : stored;
-      expect(view.domain?.rows).toHaveLength(own.length);
-    }
+    const first = await api.listRecords("vawg", { page: 1, pageSize: 5 });
+    expect(first.items).toHaveLength(5);
+    expect(first.items.every((row) => !/#\d/.test(row.title))).toBe(true);
+    const sorted = await api.listRecords("vawg", {
+      page: 1,
+      pageSize: 100,
+      sort: { by: "record", order: "asc" },
+    });
+    const titles = sorted.items.map((row) => row.title);
+    expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
+    const found = await api.listRecords("vawg", { search: first.items[0].title.split(" ")[0] });
+    expect(found.items.some((row) => row.id === first.items[0].id)).toBe(true);
   });
-  it("labels the legal case ruling date without implying a future appointment", async () => {
-    getMockStore().legal_case[0].ruling_date = "2026-10-20";
-    const view = await createPillarsApi(createPortalApiClient(), issueMockToken(1)).get("vawg");
-    expect(view.domain?.columns[4]).toBe("Ruling date");
-    expect(view.domain?.rows.find((row) => row.id === 1)?.values[4]).toBe("2026-10-20");
+  it("keeps the generic register for WEE only; the other pillars use their workspaces", async () => {
+    const api = createPillarsApi(createPortalApiClient(), issueMockToken(1));
+    const wee = await api.get("wee");
+    expect(wee.domain?.title).toBe("Grant applications");
+    expect(wee.domain?.totalItems).toBe(getMockStore().grant_application.length);
+    expect(wee.domain?.rows[0].values[0]).not.toMatch(/#\d/);
+    for (const code of ["vawg", "srhr", "skilling", "wros", "leadership"] as const)
+      expect((await api.get(code)).domain).toBeNull();
+  });
+  it("carries the pillar's cards from the summary", async () => {
+    const api = createPillarsApi(createPortalApiClient(), issueMockToken(1));
+    expect((await api.get("vawg")).cards.vawg).toMatchObject({ survivors: expect.any(Number) });
+    expect((await api.get("skilling")).cards.trainees).toMatchObject({ enrolled: 5 });
+    expect(
+      (await api.get("srhr", { period: "all" })).cards.sessions?.summary.sessionsHeld
+    ).toBeGreaterThan(0);
   });
   it("does not expose the WRO register without its explicit organisation grant", async () => {
     const view = await createPillarsApi(createPortalApiClient(), issueMockToken(8)).get("wros");

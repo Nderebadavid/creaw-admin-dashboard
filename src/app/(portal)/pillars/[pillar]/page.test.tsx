@@ -141,10 +141,12 @@ describe("pillar route", () => {
   it("treats an invalid period as this quarter", async () => {
     const spy = vi.spyOn(sessionsApi, "workspace");
     await render("srhr", "decade");
-    expect(spy).toHaveBeenCalledWith("srhr", "quarter", {
-      canLog: true,
-      currentUser: { id: 1, name: expect.any(String) },
-    });
+    expect(spy).toHaveBeenCalledWith(
+      "srhr",
+      "quarter",
+      expect.objectContaining({ coverage: expect.any(Array) }),
+      { id: 1, name: expect.any(String) }
+    );
   });
 
   it("keeps the SRHR page and shows a banner when sessions fail to load", async () => {

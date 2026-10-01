@@ -10,8 +10,7 @@ import type { ViewedDocument } from "@/components/ui/document-viewer";
  */
 import { revalidatePath } from "next/cache";
 import { actionResult } from "@/lib/api/action-result";
-import { sortedPage } from "@/lib/api/sorted-page";
-import { grantSortValues } from "./sort-values";
+import { cleanListQuery } from "@/lib/api/list";
 import { readSessionToken, withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
@@ -35,10 +34,19 @@ export async function listGrantsAction(query: GrantQuery) {
   if (!hasModulePermission(session.grants, "GRANT_APPLICATION_VIEW"))
     return { ...actionResult(403, "Permission denied"), data: null };
   try {
-    const { list } = await api();
+    const clean = cleanListQuery(
+      { page: query.page, pageSize: query.pageSize, search: query.search, sort: query.sort },
+      { sort: ["applicant", "project", "requested", "type", "date", "stage"] }
+    );
     return {
       ...actionResult(200, "OK"),
-      data: await sortedPage((filters: GrantQuery) => list(filters), query, grantSortValues),
+      data: await (
+        await api()
+      ).list({
+        ...clean,
+        pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
+        status: typeof query.status === "string" ? query.status.slice(0, 20) : undefined,
+      }),
     };
   } catch {
     return { ...actionResult(500, "Could not load grants"), data: null };

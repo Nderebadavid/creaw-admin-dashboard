@@ -47,9 +47,9 @@ export function UsersContent({
   heading,
   initial,
   roles,
-  assignments,
   pillars,
   permissionCount,
+  multiRoleUsers = 0,
   canManageUsers,
   canManageRoles,
   currentUserId = 0,
@@ -57,9 +57,9 @@ export function UsersContent({
   heading?: PageHeadingText;
   initial: AdminPage<UserView>;
   roles: RoleView[];
-  /** Every user_role row, used for role chips, scope and multi-role counts. */
-  assignments: UserRoleView[];
   pillars: Pillar[];
+  /** How many staff hold more than one active role, counted by the API. */
+  multiRoleUsers?: number;
   /** Size of the permission catalogue, when the user may see it. */
   permissionCount?: number;
   canManageUsers: boolean;
@@ -75,14 +75,10 @@ export function UsersContent({
   const [modal, setModal] = useState<Modal>(null);
   const [feedback, setFeedback] = useState("");
 
+  // Each user arrives with their role grants, so only the shown page's are held here.
+  const assignments: UserRoleView[] = list.data.items.flatMap((user) => user.roles);
   const lookups = staffLookups(assignments, roles, pillars);
   const { grantsOf, roleName, scopeOf } = lookups;
-  const multiRole = new Set(
-    assignments
-      .filter((row) => !row.is_deleted && row.status === "ACTIVE")
-      .map((row) => row.user_id)
-      .filter((id, index, ids) => ids.indexOf(id) !== index)
-  ).size;
 
   const close = () => setModal(null);
   const done = (message: string) => {
@@ -106,7 +102,7 @@ export function UsersContent({
   const stats = [
     { icon: Users, value: list.data.totalItems, label: "Staff accounts" },
     { icon: Shield, value: roles.length, label: "Roles configured" },
-    { icon: BadgeCheck, value: multiRole, label: "Multi-role users" },
+    { icon: BadgeCheck, value: multiRoleUsers, label: "Multi-role users" },
     { icon: KeyRound, value: permissionCount ?? "—", label: "Permissions" },
   ];
 

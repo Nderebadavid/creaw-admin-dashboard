@@ -12,6 +12,8 @@ interface IncludeSpec {
   children: (store: MockStore, row: Row) => Row[];
   /** Order of the embedded rows; defaults to id. */
   order?: (a: Row, b: Row) => number;
+  /** Permissions any one of which lets the caller see the children; defaults to the table's view code. */
+  permissions?: string[];
 }
 
 const childrenBy = (table: TableName, key: string, value: (row: Row) => unknown) => ({
@@ -66,6 +68,8 @@ export const INCLUDES: Partial<Record<TableName, Record<string, IncludeSpec>>> =
     },
     reports: {
       table: "grant_report",
+      // Report managers may see a grant's periods without the wider report-view grant.
+      permissions: ["GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"],
       children: (store, row) =>
         rowsFor(store, "grant_report").filter((child) =>
           awardIds(store, row).includes(Number(child.grant_award_id))
@@ -80,6 +84,20 @@ export const INCLUDES: Partial<Record<TableName, Record<string, IncludeSpec>>> =
   },
   participant: {
     enrollments: childrenBy("enrollment", "participant_id", (row) => row.id),
+  },
+  organisation: {
+    // The stage moves of the organisation's enrolment, for its pipeline progress.
+    stage_events: {
+      table: "participant_stage_event",
+      children: (store, row) => {
+        const enrollment = store.enrollment.find(
+          (item) => !item.is_deleted && item.organisation_id === row.id
+        );
+        return rowsFor(store, "participant_stage_event").filter(
+          (child) => !!enrollment && child.enrollment_id === enrollment.id
+        );
+      },
+    },
   },
   participant_stage_event: { documents: documentsOf("participant_stage_event") },
   role: { permissions: childrenBy("role_permission", "role_id", (row) => row.id) },
@@ -115,10 +133,14 @@ export function withIncludes(
   const result: Row = { ...row };
   for (const { name, count } of requests) {
     const spec = INCLUDES[table]![name];
-    const permission = permissionCodes[spec.table]?.[0] ?? "DASHBOARD_VIEW";
+    const permissions = spec.permissions ?? [permissionCodes[spec.table]?.[0] ?? "DASHBOARD_VIEW"];
     const children = spec
       .children(store, row)
-      .filter((child) => visible(child) && allowed(store, grants, permission, spec.table, child))
+      .filter(
+        (child) =>
+          visible(child) &&
+          permissions.some((permission) => allowed(store, grants, permission, spec.table, child))
+      )
       .sort(spec.order ?? ((a, b) => a.id - b.id));
     if (count) result[`${name}_count`] = children.length;
     else result[name] = children.map((child) => present(spec.table, child));

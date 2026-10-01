@@ -4,14 +4,22 @@ vi.mock("server-only", () => ({}));
 vi.mock("./actions", () => ({
   reviewSubmissionAction: vi.fn(),
   viewSubmissionPhotoAction: vi.fn(),
+  listSubmissionsAction: vi.fn(),
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { SubmissionsContent } from "./components";
-import { reviewSubmissionAction, viewSubmissionPhotoAction } from "./actions";
-import type { SubmissionRow } from "./api";
+import {
+  listSubmissionsAction,
+  reviewSubmissionAction,
+  viewSubmissionPhotoAction,
+} from "./actions";
+import type { SubmissionList, SubmissionRow } from "./api";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 const rows: SubmissionRow[] = [
   {
@@ -39,27 +47,57 @@ const rows: SubmissionRow[] = [
   },
 ];
 
+/** A page as the API returns it, with the count of each review status. */
+const listOf = (items: SubmissionRow[], total = items.length): SubmissionList => ({
+  items,
+  page: 1,
+  pageSize: 12,
+  totalItems: total,
+  totalPages: Math.max(1, Math.ceil(total / 12)),
+  facets: { review_status: { "Pending review": 1, Flagged: 1 } },
+});
+const only = (status: string) => rows.filter((row) => row.status === status);
+
 describe("field submissions screen", () => {
-  it("filters cards by status and search while keeping review permission visible", () => {
-    render(<SubmissionsContent rows={rows} canReview={false} />);
+  it("asks the API for a status and keeps review permission visible", async () => {
+    vi.mocked(listSubmissionsAction).mockResolvedValue({
+      success: true,
+      message: "OK",
+      data: listOf(only("Flagged")),
+    });
+    render(<SubmissionsContent initial={listOf(rows)} />);
     expect(screen.getByText("Facility referral day")).toBeInTheDocument();
+    // Tab counts come from the API's facets, not from the rows on screen.
+    expect(screen.getByRole("button", { name: /Flagged/ })).toHaveTextContent("1");
     fireEvent.click(screen.getByRole("button", { name: /Flagged/ }));
-    expect(screen.queryByText("Facility referral day")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(listSubmissionsAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "Flagged", page: 1 })
+      )
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("Facility referral day")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("Court attendance")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Review Court attendance/ })).toBeDisabled();
   });
   it("enables review only for records in the scoped review grant", () => {
-    render(<SubmissionsContent rows={rows} reviewableIds={[2]} />);
+    render(<SubmissionsContent initial={listOf(rows)} reviewablePillarIds={[1]} />);
     expect(screen.getByRole("button", { name: /Review Court attendance/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Review Facility referral day/ })).toBeDisabled();
   });
-  it("offers export only when the displayed filter is wholly exportable", () => {
-    render(<SubmissionsContent rows={rows} reviewableIds={[]} canExport exportableIds={[1]} />);
+  it("offers export only when every card shown is in a pillar the user may export", async () => {
+    vi.mocked(listSubmissionsAction).mockResolvedValue({
+      success: true,
+      message: "OK",
+      data: listOf(only("Pending review")),
+    });
+    render(<SubmissionsContent initial={listOf(rows)} canExport exportablePillarIds={[3]} />);
     expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
     // The design has status tabs and no search box; the Pending tab shows only the exportable card.
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Pending review/ }));
-    expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });
 
   it("lays out cards and page actions like the design", () => {
@@ -70,8 +108,8 @@ describe("field submissions screen", () => {
           section: "Overview",
           description: "Data captured on the MERL mobile app, waiting for verification",
         }}
-        rows={rows}
-        reviewableIds={[1, 2]}
+        initial={listOf(rows)}
+        reviewablePillarIds={[1, 3]}
         canExport
       />
     );
@@ -88,7 +126,7 @@ describe("field submissions screen", () => {
       success: true,
       message: "Submission approved.",
     });
-    render(<SubmissionsContent rows={rows} reviewableIds={[1, 2]} />);
+    render(<SubmissionsContent initial={listOf(rows)} reviewablePillarIds={[1, 3]} />);
     fireEvent.click(screen.getByRole("button", { name: "Approve Facility referral day" }));
     const dialog = screen.getByRole("dialog", { name: "Approve submission?" });
     expect(dialog).toHaveTextContent(
@@ -113,7 +151,7 @@ describe("field submissions screen", () => {
         source: "Mobile app",
       },
     });
-    render(<SubmissionsContent rows={rows} reviewableIds={[1, 2]} />);
+    render(<SubmissionsContent initial={listOf(rows)} reviewablePillarIds={[1, 3]} />);
     // Each card counts its photos, as in the design.
     const card = screen.getByText("Facility referral day").closest("article") as HTMLElement;
     expect(within(card).getByText("photos, captured on mobile").parentElement).toHaveTextContent(

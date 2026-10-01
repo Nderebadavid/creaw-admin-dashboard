@@ -12,8 +12,9 @@ import { revalidatePath } from "next/cache";
 import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { requireSession } from "@/lib/auth/session-server";
-import { hasPermission } from "@/lib/auth/permissions";
-import { createSubmissionsApi } from "./api";
+import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
+import { clampPageSize } from "@/lib/api/list";
+import { createSubmissionsApi, type SubmissionQuery, type SubmissionStatus } from "./api";
 import { reviewInputSchema } from "./schemas";
 import type { ViewedDocument } from "@/components/ui/document-viewer";
 
@@ -90,5 +91,33 @@ export async function viewSubmissionPhotoAction(submissionId: number, documentId
     };
   } catch {
     return fail("Could not open the photo.");
+  }
+}
+
+const statuses: readonly string[] = ["Pending review", "Flagged", "Approved"];
+
+/** One page of field submissions for the review queue, filtered and searched by the API. */
+export async function listSubmissionsAction(query: SubmissionQuery) {
+  const session = await requireSession();
+  if (!hasModulePermission(session.grants, "FIELD_SUBMISSION_VIEW"))
+    return { success: false, message: "Permission denied.", data: null };
+  const token = await readSessionToken();
+  if (!token) return { success: false, message: "Sign in required.", data: null };
+  try {
+    const api = createSubmissionsApi(createPortalApiClient(), token);
+    return {
+      success: true,
+      message: "OK",
+      data: await api.list({
+        page: Number.isInteger(query.page) && query.page! >= 1 ? query.page : 1,
+        pageSize: clampPageSize(query.pageSize, 12),
+        status: statuses.includes(String(query.status))
+          ? (query.status as SubmissionStatus)
+          : undefined,
+        search: typeof query.search === "string" ? query.search.slice(0, 120) : undefined,
+      }),
+    };
+  } catch {
+    return { success: false, message: "Could not load the submissions.", data: null };
   }
 }

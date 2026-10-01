@@ -1,46 +1,70 @@
 "use client";
 import { fieldClass } from "@/components/ui/form-styles";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import {
   createReferralAction,
   editReferralAction,
+  loadReferralOriginsAction,
   respondReferralAction,
   withdrawReferralAction,
 } from "../actions";
-import type { ReferralView } from "../api";
+import type { ReferralOriginOption, ReferralView } from "../api";
 import type { ReferralDestinationCatalog } from "../schemas";
-
-export interface ReferralOriginOption {
-  enrollmentId: number;
-  pillarId: number;
-  participant: string;
-  category: string;
-}
 
 /** Refers one of the user's enrollments to another pillar or an outside partner. */
 export function NewReferralDialog({
   open,
-  origins,
   pillars,
   catalog,
   onClose,
   onDone,
 }: {
   open: boolean;
-  /** Enrollments the user may refer from (REFERRAL_CREATE in their pillar). */
-  origins: ReferralOriginOption[];
   pillars: { id: number; name: string }[];
   catalog: ReferralDestinationCatalog;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
-  const [originId, setOriginId] = useState(origins[0]?.enrollmentId ?? 0);
+  const [search, setSearch] = useState("");
+  const [origins, setOrigins] = useState<ReferralOriginOption[]>([]);
+  const [settled, setSettled] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [originId, setOriginId] = useState(0);
   const [kind, setKind] = useState<"internal" | "external">("internal");
-  const origin = origins.find((item) => item.enrollmentId === originId);
+  const origin = origins.find((item) => item.enrollmentId === originId) ?? origins[0];
+  // Busy until the search for what is typed has answered.
+  const loading = open && settled !== search;
+
+  // Enrollments the user may refer from, fetched once the dialog opens and as they search.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const timer = setTimeout(
+      () => {
+        loadReferralOriginsAction(search)
+          .then((result) => {
+            if (!active) return;
+            setLoadError(result.success ? "" : result.message);
+            setOrigins(result.data ?? []);
+          })
+          .catch(() => {
+            if (active) setLoadError("Could not load the participants.");
+          })
+          .finally(() => {
+            if (active) setSettled(search);
+          });
+      },
+      search ? 250 : 0
+    );
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, search]);
   // An internal referral must go to another pillar that accepts referrals; an
   // external one names the pillar that stays responsible for the participant.
   const destinations =
@@ -79,14 +103,24 @@ export function NewReferralDialog({
       }}
       title="New referral"
       description="Refer a participant to a pillar project or partner institution."
-      error={submit.error}
+      error={submit.error || loadError}
       className="sm:max-w-lg"
     >
       <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
+          Find participant
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className={fieldClass}
+          />
+        </label>
+        <label className="block text-sm">
           Participant and origin enrollment
           <select
-            value={originId}
+            aria-busy={loading}
+            value={origin?.enrollmentId ?? 0}
             onChange={(event) => setOriginId(Number(event.target.value))}
             className={fieldClass}
           >

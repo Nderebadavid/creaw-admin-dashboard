@@ -2,13 +2,10 @@ import { notFound } from "next/navigation";
 import { AlertBanner } from "@/components/ui/alert-banner";
 import { hasModulePermission, hasPermission, type EffectiveGrant } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
-import { pillarsApi, PillarApiError } from "@/features/pillars/api";
+import { pillarsApi, PillarApiError, type PillarView } from "@/features/pillars/api";
+import type { VawgSummary } from "@/features/vawg/model";
 import { PillarContent } from "@/features/pillars/components";
-import {
-  PillarCreateButton,
-  PillarDomainCreateButton,
-  PillarEditButton,
-} from "@/features/pillars/record-controls";
+import { PillarCreateButton, PillarDomainCreateButton } from "@/features/pillars/record-controls";
 import { pillarCodeSchema, type PillarCode } from "@/features/pillars/schemas";
 import {
   ids,
@@ -40,16 +37,29 @@ const domainPermission = {
   leadership: "PILLAR_CONFIG_MANAGE",
 } as const satisfies Record<PillarCode, string>;
 
-/** This pillar's field submissions, or none when the user can't view them here. */
+/** This pillar's newest field submissions, or none when the user can't view them here. */
 async function loadSubmissions(grants: readonly EffectiveGrant[], pillarId: number) {
   if (!hasPermission(grants, "FIELD_SUBMISSION_VIEW", { pillarId })) return [];
-  const all = await submissionsApi.listAll().catch(() => []);
-  return all.filter((row) => row.pillarId === pillarId);
+  return submissionsApi
+    .list({ pillarId, page: 1, pageSize: 3 })
+    .then((list) => list.items)
+    .catch(() => []);
+}
+
+/** The VAWG cards as the summary component shows them. */
+function vawgSummary(cards: NonNullable<PillarView["cards"]["vawg"]>): VawgSummary {
+  return {
+    survivors: cards.survivors,
+    openCases: cards.open_cases,
+    sessions: cards.counselling_sessions ?? 0,
+    sessionsThisQuarter: cards.counselling_this_quarter ?? 0,
+    concluded: cards.concluded,
+  };
 }
 
 /** The pillar, or null when the API refuses access (404 becomes a not-found page). */
-function loadPillar(code: PillarCode) {
-  return pillarsApi.get(code).catch((error) => {
+function loadPillar(code: PillarCode, period: string) {
+  return pillarsApi.get(code, { period }).catch((error) => {
     if (error instanceof PillarApiError && error.status === 404) notFound();
     if (error instanceof PillarApiError && error.status === 403) return null;
     throw error;
@@ -67,19 +77,26 @@ export default async function PillarPage({
   const code = pillarCodeSchema.safeParse((await params).pillar);
   if (!code.success) notFound();
   const period = parsePeriod((await searchParams)?.period);
-  // The pillar id is fixed per code, so submissions load alongside the pillar.
-  const [pillar, submissions, workspace, sessions, training] = await Promise.all([
-    loadPillar(code.data),
-    loadSubmissions(session.grants, ids[code.data]),
-    loadVawgWorkspace(session.grants, code.data, session.user.id),
-    loadSessionsWorkspace(session.grants, code.data, period, {
-      id: session.user.id,
-      name: session.user.name,
-    }),
-    loadTrainingWorkspace(session.grants, code.data),
-  ]);
+  // The pillar's summary carries the cards its workspaces show, so they load after it.
+  const pillar = await loadPillar(code.data, period);
   if (!pillar)
     return <AlertBanner tone="warning">You do not have access to this pillar.</AlertBanner>;
+  const [submissions, workspace, sessions, training, register] = await Promise.all([
+    loadSubmissions(session.grants, pillar.id),
+    loadVawgWorkspace(session.grants, code.data, session.user.id, pillar.cards.vawg),
+    loadSessionsWorkspace(
+      session.grants,
+      code.data,
+      period,
+      { id: session.user.id, name: session.user.name },
+      pillar.cards.sessions
+    ),
+    loadTrainingWorkspace(session.grants, code.data, pillar.cards.trainees),
+    // WROs carry over the field app's organisation register, profile and pipeline.
+    code.data === "wros"
+      ? loadWroRegister(session.grants, pillar.id, pillar.pipelineStages)
+      : undefined,
+  ]);
   const can = (permission: string) =>
     hasPermission(session.grants, permission, { pillarId: pillar.id });
   const availableCodes = (Object.keys(ids) as PillarCode[]).filter((key) =>
@@ -92,9 +109,6 @@ export default async function PillarPage({
     pillar.code !== "leadership" &&
     can(domainPermission[pillar.code]) &&
     (pillar.code !== "wros" || canEdit);
-  // WROs carry over the field app's organisation register, profile and pipeline.
-  const register =
-    pillar.code === "wros" ? await loadWroRegister(session.grants, pillar.id) : undefined;
   const vawgPermissions = {
     edit: can("CASE_EDIT"),
     attach: can("DOCUMENT_UPLOAD"),
@@ -125,9 +139,7 @@ export default async function PillarPage({
     export: can("REPORT_EXPORT_CSV"),
   };
   const enrolTrainee =
-    trainingWorkspace && trainingPermissions.edit ? (
-      <EnrolTraineeButton workspace={trainingWorkspace} />
-    ) : null;
+    trainingWorkspace && trainingPermissions.edit ? <EnrolTraineeButton /> : null;
   // SRHR logs sessions and Skilling enrols trainees through their workspaces, never the
   // raw-ID form, even when a workspace failed to load.
   const domainActions =
@@ -169,7 +181,7 @@ export default async function PillarPage({
         vawg ? (
           <>
             <CaseRegister workspace={workspace} can={vawgPermissions} />
-            {workspace.counselling !== null && (
+            {workspace.counselling && (
               <CounsellingRegister workspace={workspace} can={counsellingPermissions} />
             )}
           </>
@@ -183,7 +195,11 @@ export default async function PillarPage({
       }
       kpis={
         vawg ? (
-          <VawgSummaryCards summary={workspace.summary} color={pillar.color} tint={pillar.tint} />
+          <VawgSummaryCards
+            summary={vawgSummary(pillar.cards.vawg!)}
+            color={pillar.color}
+            tint={pillar.tint}
+          />
         ) : trainingWorkspace ? (
           <TrainingSummaryCards
             summary={trainingWorkspace.summary}
@@ -205,7 +221,10 @@ export default async function PillarPage({
               <PillarCreateButton code={pillar.code} name={pillar.name} variant="outline" />
             ) : null}
             {enrolTrainee}
-            <LogSessionButton workspace={sessionWorkspace} />
+            <LogSessionButton
+              pillar={sessionWorkspace.pillar}
+              currentUser={sessionWorkspace.currentUser}
+            />
           </>
         ) : enrolTrainee ? (
           <>
@@ -216,7 +235,7 @@ export default async function PillarPage({
           </>
         ) : vawg ? (
           <VawgHeadingActions
-            workspace={workspace}
+            currentUserId={session.user.id}
             canExport={vawgPermissions.export}
             canOpenCase={vawgPermissions.edit}
             canLogCounselling={counsellingPermissions.log}
@@ -245,11 +264,7 @@ export default async function PillarPage({
         />
       }
       domainActions={domainActions}
-      rowActions={
-        canEdit
-          ? (row) => <PillarEditButton code={pillar.code} id={row.id} category={row.category} />
-          : undefined
-      }
+      canEditRecords={canEdit}
       availableCodes={availableCodes}
       submissions={submissions}
     />

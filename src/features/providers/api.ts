@@ -13,7 +13,6 @@ import {
   type ProviderDirectory,
   type ProviderView,
   type ProviderWorkload,
-  type WorkloadGroup,
 } from "./model";
 
 const id = z.number().int().positive();
@@ -33,6 +32,26 @@ const providerSchema = z.object({
   phone_number: nullableText,
   email: nullableText,
   notes: nullableText,
+  status_description: nullableText,
+  created_at: nullableText,
+  updated_at: nullableText,
+  /** Linked-work counts the API sums for the register (PROVIDER_MANAGE holders). */
+  sessions_count: z
+    .number()
+    .nullish()
+    .transform((value) => value ?? 0),
+  counselling_count: z
+    .number()
+    .nullish()
+    .transform((value) => value ?? 0),
+  trainees_count: z
+    .number()
+    .nullish()
+    .transform((value) => value ?? 0),
+  cases_count: z
+    .number()
+    .nullish()
+    .transform((value) => value ?? 0),
 });
 const itemSchema = z.object({
   id: z.number(),
@@ -62,13 +81,6 @@ const ITEM_TEMPLATE = "/admin/providers/:id";
 type Values = Record<string, string | number | boolean | null>;
 type Envelope<T> = { success: boolean; message: string; data: T | null };
 
-const emptyGroup = (): WorkloadGroup => ({ count: 0, recent: [] });
-const emptyWorkload = (): ProviderWorkload => ({
-  sessions: emptyGroup(),
-  counselling: emptyGroup(),
-  trainees: emptyGroup(),
-  cases: emptyGroup(),
-});
 const linkedWork = (workload: ProviderWorkload) =>
   workload.sessions.count +
   workload.counselling.count +
@@ -98,23 +110,6 @@ export function createProvidersApi(client: ApiClient, token: string) {
       if (!result.success || !result.data) throw new Error(result.message);
       return result.data;
     });
-  const workloadOf = async (providerId: number): Promise<ProviderWorkload> => {
-    try {
-      const result = await client.request(
-        {
-          method: "GET",
-          path: `${PATH}/${providerId}`,
-          routeTemplate: ITEM_TEMPLATE,
-          token,
-          query: { include: "workload" },
-        },
-        createEnvelopeSchema(z.union([providerWithWorkloadSchema, z.null()]))
-      );
-      return (result.success && result.data?.workload) || emptyWorkload();
-    } catch {
-      return emptyWorkload();
-    }
-  };
   const write = (method: "POST" | "PATCH", body: Values, providerId?: number) =>
     client.request(
       providerId === undefined
@@ -134,9 +129,14 @@ export function createProvidersApi(client: ApiClient, token: string) {
           page(institutionSchema)
         ).catch(() => [] as z.infer<typeof institutionSchema>[]),
       ]);
-      const workloads = await Promise.all(rows.map((row) => workloadOf(row.id)));
-      const providers = rows.map<ProviderView>((row, index) => {
-        const workload = workloads[index];
+      const providers = rows.map<ProviderView>((row) => {
+        // The register holds the counts; each group's recent items load with the drawer.
+        const workload: ProviderWorkload = {
+          sessions: { count: row.sessions_count, recent: [] },
+          counselling: { count: row.counselling_count, recent: [] },
+          trainees: { count: row.trainees_count, recent: [] },
+          cases: { count: row.cases_count, recent: [] },
+        };
         return {
           id: row.id,
           name: [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" "),
@@ -155,6 +155,9 @@ export function createProvidersApi(client: ApiClient, token: string) {
           email: row.email,
           notes: row.notes,
           active: row.status === "ACTIVE",
+          statusDescription: row.status_description,
+          created: row.created_at,
+          updated: row.updated_at,
           linkedWork: linkedWork(workload),
           workload,
         };
@@ -165,6 +168,20 @@ export function createProvidersApi(client: ApiClient, token: string) {
           .filter((item) => item.status === undefined || item.status === "ACTIVE")
           .map(({ id: value, name }) => ({ id: value, name })),
       };
+    },
+    /** A provider's recent linked work, loaded when its drawer opens. */
+    async workload(providerId: number): Promise<ProviderWorkload | null> {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: `${PATH}/${providerId}`,
+          routeTemplate: ITEM_TEMPLATE,
+          token,
+          query: { include: "workload" },
+        },
+        createEnvelopeSchema(z.union([providerWithWorkloadSchema, z.null()]))
+      );
+      return result.success ? (result.data?.workload ?? null) : null;
     },
     create: (values: Values) => write("POST", values),
     update: (providerId: number, values: Values) => write("PATCH", values, providerId),

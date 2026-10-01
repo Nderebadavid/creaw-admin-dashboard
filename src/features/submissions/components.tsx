@@ -1,17 +1,20 @@
 "use client";
 
-import { useClientPaging } from "@/components/data-table/use-client-paging";
+import { usePagedList } from "@/components/data-table/use-paged-list";
 import { FormBanner } from "@/components/ui/form-banner";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExportButton } from "@/components/ui/export-button";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
-import { reviewSubmissionAction, viewSubmissionPhotoAction } from "./actions";
+import {
+  listSubmissionsAction,
+  reviewSubmissionAction,
+  viewSubmissionPhotoAction,
+} from "./actions";
 import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
-import type { SubmissionRow, SubmissionStatus } from "./api";
-import { filterSubmissionRows } from "./filter";
+import type { SubmissionList, SubmissionQuery, SubmissionRow, SubmissionStatus } from "./api";
 import { SubmissionCard } from "./queue/submission-card";
 import { ApproveDialog, ReviewDialog, type Decision } from "./queue/review-dialogs";
 
@@ -29,23 +32,27 @@ const stageStatusOf = {
  */
 export function SubmissionsContent({
   heading,
-  rows,
-  canReview = false,
-  reviewableIds,
+  initial,
+  reviewablePillarIds = [],
   canExport = false,
-  exportableIds,
+  exportablePillarIds,
 }: {
   heading?: PageHeadingText;
-  rows: SubmissionRow[];
-  canReview?: boolean;
-  /** Submissions in pillars the user may review; overrides `canReview` when given. */
-  reviewableIds?: readonly number[];
+  /** The first page, rendered by the server. */
+  initial: SubmissionList;
+  /** Pillars whose submissions the user may review. */
+  reviewablePillarIds?: readonly number[];
   canExport?: boolean;
-  /** Submissions the user may export; export shows only when every visible row is exportable. */
-  exportableIds?: readonly number[];
+  /** Pillars whose submissions the user may export; export shows only when every shown card is exportable. */
+  exportablePillarIds?: readonly number[];
 }) {
   const router = useRouter();
-  const [active, setActive] = useState<"All" | SubmissionStatus>("All");
+  const list = usePagedList<SubmissionRow, SubmissionQuery>(
+    initial,
+    { page: 1, pageSize: initial.pageSize },
+    listSubmissionsAction
+  );
+  const active = (list.query.status ?? "All") as "All" | SubmissionStatus;
   const [reviewing, setReviewing] = useState<SubmissionRow | null>(null);
   const [approving, setApproving] = useState<SubmissionRow | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,15 +65,13 @@ export function SubmissionsContent({
     if (result.success && result.document) setViewing(result.document);
     else setFeedback(result.message);
   }
-  // Decisions update the cards immediately; router.refresh() reconciles with the server.
-  const [localRows, setLocalRows] = useState(rows);
-  const filtered = useMemo(
-    () => filterSubmissionRows(localRows, { status: active }),
-    [localRows, active]
-  );
-  const { pageRows: visible, pager, resetPage } = useClientPaging(filtered);
+  const visible = list.data.items;
+  const counts = list.data.facets?.review_status ?? {};
+  const total = tabs
+    .filter((tab): tab is SubmissionStatus => tab !== "All")
+    .reduce((sum, tab) => sum + (counts[tab] ?? 0), 0);
   const isReviewable = (row: SubmissionRow) =>
-    reviewableIds ? reviewableIds.includes(row.id) : canReview;
+    row.pillarId !== null && reviewablePillarIds.includes(row.pillarId);
 
   async function decide(row: SubmissionRow, decision: Decision) {
     setBusy(true);
@@ -75,12 +80,9 @@ export function SubmissionsContent({
       const result = await reviewSubmissionAction(row.id, decision);
       setFeedback(result.message);
       if (result.success) {
-        const status = decision === "approve" ? "Approved" : "Flagged";
-        setLocalRows((current) =>
-          current.map((item) => (item.id === row.id ? { ...item, status } : item))
-        );
         setReviewing(null);
         setApproving(null);
+        await list.refresh();
         router.refresh();
       }
     } catch {
@@ -92,8 +94,9 @@ export function SubmissionsContent({
 
   const exportable =
     canExport &&
-    filtered.length > 0 &&
-    (!exportableIds || filtered.every((row) => exportableIds.includes(row.id)));
+    visible.length > 0 &&
+    (!exportablePillarIds ||
+      visible.every((row) => row.pillarId !== null && exportablePillarIds.includes(row.pillarId)));
   const actions = exportable && (
     <ExportButton
       exportAction={() =>
@@ -117,24 +120,20 @@ export function SubmissionsContent({
             <button
               key={tab}
               type="button"
-              onClick={() => {
-                setActive(tab);
-                resetPage();
-              }}
+              onClick={() => list.filter({ status: tab === "All" ? undefined : tab })}
               aria-pressed={active === tab}
               className={`flex items-center gap-2 rounded-[10px] border px-4 py-[9px] text-sm font-semibold ${active === tab ? "border-[#F0CDBB] bg-creaw-orange-soft text-primary" : "border-creaw-line-strong bg-white text-creaw-body"}`}
             >
               {tab}{" "}
               <span className="rounded-full border border-creaw-line bg-white px-2 py-px text-xs text-creaw-body">
-                {tab === "All"
-                  ? localRows.length
-                  : localRows.filter((row) => row.status === tab).length}
+                {tab === "All" ? total : (counts[tab] ?? 0)}
               </span>
             </button>
           ))}
         </div>
       </div>
       <FormBanner tone="success">{feedback}</FormBanner>
+      <FormBanner tone="error">{list.error}</FormBanner>
       {visible.length === 0 ? (
         <div className="rounded-2xl border bg-white p-10 text-center text-sm text-creaw-faint">
           No submissions match these filters.
@@ -153,7 +152,15 @@ export function SubmissionsContent({
         </div>
       )}
       {/* The design lists every card; paging only appears once there is more than a page. */}
-      {filtered.length > pager.pageSize && <Pagination {...pager} />}
+      {list.data.totalItems > list.data.pageSize && (
+        <Pagination
+          page={list.data.page}
+          pageSize={list.data.pageSize as PageSize}
+          totalItems={list.data.totalItems}
+          onPageChange={(page) => list.filter({ page }, false)}
+          onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+        />
+      )}
       <ReviewDialog
         submission={reviewing}
         reviewable={reviewing ? isReviewable(reviewing) : false}

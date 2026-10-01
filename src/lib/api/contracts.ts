@@ -16,5 +16,6 @@ export function createPaginatedSchema<T extends z.ZodType>(itemSchema: T) {
     pageSize: z.number().int(),
     totalItems: z.number().int(),
     totalPages: z.number().int(),
+    facets: z.record(z.string(), z.record(z.string(), z.number())).optional(),
   });
 }

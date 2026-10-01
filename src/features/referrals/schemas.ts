@@ -19,6 +19,19 @@ export const referralDtoSchema = z.object({
 export const referralReadDtoSchema = referralDtoSchema.extend({
   participant_summary: z.object({ id: positive, name: z.string() }).nullable(),
   destination_name: z.string().nullable(),
+  /** Named by the API, so a row needs no pillar lookup. */
+  from_pillar_name: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  to_pillar_name: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  destination_label: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
   /** Officer (or "System (background job)") who created the referral, from the audit log. */
   referred_by_name: z.string().nullable().default(null),
 });
@@ -57,3 +70,20 @@ export type ReferralCreate = z.infer<typeof referralCreateSchema>;
 export type ReferralDestinationCatalog = NonNullable<
   z.infer<typeof referralDestinationCatalogSchema>["data"]
 >;
+
+/** An enrollment a referral can be made from, as the API lists them. */
+export const referralOriginListSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      items: z.array(
+        z.object({
+          enrollment_id: positive,
+          pillar_id: positive,
+          participant: z.string(),
+          category: z.string(),
+        })
+      ),
+    }),
+    z.null(),
+  ])
+);

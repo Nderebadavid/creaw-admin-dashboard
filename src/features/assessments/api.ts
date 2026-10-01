@@ -8,32 +8,37 @@
  */
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
-import { collectPages } from "@/lib/api/pagination";
 import {
   assessmentListSchema,
   assessmentDetailSchema,
-  scoreListSchema,
-  checkListSchema,
-  criterionListSchema,
-  organisationListSchema,
-  instrumentListSchema,
   documentDetailSchema,
   mutationSchema,
   checkSchema,
   type assessmentSchema,
-  type scoreSchema,
-  type criterionSchema,
-  type organisationSchema,
   type AssessmentRecord,
 } from "./schemas";
 import { createEnvelopeSchema } from "@/lib/api/contracts";
-import type { z } from "zod";
+import { z } from "zod";
+
+const optionsSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      organisations: z.array(z.object({ id: z.number().int(), name: z.string() })),
+      instruments: z.array(
+        z.object({
+          id: z.number().int(),
+          name: z.string(),
+          criteria: z.array(
+            z.object({ id: z.number().int(), label: z.string(), max: z.number().nullable() })
+          ),
+        })
+      ),
+    }),
+    z.null(),
+  ])
+);
 
 type Assessment = z.infer<typeof assessmentSchema>;
-type Score = z.infer<typeof scoreSchema>;
-type Check = z.infer<typeof checkSchema>;
-type Criterion = z.infer<typeof criterionSchema>;
-type Organisation = z.infer<typeof organisationSchema>;
 export interface AssessmentView {
   id: number;
   organisation: string;
@@ -80,52 +85,19 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
     input: Parameters<ApiClient["request"]>[0],
     schema: Parameters<ApiClient["request"]>[1]
   ) => client.request(input, schema) as Promise<T>;
-  const all = <T>(table: string, schema: Parameters<ApiClient["request"]>[1]) =>
-    collectPages<T>(async (page, pageSize) =>
-      required(
-        await request<{
-          success: boolean;
-          data: {
-            items: T[];
-            page: number;
-            pageSize: number;
-            totalItems: number;
-            totalPages: number;
-          } | null;
-          message: string;
-        }>(
-          {
-            method: "GET",
-            path: "/assessments",
-            routeTemplate: "/assessments",
-            token,
-            query: { table, page, pageSize },
-          },
-          schema
-        )
-      )
-    );
-  async function decorate(rows: Assessment[]): Promise<AssessmentView[]> {
-    const [organisations, scores, checks, criteria] = await Promise.all([
-      all<Organisation>("organisation", organisationListSchema),
-      all<Score>("organisation_assessment_score", scoreListSchema),
-      all<Check>("assessment_document_check", checkListSchema),
-      all<Criterion>("assessment_criterion", criterionListSchema),
-    ]);
+  /** An assessment as the page shows it; the API names the organisation and embeds scores and checks. */
+  function decorate(rows: Assessment[]): AssessmentView[] {
     return rows.map((row) => {
-      const organisation = organisations.find((item) => item.id === row.organisation_id);
-      const scoreRows = scores
-        .filter((item) => item.assessment_id === row.id)
-        .map((item) => {
-          const criterion = criteria.find((c) => c.id === item.criterion_id);
-          if (!criterion) throw new Error("Assessment criterion unavailable");
-          return { label: criterion.label, score: item.score ?? 0, max: criterion.max_score };
-        });
+      const scoreRows = row.scores.map((item) => ({
+        label: item.criterion_label ?? "Domain",
+        score: item.score ?? 0,
+        max: item.criterion_max,
+      }));
       return {
         id: row.id,
-        organisation: organisation?.name ?? `Organisation #${row.organisation_id}`,
+        organisation: row.organisation_name ?? "Organisation record",
         organisationId: row.organisation_id,
-        dueDiligence: organisation?.due_diligence_status ?? "unknown",
+        dueDiligence: row.organisation_due_diligence ?? "unknown",
         score: scoreRows.length
           ? Math.round(
               (scoreRows.reduce((sum, item) => sum + item.score, 0) / scoreRows.length) * 10
@@ -138,14 +110,12 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
               ) / 10
             : null,
         scores: scoreRows,
-        documents: checks
-          .filter((item) => item.assessment_id === row.id)
-          .map((item) => ({
-            id: item.id,
-            name: item.document_name,
-            status: item.document_check_status,
-            documentId: item.document_id,
-          })),
+        documents: row.checks.map((item) => ({
+          id: item.id,
+          name: item.document_name,
+          status: item.document_check_status,
+          documentId: item.document_id,
+        })),
         status: row.status,
         recommendation: row.overall_recommendation,
         proposedRecommendation: row.status_description,
@@ -157,23 +127,19 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
     });
   }
   return {
+    /** The organisations and instruments (with their domains) a new assessment offers, in one call. */
     async options(): Promise<AssessmentOptions> {
-      const [organisations, instruments, criteria] = await Promise.all([
-        all<Organisation>("organisation", organisationListSchema),
-        all<{ id: number; name: string }>("assessment_instrument", instrumentListSchema),
-        all<Criterion>("assessment_criterion", criterionListSchema),
-      ]);
-      return {
-        organisations: organisations.map(({ id, name }) => ({ id, name })),
-        instruments: instruments.map(({ id, name }) => ({
-          id,
-          name,
-          criteria: criteria
-            .filter((item) => item.instrument_id === id)
-            .sort((a, b) => a.sort_order - b.sort_order)
-            .map((item) => ({ id: item.id, label: item.label, max: item.max_score })),
-        })),
-      };
+      const result = await request<z.infer<typeof optionsSchema>>(
+        {
+          method: "GET",
+          path: "/pillars/wros/form-options",
+          routeTemplate: "/pillars/:pillar/form-options",
+          token,
+          query: { form: "assessment" },
+        },
+        optionsSchema
+      );
+      return required(result);
     },
     async list(page = 1, pageSize = 25): Promise<AssessmentPage> {
       const result = await request<z.infer<typeof assessmentListSchema>>(
@@ -182,19 +148,25 @@ export function createAssessmentsApi(client: ApiClient, token: string) {
           path: "/assessments",
           routeTemplate: "/assessments",
           token,
-          query: { page, pageSize },
+          query: { page, pageSize, include: "scores,checks" },
         },
         assessmentListSchema
       );
       const data = required(result);
-      return { ...data, items: await decorate(data.items) };
+      return { ...data, items: decorate(data.items) };
     },
     async get(id: number): Promise<AssessmentView | null> {
       const result = await request<z.infer<typeof assessmentDetailSchema>>(
-        { method: "GET", path: `/assessments/${id}`, routeTemplate: "/assessments/:id", token },
+        {
+          method: "GET",
+          path: `/assessments/${id}`,
+          routeTemplate: "/assessments/:id",
+          token,
+          query: { include: "scores,checks" },
+        },
         assessmentDetailSchema
       );
-      return result.success && result.data ? (await decorate([result.data]))[0] : null;
+      return result.success && result.data ? decorate([result.data])[0] : null;
     },
     create(input: { organisationId: number; instrumentId: number; recommendation?: string }) {
       return request<z.infer<typeof mutationSchema>>(

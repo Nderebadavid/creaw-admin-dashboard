@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { ActionDialog } from "@/components/ui/action-dialog";
@@ -7,14 +7,17 @@ import { Button } from "@/components/ui/button";
 import { FileDropField } from "@/components/ui/file-drop-field";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
+import { useLoadedOptions } from "@/components/ui/use-loaded-options";
 import {
   addAttendeeAction,
   attachSessionFileAction,
+  loadSessionOptionsAction,
   logSessionAction,
   removeAttendeeAction,
+  searchParticipantsAction,
   updateSessionAction,
 } from "../actions";
-import type { AttendeeView, SessionPillar, SessionView, SessionWorkspace } from "../model";
+import type { AttendeeView, SessionPillar, SessionView } from "../model";
 
 /** Document types a session file holds; stored as document.document_type. */
 export const sessionFileTypes = [
@@ -35,13 +38,15 @@ const describe = (session: SessionView | null) =>
 /** Log a session, or edit one; the edited session's current type and topic stay selectable. */
 export function SessionFormDialog({
   open,
-  workspace,
+  pillar,
+  currentUser,
   session,
   onClose,
   onDone,
 }: {
   open: boolean;
-  workspace: SessionWorkspace;
+  pillar: SessionPillar;
+  currentUser: { id: number; name: string } | null;
   session: SessionView | null;
   onClose: () => void;
   onDone: (message: string) => void;
@@ -49,12 +54,16 @@ export function SessionFormDialog({
   const submit = useActionSubmit(onDone);
   const [typeId, setTypeId] = useState(session ? String(session.activityTypeId) : "");
   const [topicValue, setTopicValue] = useState(session ? String(session.topicId ?? "other") : "");
-  const activeTypes = workspace.activityTypes.filter((type) => type.active);
+  const options = useLoadedOptions(open, () => loadSessionOptionsAction(pillar));
+  const activityTypes = options.data?.activityTypes ?? [];
+  const allTopics = options.data?.topics ?? [];
+  const facilitators = options.data?.facilitators ?? [];
+  const activeTypes = activityTypes.filter((type) => type.active);
   const typeOptions =
     session && !activeTypes.some((type) => type.id === session.activityTypeId)
       ? [{ id: session.activityTypeId, name: session.activityType }, ...activeTypes]
       : activeTypes;
-  const topics = workspace.topics
+  const topics = allTopics
     .filter((topic) => topic.active && String(topic.activityTypeId) === typeId)
     .sort((a, b) => a.sequenceNo - b.sequenceNo);
   const topicOptions =
@@ -72,7 +81,6 @@ export function SessionFormDialog({
         : topicOptions[0]
           ? String(topicOptions[0].id)
           : "other";
-  const { facilitators, currentUser } = workspace;
   const ref = session?.facilitatorRef ?? null;
   const staff = facilitators.filter((item) => item.kind === "staff");
   const providers = facilitators.filter((item) => item.kind === "provider");
@@ -100,7 +108,7 @@ export function SessionFormDialog({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const input = {
-      pillar: workspace.pillar,
+      pillar,
       sessionId: session?.id,
       activityTypeId: Number(typeId),
       topicId: chosenTopic === "other" ? null : Number(chosenTopic),
@@ -122,10 +130,14 @@ export function SessionFormDialog({
       onClose={close}
       title={session ? "Edit session" : "Log session"}
       description={describe(session)}
-      error={submit.error}
+      error={submit.error || options.error}
       className="sm:max-w-[640px]"
     >
-      <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
+      <form
+        key={options.data ? "loaded" : "loading"}
+        className="grid gap-4 sm:grid-cols-2"
+        onSubmit={send}
+      >
         <label className="text-sm">
           Activity type
           <select
@@ -258,7 +270,13 @@ export function SessionFormDialog({
 }
 
 /** The page heading's "Log session" button. */
-export function LogSessionButton({ workspace }: { workspace: SessionWorkspace }) {
+export function LogSessionButton({
+  pillar,
+  currentUser,
+}: {
+  pillar: SessionPillar;
+  currentUser: { id: number; name: string } | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
@@ -270,7 +288,8 @@ export function LogSessionButton({ workspace }: { workspace: SessionWorkspace })
       <SessionFormDialog
         key={open ? "open" : "closed"}
         open={open}
-        workspace={workspace}
+        pillar={pillar}
+        currentUser={currentUser}
         session={null}
         onClose={() => setOpen(false)}
         onDone={() => {
@@ -282,27 +301,60 @@ export function LogSessionButton({ workspace }: { workspace: SessionWorkspace })
   );
 }
 
-/** Correct attendance: pick a participant who is not already on the list. */
+/** Correct attendance: search for a participant who is not already on the list. */
 export function AddAttendeeDialog({
   session,
-  workspace,
+  attendees,
+  pillar,
   onClose,
   onDone,
 }: {
   session: SessionView | null;
-  workspace: Pick<SessionWorkspace, "pillar" | "participants">;
+  /** Who is already on the list, so they cannot be added twice. */
+  attendees: readonly AttendeeView[];
+  pillar: SessionPillar;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
   const [search, setSearch] = useState("");
   const [participantId, setParticipantId] = useState("");
-  const listed = new Set(session?.attendees.map((attendee) => attendee.participantId));
-  const needle = search.trim().toLocaleLowerCase();
-  const options = workspace.participants.filter(
-    (person) =>
-      !listed.has(person.id) && (!needle || person.label.toLocaleLowerCase().includes(needle))
-  );
+  const [found, setFound] = useState<{ id: number; label: string }[]>([]);
+  const [settled, setSettled] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState("");
+  const listed = new Set(attendees.map((attendee) => attendee.participantId));
+  const options = found.filter((person) => !listed.has(person.id));
+  const open = session !== null;
+  // Busy until the search for what is typed has answered.
+  const loading = open && settled !== search;
+
+  // Search as you type: a small page of matches, never the whole register.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const timer = setTimeout(
+      () => {
+        searchParticipantsAction(pillar, search)
+          .then((result) => {
+            if (!active) return;
+            setSearchError(result.success ? "" : result.message);
+            setFound(result.data ?? []);
+          })
+          .catch(() => {
+            if (active) setSearchError("Could not search participants.");
+          })
+          .finally(() => {
+            if (active) setSettled(search);
+          });
+      },
+      search ? 250 : 0
+    );
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, pillar, search]);
+
   const close = () => {
     submit.clearError();
     onClose();
@@ -312,7 +364,7 @@ export function AddAttendeeDialog({
     if (!session) return;
     void submit.run(
       addAttendeeAction({
-        pillar: workspace.pillar,
+        pillar,
         sessionId: session.id,
         participantId: Number(participantId),
       }),
@@ -321,12 +373,12 @@ export function AddAttendeeDialog({
   }
   return (
     <ActionDialog
-      open={session !== null}
+      open={open}
       busy={submit.busy}
       onClose={close}
       title="Add attendee"
       description={describe(session)}
-      error={submit.error}
+      error={submit.error || searchError}
     >
       <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
@@ -346,6 +398,7 @@ export function AddAttendeeDialog({
             value={participantId}
             onChange={(event) => setParticipantId(event.target.value)}
             className={fieldClass}
+            aria-busy={loading}
           >
             {options.map((person) => (
               <option key={person.id} value={person.id}>
@@ -354,6 +407,11 @@ export function AddAttendeeDialog({
             ))}
           </select>
         </label>
+        {!loading && options.length === 0 && (
+          <p className="text-[13px] text-creaw-faint">
+            {search ? "No participants match that search." : "No participants to show."}
+          </p>
+        )}
         <div>
           <Button type="button" variant="outline" disabled={submit.busy} onClick={close}>
             Cancel

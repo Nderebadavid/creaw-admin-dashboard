@@ -9,13 +9,9 @@ export default async function UsersPage() {
   const canManageUsers = hasPermission(session.grants, "USER_MANAGE"),
     canManageRoles = hasPermission(session.grants, "ROLE_MANAGE");
   if (!canManageUsers) notFound();
-  const canSeePermissions = hasPermission(session.grants, "PERMISSION_MANAGE");
-  const [initial, roles, assignments, pillars, permissions] = await Promise.all([
+  const [initial, access] = await Promise.all([
     adminApi.users({ page: 1, pageSize: 25 }),
-    canManageRoles ? adminApi.roles() : [],
-    canManageRoles ? adminApi.userRoles() : [],
-    canManageRoles ? adminApi.pillars() : [],
-    canSeePermissions ? adminApi.permissions() : null,
+    canManageRoles ? adminApi.access() : null,
   ]);
   return (
     <UsersContent
@@ -25,10 +21,10 @@ export default async function UsersPage() {
         description: "Staff accounts and the roles that drive their navigation",
       }}
       initial={initial}
-      roles={roles}
-      assignments={assignments}
-      pillars={pillars}
-      permissionCount={permissions?.length}
+      roles={access?.roles ?? []}
+      pillars={access?.pillars ?? []}
+      permissionCount={access?.permission_count ?? undefined}
+      multiRoleUsers={access?.multi_role_users}
       canManageUsers={canManageUsers}
       canManageRoles={canManageRoles}
       currentUserId={session.user.id}

@@ -10,6 +10,7 @@ vi.mock("./actions", () => ({
   updateProviderAction: vi.fn(async () => ({ success: true, message: "ok", resultCode: 200 })),
   setProviderActiveAction: vi.fn(async () => ({ success: true, message: "ok", resultCode: 200 })),
   revealProviderContactAction: vi.fn(),
+  loadProviderWorkloadAction: vi.fn(async () => ({ success: false, message: "", data: null })),
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 import { permittedNavigation } from "@/components/portal/navigation";
@@ -36,6 +37,9 @@ const directory: ProviderDirectory = {
       email: null,
       notes: null,
       active: true,
+      statusDescription: null,
+      created: null,
+      updated: null,
       linkedWork: 3,
       workload: {
         sessions: {
@@ -67,6 +71,9 @@ const directory: ProviderDirectory = {
       email: null,
       notes: null,
       active: false,
+      statusDescription: null,
+      created: null,
+      updated: null,
       linkedWork: 0,
       workload: { sessions: none, counselling: none, trainees: none, cases: none },
     },

@@ -72,8 +72,9 @@ describe("assessment workflows", () => {
     expect(options.organisations.map((item) => item.name)).toEqual(
       store.organisation.filter((row) => !row.is_deleted).map((row) => row.name)
     );
-    // The API only lists instruments already used by an assessment the user can see.
-    expect(options.instruments.map((item) => item.name)).toEqual(["Organisation capacity"]);
+    expect(options.instruments.map((item) => item.name)).toEqual(
+      store.assessment_instrument.filter((row) => !row.is_deleted).map((row) => row.name)
+    );
     const before = (await api.list(1, 100)).totalItems;
     const created = await api.create({
       organisationId: options.organisations[0].id,

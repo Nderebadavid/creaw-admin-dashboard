@@ -20,6 +20,10 @@ export const pillarDashboardSchema = createEnvelopeSchema(
     z.null(),
   ])
 );
+const optionalText = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
 export const pillarEnrollmentSchema = z.object({
   id: z.number().int(),
   pillar_id: z.number().int(),
@@ -27,8 +31,81 @@ export const pillarEnrollmentSchema = z.object({
   organisation_id: z.number().int().nullable(),
   entry_category: z.string(),
   status: z.string(),
+  status_description: optionalText,
+  created_at: optionalText,
   updated_at: z.string(),
+  /** The person or organisation enrolled, named by the API. */
+  record_name: optionalText,
 });
+
+const count = z.number().nullable();
+/** `GET /pillars/:pillar/summary`: header, pipeline stage counts, where people live, and cards. */
+export const pillarSummarySchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      pillar: z.object({
+        id: z.number().int(),
+        code: z.string(),
+        name: z.string(),
+        lead_user_id: z.number().nullable(),
+        lead_name: z.string().nullable(),
+      }),
+      pipeline: z
+        .object({
+          id: z.number().int(),
+          name: z.string(),
+          stages: z.array(
+            z.object({
+              id: z.number().int(),
+              step_no: z.number().int(),
+              name: z.string(),
+              count,
+            })
+          ),
+        })
+        .nullable(),
+      enrollments: z
+        .object({
+          total: z.number().int(),
+          active: z.number().int(),
+          counties: z.array(z.string()),
+        })
+        .nullable(),
+      cards: z.object({
+        vawg: z
+          .object({
+            survivors: z.number(),
+            open_cases: z.number(),
+            concluded: z.number(),
+            counselling_sessions: count,
+            counselling_this_quarter: count,
+          })
+          .nullable(),
+        sessions: z
+          .object({
+            period: z.enum(["quarter", "year", "all"]),
+            summary: z.custom<import("@/features/sessions/model").SessionSummary>(),
+            coverage: z.custom<import("@/features/sessions/model").TypeCoverage[]>(),
+          })
+          .nullable(),
+        trainees: z
+          .object({
+            enrolled: z.number(),
+            completed: z.number(),
+            dropped_out: z.number(),
+            completion_rate: count,
+            in_work: z.number(),
+            in_work_rate: count,
+            recommended: z.number(),
+            accepted_by_wee: z.number(),
+          })
+          .nullable(),
+      }),
+    }),
+    z.null(),
+  ])
+);
+export type PillarSummaryDto = NonNullable<z.infer<typeof pillarSummarySchema>["data"]>;
 export const pillarEnrollmentListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(pillarEnrollmentSchema), z.null()])
 );

@@ -42,6 +42,55 @@ function pillarCatalog({ request, store, query, grants }: MockContext): Envelope
   return envelope(200, store.pillar.filter(isActive).map(pillarOption));
 }
 
+/**
+ * Everything the Users screen needs besides its page of users, in one call: the pillars a
+ * role can be scoped to, the roles that can be granted, how many permissions exist, and
+ * how many staff hold more than one active role.
+ */
+function accessCatalog({ request, store, query, grants }: MockContext): Envelope {
+  if (!isStrictGet(request, query, ["catalog"])) return envelope(422);
+  if (!hasPermission(grants, "ROLE_MANAGE")) return envelope(403);
+  const holders = new Map<number, number>();
+  for (const link of store.user_role)
+    if (!link.is_deleted && link.status === "ACTIVE")
+      holders.set(link.user_id, (holders.get(link.user_id) ?? 0) + 1);
+  return envelope(200, {
+    pillars: store.pillar.filter(isActive).map(pillarOption),
+    roles: store.role
+      .filter((row) => !row.is_deleted)
+      .map((row) => masked("role", row as unknown as Row)),
+    permission_count: hasPermission(grants, "PERMISSION_MANAGE")
+      ? store.permission.filter((row) => !row.is_deleted).length
+      : null,
+    multi_role_users: [...holders.values()].filter((count) => count > 1).length,
+  });
+}
+
+/**
+ * The access-control grid in one call: every role, and (for permission managers) the
+ * permission catalogue with every role-permission row, retired ones included so a grant
+ * can be switched back on.
+ */
+function accessMatrix({ request, store, query, grants }: MockContext): Envelope {
+  if (!isStrictGet(request, query, ["catalog"])) return envelope(422);
+  const mayRoles = hasPermission(grants, "ROLE_MANAGE");
+  const mayPermissions = hasPermission(grants, "PERMISSION_MANAGE");
+  if (!mayRoles && !mayPermissions) return envelope(403);
+  return envelope(200, {
+    roles: store.role
+      .filter((row) => !row.is_deleted)
+      .map((row) => masked("role", row as unknown as Row)),
+    permissions: mayPermissions
+      ? store.permission
+          .filter((row) => !row.is_deleted)
+          .map((row) => masked("permission", row as unknown as Row))
+      : [],
+    grants: mayPermissions
+      ? store.role_permission.map((row) => masked("role_permission", row as unknown as Row))
+      : [],
+  });
+}
+
 /** Pillars whose pipelines the caller may configure. */
 function pipelineCatalog({ request, store, query, grants }: MockContext): Envelope {
   if (!isStrictGet(request, query, ["catalog"])) return envelope(422);
@@ -237,6 +286,10 @@ export function handleAdminCommands(ctx: MockContext): Envelope | undefined {
   const { request, url, query, parts } = ctx;
   if (url.pathname === "/admin/users" && query.get("catalog") === "pillars")
     return pillarCatalog(ctx);
+  if (url.pathname === "/admin/users" && query.get("catalog") === "access")
+    return accessCatalog(ctx);
+  if (url.pathname === "/admin/permissions" && query.get("catalog") === "matrix")
+    return accessMatrix(ctx);
   if (url.pathname === "/admin/pipelines" && query.get("catalog") === "pillars")
     return pipelineCatalog(ctx);
   if (url.pathname === "/admin/pipelines" && request.method === "POST") return createPipeline(ctx);

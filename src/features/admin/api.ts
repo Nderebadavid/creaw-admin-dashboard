@@ -6,9 +6,13 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
+import { listParams } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
 import {
+  accessCatalogSchema,
+  accessMatrixSchema,
   permissionListSchema,
   permissionMutationSchema,
   pillarCatalogSchema,
@@ -62,7 +66,21 @@ function required<T>(result: { success: boolean; data: T | null; message: string
   if (!result.success || result.data === null) throw new Error(result.message);
   return result.data;
 }
-type UserListQuery = { page?: number; pageSize?: number; search?: string; status?: string };
+type UserListQuery = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  /** A displayed column to sort by, mapped to an API field. */
+  sort?: SortState;
+};
+/** The staff table's column ids and the API fields they sort by. */
+export const USER_SORT_KEYS: Record<string, string> = {
+  staff: "first_name,last_name",
+  roles: "role_names",
+  scope: "scope_names",
+  status: "status",
+};
 export function createAdminApi(client: ApiClient, token: string) {
   const collect = async <T>(fetchPage: (page: number) => Promise<AdminPage<T>>) => {
     const items: T[] = [];
@@ -96,6 +114,7 @@ export function createAdminApi(client: ApiClient, token: string) {
     }
   };
   return {
+    /** One page of staff, each with their role grants; the API filters, searches and sorts. */
     async users(query: UserListQuery = {}) {
       return required(
         await client.request(
@@ -104,14 +123,49 @@ export function createAdminApi(client: ApiClient, token: string) {
             path: "/admin/users",
             routeTemplate: "/admin/users",
             token,
-            query: {
-              page: query.page ?? 1,
-              pageSize: query.pageSize ?? 25,
-              search: query.search,
-              status: query.status,
-            },
+            query: listParams(
+              {
+                page: query.page ?? 1,
+                pageSize: query.pageSize ?? 25,
+                search: query.search,
+                sort: query.sort,
+                include: "roles",
+                filters: { status: query.status },
+              },
+              USER_SORT_KEYS
+            ),
           },
           userListSchema
+        )
+      );
+    },
+    /** The roles, permissions and every grant for the access grid, in one call. */
+    async matrix() {
+      return required(
+        await client.request(
+          {
+            method: "GET",
+            path: "/admin/permissions",
+            routeTemplate: "/admin/permissions",
+            token,
+            query: { catalog: "matrix" },
+          },
+          accessMatrixSchema
+        )
+      );
+    },
+    /** The roles, pillars and counts the Users screen shows, in one call. */
+    async access() {
+      return required(
+        await client.request(
+          {
+            method: "GET",
+            path: "/admin/users",
+            routeTemplate: "/admin/users",
+            token,
+            query: { catalog: "access" },
+          },
+          accessCatalogSchema
         )
       );
     },
@@ -182,6 +236,7 @@ export function createAdminApi(client: ApiClient, token: string) {
         )
         .then(required);
     },
+    /** Every pipeline with its stages in order, in one call per 100 pipelines. */
     allPipelines() {
       return collect((page) =>
         client
@@ -191,7 +246,7 @@ export function createAdminApi(client: ApiClient, token: string) {
               path: "/admin/pipelines",
               routeTemplate: "/admin/pipelines",
               token,
-              query: { page, pageSize: 100 },
+              query: { page, pageSize: 100, include: "stages" },
             },
             pipelineListSchema
           )
@@ -482,4 +537,6 @@ export const adminApi = {
   userRoles: async () => (await bound()).userRoles(),
   rolePermissions: async () => (await bound()).rolePermissions(),
   pillars: async () => (await bound()).pillars(),
+  access: async () => (await bound()).access(),
+  matrix: async () => (await bound()).matrix(),
 };

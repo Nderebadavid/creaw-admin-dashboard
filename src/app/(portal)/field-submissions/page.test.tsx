@@ -17,41 +17,37 @@ vi.mock("@/lib/auth/session-server", () => ({
     ],
   })),
 }));
+// The API returns only the submissions the signed-in user may see.
 vi.mock("@/features/submissions/api", () => ({
   submissionsApi: {
-    listAll: vi.fn(async () => [
-      {
-        id: 1,
-        title: "Scoped",
-        type: "Case update",
-        pillarId: 1,
-        pillar: "VAWG",
-        captured: "2026-09-27",
-        source: "mobile",
-        status: "Pending review",
-        flag: null,
-      },
-      {
-        id: 2,
-        title: "Outside",
-        type: "Grant update",
-        pillarId: 2,
-        pillar: "WEE",
-        captured: "2026-09-27",
-        source: "mobile",
-        status: "Pending review",
-        flag: null,
-      },
-    ]),
+    list: vi.fn(async () => ({
+      items: [
+        {
+          id: 1,
+          title: "Scoped",
+          type: "Case update",
+          pillarId: 1,
+          pillar: "VAWG",
+          captured: "2026-09-27",
+          source: "mobile",
+          status: "Pending review",
+          flag: null,
+        },
+      ],
+      page: 1,
+      pageSize: 12,
+      totalItems: 1,
+      totalPages: 1,
+      facets: { review_status: { "Pending review": 1 } },
+    })),
   },
 }));
 import FieldSubmissionsPage from "./page";
 
 describe("field submissions route", () => {
-  it("composes scoped review/export and only authorized rows", async () => {
+  it("composes the page the API returned with scoped review and export", async () => {
     const html = renderToStaticMarkup(await FieldSubmissionsPage());
     expect(html).toContain("Scoped");
-    expect(html).not.toContain("Outside");
     expect(html).toContain("Export CSV");
     expect(html).not.toContain("You do not have review permission");
   });

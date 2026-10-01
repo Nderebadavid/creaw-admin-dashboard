@@ -1,4 +1,5 @@
 /** View models shared by the Skilling trainee server code and its client components. */
+import type { PaginatedData } from "@/types/api";
 export const TRAINING_PILLAR_ID = 6;
 
 export const pathways = ["tvet", "apprenticeship", "community_center", "life_skills"] as const;
@@ -115,15 +116,20 @@ export interface TrainingOption {
   label: string;
 }
 
-export interface TrainingWorkspace {
-  trainees: TraineeView[];
-  summary: TrainingSummary;
-  /** Skilling enrollments a placement can be made for; [] when the user can't edit. */
+/** The options the placement form offers, loaded when the form opens. */
+export interface TrainingFormOptions {
+  /** Skilling enrollments a placement can be made for. */
   enrollments: TrainingOption[];
   /** Active training institutions. */
   institutions: TrainingOption[];
-  /** Active trainer providers; [] when the user can't edit or the read fails. */
+  /** Active trainer providers. */
   trainers: TrainingOption[];
+}
+
+/** What the Skilling page renders: page 1 of the trainee register and the API's headline counts. */
+export interface TrainingWorkspace {
+  trainees: PaginatedData<TraineeView>;
+  summary: TrainingSummary;
 }
 
 /** What the signed-in user may do with trainees. */
@@ -134,24 +140,25 @@ export interface TrainingPermissions {
   export: boolean;
 }
 
-const percent = (part: number, whole: number) =>
-  whole === 0 ? null : Math.round((part / whole) * 100);
-
-/** The headline counts over every trainee. */
-export function buildTrainingSummary(trainees: readonly TraineeView[]): TrainingSummary {
-  const completed = trainees.filter((row) => row.status === "completed");
-  const droppedOut = trainees.filter((row) => row.status === "dropped_out").length;
-  const inWork = completed.filter(
-    (row) => row.workStatus !== null && earningStatuses.includes(row.workStatus)
-  ).length;
+/** The headline counts as the summary cards show them, from the API's trainee cards. */
+export function summaryFromCards(cards: {
+  enrolled: number;
+  completed: number;
+  dropped_out: number;
+  completion_rate: number | null;
+  in_work: number;
+  in_work_rate: number | null;
+  recommended: number;
+  accepted_by_wee: number;
+}): TrainingSummary {
   return {
-    enrolled: trainees.length,
-    completed: completed.length,
-    droppedOut,
-    completionRate: percent(completed.length, completed.length + droppedOut),
-    inWork,
-    inWorkRate: percent(inWork, completed.length),
-    recommended: trainees.filter((row) => !["none", "declined"].includes(row.handoff.stage)).length,
-    acceptedByWee: trainees.filter((row) => acceptedStages.includes(row.handoff.stage)).length,
+    enrolled: cards.enrolled,
+    completed: cards.completed,
+    droppedOut: cards.dropped_out,
+    completionRate: cards.completion_rate,
+    inWork: cards.in_work,
+    inWorkRate: cards.in_work_rate,
+    recommended: cards.recommended,
+    acceptedByWee: cards.accepted_by_wee,
   };
 }

@@ -9,11 +9,7 @@ export default async function PermissionsPage() {
   const canManageRoles = hasPermission(session.grants, "ROLE_MANAGE"),
     canManagePermissions = hasPermission(session.grants, "PERMISSION_MANAGE");
   if (!canManageRoles && !canManagePermissions) notFound();
-  const [roles, permissions, grants] = await Promise.all([
-    adminApi.roles(),
-    canManagePermissions ? adminApi.permissions() : [],
-    canManagePermissions ? adminApi.rolePermissions() : [],
-  ]);
+  const { roles, permissions, grants } = await adminApi.matrix();
   return (
     <PermissionsContent
       heading={{

@@ -5,9 +5,15 @@ import { Button } from "@/components/ui/button";
 import { FileDropField } from "@/components/ui/file-drop-field";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
+import { useLoadedOptions } from "@/components/ui/use-loaded-options";
 import { createPillarDomainAction } from "@/features/pillars/actions";
-import { attachCaseFileAction, setCourtStatusAction, updateLegalCaseAction } from "../actions";
-import { courtStatuses, type LegalCaseView, type VawgWorkspace } from "../model";
+import {
+  attachCaseFileAction,
+  loadCaseOptionsAction,
+  setCourtStatusAction,
+  updateLegalCaseAction,
+} from "../actions";
+import { courtStatuses, type LegalCaseView } from "../model";
 import { courtStatusLabel } from "./status";
 
 /** Document types a legal case file holds; stored as document.document_type. */
@@ -26,16 +32,16 @@ export const caseFileCode = (label: string) =>
 /** Edit the court details without placing a masked OB number into the write payload. */
 export function EditCaseDialog({
   legalCase,
-  caseTypes,
   onClose,
   onDone,
 }: {
   legalCase: LegalCaseView | null;
-  caseTypes: VawgWorkspace["caseTypes"];
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  const options = useLoadedOptions(legalCase !== null, loadCaseOptionsAction);
+  const caseTypes = options.data?.caseTypes ?? [];
   // The case's current type stays selectable even when the lookup omits it (deactivated or failed).
   const typeOptions =
     legalCase && !caseTypes.some((type) => type.id === legalCase.caseTypeId)
@@ -70,7 +76,7 @@ export function EditCaseDialog({
       onClose={close}
       title="Edit legal case"
       description={legalCase ? `${legalCase.number} · ${legalCase.survivor}` : undefined}
-      error={submit.error}
+      error={submit.error || options.error}
       className="sm:max-w-[640px]"
     >
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
@@ -286,16 +292,15 @@ export function AttachCaseFileDialog({
 /** The design's "Open legal case": pick the survivor and case type rather than typing ids. */
 export function OpenCaseDialog({
   open,
-  workspace,
   onClose,
   onDone,
 }: {
   open: boolean;
-  workspace: Pick<VawgWorkspace, "caseTypes" | "survivors">;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  const options = useLoadedOptions(open, loadCaseOptionsAction);
   const close = () => {
     submit.clearError();
     onClose();
@@ -319,7 +324,7 @@ export function OpenCaseDialog({
       onClose={close}
       title="Open legal case"
       description="Violence Against Women & Girls"
-      error={submit.error}
+      error={submit.error || options.error}
       className="sm:max-w-[640px]"
     >
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
@@ -327,9 +332,9 @@ export function OpenCaseDialog({
           Survivor (participant)
           <select name="enrollmentId" required defaultValue="" className={fieldClass}>
             <option value="" disabled>
-              Choose a survivor enrolled in VAWG
+              {options.loading ? "Loading survivors…" : "Choose a survivor enrolled in VAWG"}
             </option>
-            {workspace.survivors.map((survivor) => (
+            {(options.data?.survivors ?? []).map((survivor) => (
               <option key={survivor.enrollmentId} value={survivor.enrollmentId}>
                 {survivor.label}
               </option>
@@ -339,7 +344,7 @@ export function OpenCaseDialog({
         <label className="text-sm">
           Case type
           <select name="caseTypeId" required className={fieldClass}>
-            {workspace.caseTypes.map((type) => (
+            {(options.data?.caseTypes ?? []).map((type) => (
               <option key={type.id} value={type.id}>
                 {type.name}
               </option>

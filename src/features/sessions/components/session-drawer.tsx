@@ -23,6 +23,7 @@ import {
   type SessionPermissions,
   type SessionPillar,
   type FacilitatorView,
+  type SessionDetail,
   type SessionView,
 } from "../model";
 
@@ -50,6 +51,8 @@ const iconButton =
 /** A group session as the record panel: overview, attendance, files and history. */
 export function SessionDrawer({
   session,
+  detail,
+  detailLoading,
   pillar,
   can,
   onClose,
@@ -60,6 +63,9 @@ export function SessionDrawer({
   onView,
 }: {
   session: SessionView | null;
+  /** Attendance and files, once loaded. */
+  detail: SessionDetail | null;
+  detailLoading: boolean;
   pillar: SessionPillar;
   can: SessionPermissions;
   onClose: () => void;
@@ -72,6 +78,8 @@ export function SessionDrawer({
   if (!session) return null;
   const look = pillarLook(SESSION_PILLAR_IDS[pillar]);
   const reach = session.communityWide ? "Community-wide" : "Linked participant";
+  const attendees = detail?.attendees ?? [];
+  const documents = detail?.documents ?? [];
   const fields: [string, React.ReactNode][] = [
     ["Activity type", session.activityType],
     ["Topic", session.topicId === null ? `${session.topic} (Other)` : session.topic],
@@ -85,12 +93,12 @@ export function SessionDrawer({
     ...(session.updated !== session.logged
       ? [{ at: session.updated, icon: <Pencil size={15} />, title: "Session edited" }]
       : []),
-    ...session.attendees.map((attendee) => ({
+    ...attendees.map((attendee) => ({
       at: attendee.added,
       icon: <Users size={15} />,
       title: `${attendee.name} added to attendance`,
     })),
-    ...session.documents.map((file) => ({
+    ...documents.map((file) => ({
       at: file.added,
       icon: <FileText size={15} />,
       title: `${file.name} attached`,
@@ -126,7 +134,7 @@ export function SessionDrawer({
         { id: "overview", label: "Overview", content: <FieldGrid fields={fields} /> },
         {
           id: "attendance",
-          label: `Attendance (${session.attendees.length})`,
+          label: `Attendance (${session.attendeeCount})`,
           content: (
             <div className="flex flex-col gap-2.5">
               <SectionTitle note="Attendance normally arrives from the mobile app. Use this list to correct it.">
@@ -138,7 +146,12 @@ export function SessionDrawer({
                   Add attendee
                 </Button>
               </div>
-              {session.attendees.map((attendee) => (
+              {detailLoading && (
+                <p role="status" className="text-[13.5px] text-creaw-faint">
+                  Loading attendance…
+                </p>
+              )}
+              {attendees.map((attendee) => (
                 <div
                   key={attendee.attendanceId}
                   className="flex items-center gap-3 rounded-xl border border-creaw-line bg-white px-3.5 py-3"
@@ -160,7 +173,7 @@ export function SessionDrawer({
                   </button>
                 </div>
               ))}
-              {session.attendees.length === 0 && (
+              {!detailLoading && attendees.length === 0 && (
                 <p className="text-[13.5px] text-creaw-faint">No attendees recorded yet.</p>
               )}
             </div>
@@ -168,10 +181,10 @@ export function SessionDrawer({
         },
         {
           id: "documents",
-          label: `Documents & photos (${session.documents.length})`,
+          label: detailLoading ? "Documents & photos" : `Documents & photos (${documents.length})`,
           content: (
             <div className="flex flex-col gap-2.5">
-              {session.documents.map((file) => (
+              {documents.map((file) => (
                 <DocumentRow
                   key={file.id}
                   name={file.name}
@@ -200,7 +213,7 @@ export function SessionDrawer({
                   }
                 />
               ))}
-              {session.documents.length === 0 && (
+              {!detailLoading && documents.length === 0 && (
                 <p className="text-[13.5px] text-creaw-faint">No files attached yet.</p>
               )}
             </div>

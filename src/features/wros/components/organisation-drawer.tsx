@@ -15,6 +15,7 @@ import { dueDiligenceTone } from "./organisation-register";
 /** An organisation's profile: details, its sub-grant pipeline, and where its assessments live. */
 export function OrganisationDrawer({
   organisation,
+  stages,
   canMove,
   canReveal,
   canAssess,
@@ -23,6 +24,8 @@ export function OrganisationDrawer({
   onAssess,
 }: {
   organisation: OrganisationView | null;
+  /** The pipeline's stages, with when this organisation reached each (once loaded). */
+  stages: readonly OrganisationStage[];
   canMove: boolean;
   canReveal: boolean;
   canAssess: boolean;
@@ -32,8 +35,8 @@ export function OrganisationDrawer({
 }) {
   if (!organisation) return null;
   const look = pillarLook(WRO_PILLAR_ID);
-  const next = organisation.stages[organisation.currentStage + 1];
-  const current = organisation.stages[organisation.currentStage];
+  const next = stages[organisation.currentStage + 1];
+  const current = stages[organisation.currentStage];
   const fields: [string, React.ReactNode][] = [
     ["Organisation", organisation.name],
     ["Legal form", organisation.legalForm],
@@ -102,14 +105,14 @@ export function OrganisationDrawer({
               <SectionTitle
                 note={
                   current
-                    ? `Step ${organisation.currentStage + 1} of ${organisation.stages.length}`
+                    ? `Step ${organisation.currentStage + 1} of ${stages.length}`
                     : "Not started"
                 }
               >
                 {current ? current.name : "Awaiting onboarding"}
               </SectionTitle>
               <ol className="flex flex-col rounded-[14px] border border-creaw-line bg-white p-[18px]">
-                {organisation.stages.map((stage, index) => {
+                {stages.map((stage, index) => {
                   const done = index <= organisation.currentStage;
                   const upNext = index === organisation.currentStage + 1;
                   return (
@@ -120,7 +123,7 @@ export function OrganisationDrawer({
                         >
                           {done ? <Check size={16} /> : <Circle size={10} fill="currentColor" />}
                         </span>
-                        {index < organisation.stages.length - 1 && (
+                        {index < stages.length - 1 && (
                           <span
                             aria-hidden="true"
                             className={`min-h-4 w-0.5 flex-1 ${index < organisation.currentStage ? "bg-[#1F7A4D]" : "bg-creaw-line"}`}
@@ -141,7 +144,7 @@ export function OrganisationDrawer({
                   );
                 })}
               </ol>
-              {!organisation.stages.length && (
+              {!stages.length && (
                 <p className="text-[13.5px] text-creaw-faint">
                   The WRO pillar has no pipeline configured.
                 </p>

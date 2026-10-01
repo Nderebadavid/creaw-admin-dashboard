@@ -40,90 +40,76 @@ const pages: {
   load: () => Promise<Page>;
   params?: object;
   budget: number;
-  migrated: boolean;
 }[] = [
   {
     name: "dashboard",
     load: () => import("@/app/(portal)/dashboard/page"),
     budget: 3,
-    migrated: false,
   },
   {
     name: "participants",
     load: () => import("@/app/(portal)/participants/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "referrals",
     load: () => import("@/app/(portal)/referrals/page"),
     budget: 4,
-    migrated: false,
   },
-  { name: "grants", load: () => import("@/app/(portal)/grants/page"), budget: 4, migrated: false },
+  { name: "grants", load: () => import("@/app/(portal)/grants/page"), budget: 4 },
   {
     name: "grant detail",
     load: () => import("@/app/(portal)/grants/[id]/page"),
     params: { id: "1" },
     budget: 5,
-    migrated: false,
   },
   {
     name: "assessments",
     load: () => import("@/app/(portal)/assessments/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "reporting",
     load: () => import("@/app/(portal)/reporting/page"),
     budget: 4,
-    migrated: true,
   },
-  { name: "audit", load: () => import("@/app/(portal)/audit/page"), budget: 4, migrated: true },
+  { name: "audit", load: () => import("@/app/(portal)/audit/page"), budget: 4 },
   {
     name: "field submissions",
     load: () => import("@/app/(portal)/field-submissions/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "admin users",
     load: () => import("@/app/(portal)/admin/users/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "admin providers",
     load: () => import("@/app/(portal)/admin/providers/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "admin permissions",
     load: () => import("@/app/(portal)/admin/permissions/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "admin pipelines",
     load: () => import("@/app/(portal)/admin/pipelines/page"),
     budget: 4,
-    migrated: false,
   },
   {
     name: "admin lookups",
     load: () => import("@/app/(portal)/admin/lookups/[table]/page"),
     params: { table: "ward" },
     budget: 4,
-    migrated: true,
   },
   ...["vawg", "wee", "srhr", "skilling", "wros", "leadership"].map((pillar) => ({
     name: `pillar ${pillar}`,
     load: () => import("@/app/(portal)/pillars/[pillar]/page"),
     params: { pillar },
     budget: 6,
-    migrated: false,
   })),
 ];
 
@@ -193,8 +179,7 @@ async function countCalls(page: (typeof pages)[number], grow: boolean) {
 
 describe("API calls per screen", () => {
   for (const page of pages) {
-    const test = page.migrated ? it : it.fails;
-    test(`${page.name} stays within ${page.budget} calls at any data size`, async () => {
+    it(`${page.name} stays within ${page.budget} calls at any data size`, async () => {
       const small = await countCalls(page, false);
       const large = await countCalls(page, true);
       expect({ small, large }).toEqual({ small: large, large });

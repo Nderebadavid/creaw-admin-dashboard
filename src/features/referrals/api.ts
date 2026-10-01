@@ -10,6 +10,7 @@ import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
+import { listParams } from "@/lib/api/list";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/permissions";
 import { z } from "zod";
 import { enrollmentDetailSchema, lookupListSchema } from "@/features/participants/schemas";
@@ -18,6 +19,7 @@ import {
   referralDetailSchema,
   referralListSchema,
   referralMutationSchema,
+  referralOriginListSchema,
   type ReferralCreate,
   type ReferralDto,
   type ReferralDestinationCatalog,
@@ -34,8 +36,26 @@ const meSchema = z.object({
     z.null(),
   ]),
 });
+/** The queue's column ids and the API fields they sort by. */
+export const REFERRAL_SORT_KEYS: Record<string, string> = {
+  participant: "participant_name",
+  route: "from_pillar_name,destination_label",
+  reason: "trigger_reason",
+  referredBy: "referred_by_name",
+  date: "created_at",
+  status: "status",
+};
+
+/** An enrollment a referral can be made from. */
+export interface ReferralOriginOption {
+  enrollmentId: number;
+  pillarId: number;
+  participant: string;
+  category: string;
+}
+
 export interface ReferralQuery {
-  /** A displayed column to sort by; applied by the list action, not the API. */
+  /** A displayed column to sort by, mapped to an API field by the list. */
   sort?: SortState;
   page?: number;
   pageSize?: number;
@@ -98,13 +118,16 @@ export function createReferralsApi(client: ApiClient, token: string) {
     });
     return rows.map((row) => ({ id: row.id, name: row.name }));
   }
-  async function enrich(rows: ReferralDto[]): Promise<ReferralView[]> {
-    const [allGrants, allPillars] = await Promise.all([grants(), pillars()]);
-    const pillarNames = new Map(allPillars.map((row) => [row.id, row.name]));
+  /**
+   * Rows as the queue shows them. The API names each pillar, destination and participant;
+   * `known` supplies the caller's grants when the caller already has them, saving a read.
+   */
+  async function enrich(rows: ReferralDto[], known?: EffectiveGrant[]): Promise<ReferralView[]> {
+    const allGrants = known ?? (await grants());
     return Promise.all(
       rows.map(async (row) => {
         const participantId = row.participant_summary?.id ?? null;
-        const name = row.participant_summary?.name ?? `Participant #${participantId ?? "unknown"}`;
+        const name = row.participant_summary?.name ?? "Participant record";
         const canRespond =
           row.status === "NEW" &&
           hasPermission(allGrants, "REFERRAL_ACCEPT", { pillarId: row.to_pillar_id });
@@ -117,13 +140,11 @@ export function createReferralsApi(client: ApiClient, token: string) {
           participant: name,
           fromPillarId: row.from_pillar_id,
           toPillarId: row.to_pillar_id,
-          fromPillar: pillarNames.get(row.from_pillar_id) ?? `Pillar #${row.from_pillar_id}`,
-          toPillar: pillarNames.get(row.to_pillar_id) ?? `Pillar #${row.to_pillar_id}`,
+          fromPillar: row.from_pillar_name ?? "Pillar",
+          toPillar: row.to_pillar_name ?? "Pillar",
           external: row.to_partner_institution_id !== null,
           destinationName:
-            row.destination_name ??
-            pillarNames.get(row.to_pillar_id) ??
-            `Pillar #${row.to_pillar_id}`,
+            row.destination_name ?? row.destination_label ?? row.to_pillar_name ?? "Pillar",
           reason: row.trigger_reason ?? "No reason recorded",
           referredBy: row.referred_by_name,
           date: row.created_at,
@@ -179,7 +200,11 @@ export function createReferralsApi(client: ApiClient, token: string) {
       );
       return response.success ? response.data : null;
     },
-    async list(query: ReferralQuery = {}): Promise<ReferralPage> {
+    /**
+     * One page of referrals; the API filters, searches and sorts. Pass the caller's `known`
+     * grants (from the session) to avoid reading them again.
+     */
+    async list(query: ReferralQuery = {}, known?: EffectiveGrant[]): Promise<ReferralPage> {
       const response = await client.request(
         {
           method: "GET",
@@ -187,17 +212,43 @@ export function createReferralsApi(client: ApiClient, token: string) {
           routeTemplate: "/referrals",
           token,
           query: {
-            page: query.page ?? 1,
-            pageSize: query.pageSize ?? 25,
-            pillarId: query.pillarId,
-            status: query.status,
-            search: query.search,
+            ...listParams(
+              {
+                page: query.page ?? 1,
+                pageSize: query.pageSize ?? 25,
+                search: query.search,
+                sort: query.sort,
+                filters: { status: query.status },
+              },
+              REFERRAL_SORT_KEYS
+            ),
+            ...(query.pillarId ? { pillarId: query.pillarId } : {}),
           },
         },
         referralListSchema
       );
       if (!response.success || !response.data) throw new Error(response.message);
-      return { ...response.data, items: await enrich(response.data.items) };
+      return { ...response.data, items: await enrich(response.data.items, known) };
+    },
+    /** Enrollments the caller may refer from, for the New referral dialog; searchable. */
+    async origins(search?: string): Promise<ReferralOriginOption[]> {
+      const response = await client.request(
+        {
+          method: "GET",
+          path: "/referrals",
+          routeTemplate: "/referrals",
+          token,
+          query: { catalog: "origins", ...(search?.trim() ? { search: search.trim() } : {}) },
+        },
+        referralOriginListSchema
+      );
+      if (!response.success || !response.data) throw new Error(response.message);
+      return response.data.items.map((row) => ({
+        enrollmentId: row.enrollment_id,
+        pillarId: row.pillar_id,
+        participant: row.participant,
+        category: row.category,
+      }));
     },
     /** Referrals in the caller's scope with this status; skips the per-row permission work. */
     async countByStatus(status: string): Promise<number> {
@@ -214,9 +265,9 @@ export function createReferralsApi(client: ApiClient, token: string) {
       if (!response.success || !response.data) throw new Error(response.message);
       return response.data.totalItems;
     },
-    async get(id: number): Promise<ReferralView | null> {
+    async get(id: number, known?: EffectiveGrant[]): Promise<ReferralView | null> {
       const row = await this.getRaw(id);
-      return row ? (await enrich([row]))[0] : null;
+      return row ? (await enrich([row], known))[0] : null;
     },
     create(input: ReferralCreate) {
       return client.request(
@@ -277,8 +328,8 @@ export function createReferralsApi(client: ApiClient, token: string) {
 }
 
 export const referralsApi = {
-  async list(query: ReferralQuery = {}) {
-    return (await withSessionApi(createReferralsApi)).list(query);
+  async list(query: ReferralQuery = {}, known?: EffectiveGrant[]) {
+    return (await withSessionApi(createReferralsApi)).list(query, known);
   },
   async countByStatus(status: string) {
     return (await withSessionApi(createReferralsApi)).countByStatus(status);

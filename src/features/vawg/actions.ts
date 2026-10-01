@@ -17,6 +17,7 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { titleCase } from "@/lib/format";
+import { cleanListQuery, type ListQuery } from "@/lib/api/list";
 import { caseNumber, createVawgApi } from "./api";
 import { counsellingTypes, courtStatuses, VAWG_PILLAR_ID } from "./model";
 
@@ -260,5 +261,113 @@ export async function revealCounsellingNotesAction(sessionId: number): Promise<R
     return { success: true, value: result.value };
   } catch {
     return { success: false, error: "Could not reveal the notes" };
+  }
+}
+
+/** One page of legal cases for the case register; the API filters, searches and sorts. */
+export async function listCasesAction(query: ListQuery) {
+  const session = await requireSession();
+  if (
+    !hasPermission(session.grants, "CASE_VIEW", scope) ||
+    !hasPermission(session.grants, "PARTICIPANT_VIEW", scope)
+  )
+    return { success: false, message: "You cannot view legal cases.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (
+        await api()
+      ).listCases(
+        cleanListQuery(query, {
+          sort: ["case", "type", "court", "officer", "nextDate", "status"],
+          filters: ["court_status"],
+        })
+      ),
+    };
+  } catch {
+    return { success: false, message: "Could not load the cases.", data: null };
+  }
+}
+
+/** A case's counselling, files and missing forms, for its drawer. */
+export async function loadCaseDetailAction(caseId: number) {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(caseId) || caseId < 1)
+    return { success: false, message: "Invalid case.", data: null };
+  if (!hasPermission(session.grants, "CASE_VIEW", scope))
+    return { success: false, message: "You cannot view legal cases.", data: null };
+  try {
+    const detail = await (await api()).caseDetail(caseId);
+    return detail
+      ? { success: true, message: "OK", data: detail }
+      : { success: false, message: "Case not found.", data: null };
+  } catch {
+    return { success: false, message: "Could not load the case.", data: null };
+  }
+}
+
+/** One page of survivors with their counselling summary. */
+export async function listSurvivorsAction(query: ListQuery) {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "COUNSELLING_VIEW", scope))
+    return { success: false, message: "You cannot view counselling.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (
+        await api()
+      ).listSurvivors(
+        cleanListQuery(query, {
+          sort: ["survivor", "sessions", "last", "counsellor", "case"],
+          filters: ["has_legal_case"],
+        })
+      ),
+    };
+  } catch {
+    return { success: false, message: "Could not load the counselling register.", data: null };
+  }
+}
+
+/** A survivor's counselling sessions, for their drawer. */
+export async function loadSurvivorSessionsAction(enrollmentId: number) {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(enrollmentId) || enrollmentId < 1)
+    return { success: false, message: "Invalid survivor.", data: null };
+  if (!hasPermission(session.grants, "COUNSELLING_VIEW", scope))
+    return { success: false, message: "You cannot view counselling.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (await api()).survivorSessions(enrollmentId),
+    };
+  } catch {
+    return { success: false, message: "Could not load the sessions.", data: null };
+  }
+}
+
+/** The survivors and case types the case dialogs offer, loaded when a dialog opens. */
+export async function loadCaseOptionsAction() {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "CASE_EDIT", scope))
+    return { success: false, message: "You cannot edit legal cases.", data: null };
+  try {
+    return { success: true, message: "OK", data: await (await api()).caseOptions() };
+  } catch {
+    return { success: false, message: "Could not load the options.", data: null };
+  }
+}
+
+/** The survivors and counsellors the counselling dialog offers, loaded when it opens. */
+export async function loadCounsellingOptionsAction() {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "COUNSELLING_LOG", scope))
+    return { success: false, message: "You cannot log counselling sessions.", data: null };
+  try {
+    return { success: true, message: "OK", data: await (await api()).counsellingOptions() };
+  } catch {
+    return { success: false, message: "Could not load the options.", data: null };
   }
 }

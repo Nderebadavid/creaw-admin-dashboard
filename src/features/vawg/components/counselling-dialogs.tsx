@@ -6,19 +6,18 @@ import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
-import { logCounsellingAction, updateCounsellingAction } from "../actions";
+import { useLoadedOptions } from "@/components/ui/use-loaded-options";
+import {
+  loadCounsellingOptionsAction,
+  logCounsellingAction,
+  updateCounsellingAction,
+} from "../actions";
 import {
   counsellingTypeLabels,
   counsellingTypes,
   type CounsellingSessionView,
   type CounsellingType,
-  type VawgWorkspace,
 } from "../model";
-
-type CounsellingWorkspace = Pick<
-  VawgWorkspace,
-  "survivors" | "counselling" | "counsellors" | "currentUserId"
->;
 
 /** "staff:6" or "provider:1" from the counsellor select. */
 function parseCounsellor(value: string) {
@@ -40,14 +39,15 @@ function localToday() {
  */
 export function CounsellingFormDialog({
   open,
-  workspace,
+  currentUserId,
   enrollmentId,
   session,
   onClose,
   onDone,
 }: {
   open: boolean;
-  workspace: CounsellingWorkspace;
+  /** The signed-in user, so a staff counsellor is the default counsellor. */
+  currentUserId: number | null;
   /** The survivor, when the dialog opens from their record or case. */
   enrollmentId?: number;
   session: CounsellingSessionView | null;
@@ -56,7 +56,9 @@ export function CounsellingFormDialog({
 }) {
   const submit = useActionSubmit(onDone);
   const [survivor, setSurvivor] = useState(String(session?.enrollmentId ?? enrollmentId ?? ""));
-  const { counsellors, currentUserId } = workspace;
+  const options = useLoadedOptions(open, loadCounsellingOptionsAction);
+  const counsellors = options.data?.counsellors ?? [];
+  const survivors = options.data?.survivors ?? [];
   const staff = counsellors.filter((item) => item.kind === "staff");
   const providers = counsellors.filter((item) => item.kind === "provider");
   const ref = session?.counsellorRef ?? null;
@@ -70,10 +72,10 @@ export function CounsellingFormDialog({
     : !session && meIsCounsellor
       ? `staff:${currentUserId}`
       : "";
-  const sessions =
-    workspace.counselling?.find((row) => String(row.enrollmentId) === survivor)?.sessions ?? [];
-  const nextNumber = Math.max(0, ...sessions.map((row) => row.number)) + 1;
-  const name = workspace.survivors.find((row) => String(row.enrollmentId) === survivor)?.label;
+  const chosen = survivors.find((row) => String(row.enrollmentId) === survivor);
+  const sessionCount = chosen?.sessionCount ?? 0;
+  const nextNumber = sessionCount + 1;
+  const name = chosen?.label;
   const close = () => {
     submit.clearError();
     onClose();
@@ -103,10 +105,14 @@ export function CounsellingFormDialog({
       description={
         session ? name : "Violence Against Women & Girls · notes are confidential and masked"
       }
-      error={submit.error}
+      error={submit.error || options.error}
       className="sm:max-w-[640px]"
     >
-      <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
+      <form
+        key={options.data ? "loaded" : "loading"}
+        className="grid gap-4 sm:grid-cols-2"
+        onSubmit={send}
+      >
         {!session && (
           <label className="text-sm sm:col-span-2">
             Survivor
@@ -117,9 +123,9 @@ export function CounsellingFormDialog({
               className={fieldClass}
             >
               <option value="" disabled>
-                Choose a survivor enrolled in VAWG
+                {options.loading ? "Loading survivors…" : "Choose a survivor enrolled in VAWG"}
               </option>
-              {workspace.survivors.map((row) => (
+              {survivors.map((row) => (
                 <option key={row.enrollmentId} value={row.enrollmentId}>
                   {row.label}
                 </option>
@@ -146,11 +152,12 @@ export function CounsellingFormDialog({
         <label className="text-sm">
           Session type
           <select
+            key={survivor}
             name="sessionType"
             required
             defaultValue={
               session?.type ??
-              ((sessions.length === 0 ? "psychological_first_aid" : "follow_up") as CounsellingType)
+              ((sessionCount === 0 ? "psychological_first_aid" : "follow_up") as CounsellingType)
             }
             className={fieldClass}
           >
@@ -225,7 +232,7 @@ export function CounsellingFormDialog({
 }
 
 /** The VAWG heading's "Log counselling session" button. */
-export function LogCounsellingButton({ workspace }: { workspace: CounsellingWorkspace }) {
+export function LogCounsellingButton({ currentUserId }: { currentUserId: number | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
@@ -237,7 +244,7 @@ export function LogCounsellingButton({ workspace }: { workspace: CounsellingWork
       <CounsellingFormDialog
         key={open ? "open" : "closed"}
         open={open}
-        workspace={workspace}
+        currentUserId={currentUserId}
         session={null}
         onClose={() => setOpen(false)}
         onDone={() => {

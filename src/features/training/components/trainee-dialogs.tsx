@@ -6,8 +6,10 @@ import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
+import { useLoadedOptions } from "@/components/ui/use-loaded-options";
 import {
   enrolTraineeAction,
+  loadTraineeOptionsAction,
   recordOutcomeAction,
   setRecommendationAction,
   updateTraineeAction,
@@ -24,7 +26,6 @@ import {
   type TraineeView,
   type TrainingOption,
   type TrainingStatus,
-  type TrainingWorkspace,
   type WorkStatus,
 } from "../model";
 
@@ -42,25 +43,24 @@ function withCurrent(options: TrainingOption[], id: number | null, label: string
 /** Enrol a Skilling participant on a training placement, or edit a placement. */
 export function TraineeFormDialog({
   open,
-  workspace,
   trainee,
   onClose,
   onDone,
 }: {
   open: boolean;
-  workspace: Pick<TrainingWorkspace, "enrollments" | "institutions" | "trainers">;
   trainee: TraineeView | null;
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  const options = useLoadedOptions(open, loadTraineeOptionsAction);
   const institutions = withCurrent(
-    workspace.institutions,
+    options.data?.institutions ?? [],
     trainee?.institutionId ?? null,
     trainee?.institution ?? null
   );
   const trainers = withCurrent(
-    workspace.trainers,
+    options.data?.trainers ?? [],
     trainee?.trainerId ?? null,
     trainee?.trainer ?? null
   );
@@ -92,20 +92,26 @@ export function TraineeFormDialog({
       onClose={close}
       title={trainee ? "Edit placement" : "Enrol trainee"}
       description={describe(trainee) ?? "Place a Skilling participant on a training pathway"}
-      error={submit.error}
+      error={submit.error || options.error}
       className="sm:max-w-[640px]"
     >
-      <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
+      <form
+        key={options.data ? "loaded" : "loading"}
+        className="grid gap-4 sm:grid-cols-2"
+        onSubmit={send}
+      >
         {!trainee && (
           <label className="text-sm sm:col-span-2">
             Participant
             <select name="enrollmentId" required defaultValue="" className={fieldClass}>
               <option value="" disabled>
-                {workspace.enrollments.length
-                  ? "Choose a Skilling participant"
-                  : "No Skilling participants available"}
+                {options.loading
+                  ? "Loading participants…"
+                  : options.data?.enrollments.length
+                    ? "Choose a Skilling participant"
+                    : "No Skilling participants available"}
               </option>
-              {workspace.enrollments.map((item) => (
+              {(options.data?.enrollments ?? []).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
@@ -189,7 +195,7 @@ export function TraineeFormDialog({
 }
 
 /** The page heading's "Enrol trainee" button. */
-export function EnrolTraineeButton({ workspace }: { workspace: TrainingWorkspace }) {
+export function EnrolTraineeButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
@@ -201,7 +207,6 @@ export function EnrolTraineeButton({ workspace }: { workspace: TrainingWorkspace
       <TraineeFormDialog
         key={open ? "open" : "closed"}
         open={open}
-        workspace={workspace}
         trainee={null}
         onClose={() => setOpen(false)}
         onDone={() => {

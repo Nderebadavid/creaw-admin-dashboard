@@ -37,8 +37,11 @@ export function CaseDrawer({
   onAttach,
   onView,
   onCounsel,
+  detailLoading = false,
 }: {
   legalCase: LegalCaseView | null;
+  /** True while the case's counselling and files are loading. */
+  detailLoading?: boolean;
   can: { edit: boolean; attach: boolean; download: boolean; reveal: boolean; counsel?: boolean };
   onClose: () => void;
   /** Opens the counselling log for this case's survivor; omitted when not offered. */
@@ -176,8 +179,12 @@ export function CaseDrawer({
         },
         {
           id: "documents",
-          label: `Documents & photos (${fileCount})`,
-          content: (
+          label: detailLoading ? "Documents & photos" : `Documents & photos (${fileCount})`,
+          content: detailLoading ? (
+            <p role="status" className="text-[13.5px] text-creaw-faint">
+              Loading case files…
+            </p>
+          ) : (
             <div className="flex flex-col gap-2.5">
               <SectionTitle note={`${legalCase.documents.length} of ${fileCount} attached`}>
                 Documents

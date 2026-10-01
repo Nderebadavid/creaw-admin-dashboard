@@ -137,3 +137,20 @@ export async function revealProviderContactAction(
     return { success: false, error: "Could not reveal this field" };
   }
 }
+
+/** A provider's recent linked work, for its drawer. */
+export async function loadProviderWorkloadAction(providerId: number) {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(providerId) || providerId < 1)
+    return { success: false, message: "Invalid provider.", data: null };
+  if (!canManage(session.grants))
+    return { success: false, message: "You cannot manage providers.", data: null };
+  try {
+    const workload = await (await api()).workload(providerId);
+    return workload
+      ? { success: true, message: "OK", data: workload }
+      : { success: false, message: "Provider not found.", data: null };
+  } catch {
+    return { success: false, message: "Could not load the linked work.", data: null };
+  }
+}

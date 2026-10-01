@@ -11,7 +11,9 @@ import {
   setRecommendationAction,
   updateTraineeAction,
 } from "./actions";
-import { trainingApi } from "./api";
+import { createTrainingApi, trainingApi } from "./api";
+import { createPillarsApi } from "@/features/pillars/api";
+import { createPortalApiClient } from "@/lib/api/portal-client";
 import { listGrantRecommendationsAction } from "@/features/grants/actions";
 import { respondReferralAction } from "@/features/referrals/actions";
 
@@ -36,10 +38,15 @@ beforeEach(() => {
 });
 
 describe("trainee workspace", () => {
+  /** The pillar's trainee cards, read from the pillar summary as the page does. */
+  const cards = async () =>
+    (await createPillarsApi(createPortalApiClient(), issueMockToken(SKILLING)).get("skilling"))
+      .cards.trainees!;
+
   it("names trainees and sums completion, work and grant counts", async () => {
-    const workspace = await trainingApi.workspace({ canEdit: true });
-    expect(workspace.trainees).toHaveLength(5);
-    expect(workspace.trainees.every((row) => !/#\d/.test(row.name))).toBe(true);
+    const workspace = await trainingApi.workspace(await cards());
+    expect(workspace.trainees.items).toHaveLength(5);
+    expect(workspace.trainees.items.every((row) => !/#\d/.test(row.name))).toBe(true);
     expect(workspace.summary).toMatchObject({
       enrolled: 5,
       completed: 3,
@@ -50,22 +57,40 @@ describe("trainee workspace", () => {
       recommended: 2,
       acceptedByWee: 1,
     });
-    const tailoring = workspace.trainees.find((row) => row.course === "Tailoring & design")!;
+    const tailoring = workspace.trainees.items.find((row) => row.course === "Tailoring & design")!;
     expect(tailoring).toMatchObject({
       institution: "Mathare Skills Centre",
       trainer: "James Otieno",
       handoff: { stage: "application_filed" },
     });
     expect(tailoring.salary).toContain("•");
-    expect(workspace.trainers).toEqual([{ id: 3, label: expect.stringMatching(/^James Otieno/) }]);
-    expect(workspace.enrollments.length).toBeGreaterThan(0);
-    expect(workspace.institutions.some((row) => row.label === "Mathare Skills Centre")).toBe(true);
   });
 
-  it("leaves out the form options for users who cannot edit", async () => {
-    const workspace = await trainingApi.workspace();
-    expect(workspace.enrollments).toEqual([]);
-    expect(workspace.trainers).toEqual([]);
+  it("pages, filters and sorts trainees on the server", async () => {
+    const api = createTrainingApi(createPortalApiClient(), issueMockToken(SKILLING));
+    const completed = await api.listTrainees({ filters: { training_status: "completed" } });
+    expect(completed.items.every((row) => row.status === "completed")).toBe(true);
+    expect(completed.totalItems).toBe(3);
+    const tvet = await api.listTrainees({ filters: { pathway: "tvet" } });
+    expect(tvet.items.map((row) => row.course)).toEqual(["Electrical installation"]);
+    expect((await api.listTrainees({ search: "catering" })).items).toHaveLength(1);
+    const byName = await api.listTrainees({ sort: { by: "trainee", order: "asc" } });
+    const names = byName.items.map((row) => row.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+    expect((await api.listTrainees({ page: 1, pageSize: 2 })).items).toHaveLength(2);
+  });
+
+  it("loads the placement form's options in one call, for trainee editors", async () => {
+    const options = await createTrainingApi(
+      createPortalApiClient(),
+      issueMockToken(SKILLING)
+    ).formOptions();
+    expect(options.trainers).toEqual([{ id: 3, label: expect.stringMatching(/^James Otieno/) }]);
+    expect(options.enrollments.length).toBeGreaterThan(0);
+    expect(options.institutions.some((row) => row.label === "Mathare Skills Centre")).toBe(true);
+    await expect(
+      createTrainingApi(createPortalApiClient(), issueMockToken(OUTSIDER)).formOptions()
+    ).rejects.toThrow();
   });
 });
 

@@ -5,18 +5,45 @@ import { createPortalApiClient } from "@/lib/api/portal-client";
 import { issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import { getMockStore } from "@/lib/mock-api/store";
 import { z } from "zod";
-import { filterSubmissionRows } from "./filter";
 
 beforeEach(() => resetMockStore());
 
 describe("submission adapter", () => {
+  it("names the pillar, stage, place and photos on each row, so a list is one call", async () => {
+    const client = createPortalApiClient();
+    const calls: string[] = [];
+    const real = client.request.bind(client);
+    vi.spyOn(client, "request").mockImplementation(((
+      req: { routeTemplate: string },
+      schema: never
+    ) => {
+      calls.push(req.routeTemplate);
+      return real(req as never, schema);
+    }) as never);
+    const page = await createSubmissionsApi(client, issueMockToken(1)).list({ pageSize: 100 });
+    expect(calls).toEqual(["/field-submissions"]);
+    const row = page.items.find((item) => (item.photos?.length ?? 0) > 0)!;
+    expect(row.pillar).not.toMatch(/#\d/);
+    expect(row.type).not.toBe("");
+    expect(row.place).toMatch(/·/);
+  });
+  it("filters by review status and newest first", async () => {
+    const api = createSubmissionsApi(createPortalApiClient(), issueMockToken(1));
+    const flagged = await api.list({ status: "Flagged", pageSize: 100 });
+    expect(flagged.items.length).toBeGreaterThan(0);
+    expect(flagged.items.every((row) => row.status === "Flagged")).toBe(true);
+    // The tab counts cover every status over the same search, not just the filtered one.
+    expect(Object.keys(flagged.facets!.review_status).length).toBeGreaterThan(1);
+    const dates = (await api.list({ pageSize: 100 })).items.map((row) => row.captured);
+    expect(dates).toEqual([...dates].sort().reverse());
+  });
   it("does not expose free-text flagged notes in a list", async () => {
     const rows = await createSubmissionsApi(createPortalApiClient(), issueMockToken(1)).list();
     const flagged = rows.items.find((row) => row.status === "Flagged")!;
     expect(flagged.flag).toBe("Requires follow-up");
     expect(flagged.flag).not.toContain("Sauti ya Mama");
   });
-  it("returns every authorized event and resolves a late enrollment by id", async () => {
+  it("pages the authorized events on the server and resolves a late enrollment by id", async () => {
     const store = getMockStore();
     const enrollment = store.enrollment.find((row) => row.pillar_id === 1)!;
     const event = store.participant_stage_event.find((row) => row.enrollment_id === enrollment.id)!;
@@ -30,8 +57,10 @@ describe("submission adapter", () => {
       });
     }
     const api = createSubmissionsApi(createPortalApiClient(), issueMockToken(1));
-    expect((await api.listAll()).some((row) => row.id === 1000)).toBe(true);
-    expect((await api.list({ page: 5, pageSize: 25 })).totalItems).toBeGreaterThan(100);
+    const fourth = await api.list({ page: 4, pageSize: 25 });
+    expect(fourth.totalItems).toBeGreaterThan(100);
+    expect(fourth.items).toHaveLength(25);
+    expect(fourth.facets?.review_status).toBeDefined();
     expect(await api.get(1109)).toMatchObject({
       id: 1109,
       pillarId: 1,
@@ -48,8 +77,9 @@ describe("submission adapter", () => {
     getMockStore().enrollment.find(
       (row) => row.id === organisationEvent.enrollment_id
     )!.entry_category = "Zawadi Mwende";
-    const list = await createSubmissionsApi(client, token).list();
-    const visible = filterSubmissionRows(list.items, { status: "All", search: "organisations" });
+    const visible = (
+      await createSubmissionsApi(client, token).list({ search: "organisations", pageSize: 100 })
+    ).items;
     const csv = await client.request(
       {
         method: "GET",
@@ -75,8 +105,13 @@ describe("submission adapter", () => {
   it("keeps scoped export and category search aligned with the visible queue", async () => {
     const token = issueMockToken(5);
     const client = createPortalApiClient();
-    const list = await createSubmissionsApi(client, token).listAll();
-    const visible = filterSubmissionRows(list, { status: "Pending review", search: "legal aid" });
+    const visible = (
+      await createSubmissionsApi(client, token).list({
+        status: "Pending review",
+        search: "legal aid",
+        pageSize: 100,
+      })
+    ).items;
     const csv = await client.request(
       {
         method: "GET",
@@ -103,7 +138,9 @@ describe("submission adapter", () => {
 
   it("returns the photos captured with a submission and audits opening one", async () => {
     const api = createSubmissionsApi(createPortalApiClient(), issueMockToken(1));
-    const withPhotos = (await api.listAll()).find((row) => (row.photos?.length ?? 0) > 1)!;
+    const withPhotos = (await api.list({ pageSize: 100 })).items.find(
+      (row) => (row.photos?.length ?? 0) > 1
+    )!;
     expect(withPhotos.photos![0].name).toBeTruthy();
     const opened = await api.viewDocument(withPhotos.photos![0].id);
     expect(opened.success).toBe(true);

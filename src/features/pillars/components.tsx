@@ -5,7 +5,7 @@ import { pillarLookBySlug } from "@/components/portal/pillars";
 import { formatDayMonth } from "@/lib/format";
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import type { PillarRecord, PillarView } from "./api";
+import type { PillarView } from "./api";
 import type { PillarCode } from "./schemas";
 import type { SubmissionRow } from "@/features/submissions/api";
 import { PillarDomainTable } from "./domain-table";
@@ -35,7 +35,7 @@ export function PillarContent({
   actions,
   domainActions,
   availableCodes,
-  rowActions,
+  canEditRecords = false,
   submissions = [],
   register,
   workspace,
@@ -51,7 +51,8 @@ export function PillarContent({
   actions?: React.ReactNode;
   domainActions?: React.ReactNode;
   availableCodes?: readonly PillarCode[];
-  rowActions?: (row: PillarRecord) => React.ReactNode;
+  /** Whether each programme record gets an Edit control. */
+  canEditRecords?: boolean;
   submissions?: readonly SubmissionRow[];
   /** A dedicated register shown in place of the generic domain table, e.g. WRO organisations. */
   register?: React.ReactNode;
@@ -64,11 +65,11 @@ export function PillarContent({
   /** The heading's buttons, in place of the create actions. */
   headingActions?: React.ReactNode;
 }) {
-  const reached = pillar.records.length;
+  const reached = pillar.recordCount;
   const look = pillarLookBySlug(pillar.code);
   const Icon = look?.icon;
   const percent = pillar.target > 0 ? Math.round((reached / pillar.target) * 100) : 0;
-  const active = pillar.records.filter((row) => row.status === "ACTIVE").length;
+  const active = pillar.activeCount;
   // The register's own create action leads; enrolling a participant sits beside it.
   const defaultActions = (
     <>
@@ -259,6 +260,7 @@ export function PillarContent({
       {register}
       {!register && showDomainTable && pillar.domain && (
         <PillarDomainTable
+          code={pillar.code}
           domain={pillar.domain}
           actions={heading ? undefined : domainActions}
           recordKind={recordKinds[pillar.code]}
@@ -270,13 +272,17 @@ export function PillarContent({
         />
       )}
       <PillarRecordsTable
-        records={pillar.records}
+        code={pillar.code}
+        initial={{
+          items: pillar.records,
+          page: 1,
+          pageSize: 25,
+          totalItems: pillar.recordCount,
+          totalPages: Math.max(1, Math.ceil(pillar.recordCount / 25)),
+        }}
         label={`${pillar.name} programme records`}
         headerActions={!heading && canCreate ? actions : undefined}
-        // Sorting needs browser state, so each row's controls are rendered here and handed over.
-        actions={
-          rowActions && Object.fromEntries(pillar.records.map((row) => [row.id, rowActions(row)]))
-        }
+        canEdit={canEditRecords}
       />
     </div>
   );
