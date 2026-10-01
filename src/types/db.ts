@@ -250,6 +250,8 @@ export interface Referral extends StandardColumns {
   to_partner_institution_id: number | null;
   trigger_reason: string | null;
   notes: string | null;
+  /** Proposed addition: the trainee record whose grant recommendation created this referral. */
+  source_training_enrollment_id: number | null;
 }
 
 export interface LegalCase extends StandardColumns {

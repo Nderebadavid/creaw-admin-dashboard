@@ -17,6 +17,7 @@ import {
 import { signoffActors, signoffHistory } from "../reporting";
 import { makeRow } from "../rows";
 import { tableDefinitions } from "../schema";
+import { TRAINING_DERIVED_COLUMNS, trainingRead } from "../training";
 import { filterSubmissionRows } from "@/features/submissions/filter";
 import { type ApiEnvelope, type PaginatedData } from "@/types/api";
 import type { MockStore, TableName } from "@/types/db";
@@ -47,7 +48,7 @@ const providerName = (store: MockStore, id: unknown) =>
 /** Derived display-name columns per table; never stored, so writes naming them are rejected. */
 const DERIVED_NAME_COLUMNS: Partial<Record<TableName, string[]>> = {
   activity_session: ["facilitator_name", "facilitator_kind"],
-  training_enrollment: ["trainer_name"],
+  training_enrollment: ["trainer_name", ...TRAINING_DERIVED_COLUMNS],
   counselling_session: ["counsellor_name"],
   legal_case: ["advocate_name"],
 };
@@ -81,6 +82,8 @@ function withNames(store: MockStore, table: TableName, row: Row): Row {
 function presentRow(store: MockStore, table: TableName, row: Row): Row {
   if (table === "referral") return referralRead(store, row);
   if (table === "enrollment") return enrollmentRead(store, row);
+  if (table === "training_enrollment")
+    return trainingRead(store, withNames(store, table, masked(table, row)));
   return withNames(store, table, masked(table, row));
 }
 

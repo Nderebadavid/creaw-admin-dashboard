@@ -617,7 +617,18 @@ export function createSeed(): MockStore {
   );
   store.counselling_session[0].counsellor_provider_id = 1;
   store.legal_case[0].advocate_provider_id = 2;
-  store.training_enrollment[0].trainer_provider_id = 3;
+  Object.assign(store.training_enrollment[0], {
+    trainer_provider_id: 3,
+    current_work_status: "self_employed",
+    workstation: "Tailoring workshop, Mathare",
+    monthly_salary: 18000,
+  });
+  // The Skilling → WEE referral is the one this trainee's grant recommendation created.
+  const skillingReferral = store.referral.find(
+    (row) => row.from_pillar_id === 6 && row.to_pillar_id === 2
+  );
+  if (skillingReferral)
+    skillingReferral.source_training_enrollment_id = store.training_enrollment[0].id;
   Object.assign(
     store.activity_session.find((row) => row.topic === "Facility referral day")!,
     { facilitator_user_id: null, facilitator_provider_id: 1 }
@@ -800,5 +811,74 @@ export function createSeed(): MockStore {
       file_url: `mock://documents/legal_case/${owner_id}/${index + 1}.pdf`,
     })
   );
+  seedTrainees(add, store);
   return store;
+}
+
+/**
+ * More Skilling trainees with varied outcomes: an employed TVET graduate, a drop-out,
+ * and a graduate whose grant recommendation is waiting for WEE.
+ */
+function seedTrainees(
+  add: <K extends TableName>(table: K, input: Partial<DbTables[K]>) => DbTables[K],
+  store: MockStore
+) {
+  const enrol = (participantId: number, category: string) =>
+    add("enrollment", { participant_id: participantId, pillar_id: 6, entry_category: category });
+  add("training_enrollment", {
+    enrollment_id: enrol(5, "Electrical installation").id,
+    pathway: "tvet",
+    partner_institution_id: 1,
+    course_name: "Electrical installation",
+    training_status: "completed",
+    start_date: "2026-01-12",
+    completion_date: "2026-07-30",
+    current_work_status: "employed",
+    workstation: "Solar installer, Eldoret",
+    monthly_salary: 24000,
+  });
+  add("training_enrollment", {
+    enrollment_id: enrol(8, "Hairdressing & beauty").id,
+    pathway: "apprenticeship",
+    course_name: "Hairdressing & beauty",
+    training_status: "dropped_out",
+    start_date: "2026-02-01",
+    completion_date: "2026-05-15",
+    current_work_status: "seeking_work",
+  });
+  const catering = add("training_enrollment", {
+    enrollment_id: enrol(1, "Catering").id,
+    pathway: "community_center",
+    partner_institution_id: 7,
+    course_name: "Catering & pastry",
+    training_status: "completed",
+    start_date: "2026-03-02",
+    completion_date: "2026-08-28",
+    current_work_status: "self_employed",
+    workstation: "Food kiosk, Kibera",
+    recommended_for_grant: true,
+  });
+  const referral = add("referral", {
+    enrollment_id: catering.enrollment_id,
+    from_pillar_id: 6,
+    to_pillar_id: 2,
+    to_project_id: store.project.find((row) => row.pillar_id === 2)?.id ?? null,
+    trigger_reason:
+      "Recommended for a business grant · Catering & pastry (Community centre) · Self-employed",
+    status: "NEW",
+    source_training_enrollment_id: catering.id,
+  });
+  add("audit_logs", {
+    entity_type: "referral",
+    entity_id: referral.id,
+    action: "CREATE",
+    source: "HTTP",
+    performed_by: store.user.find((row) => row.username === "ann.kamau")?.id ?? null,
+    performed_at: "2026-09-02T08:30:00.000Z",
+  });
+  // Trainees at the Skilling life-skills session.
+  const lifeSkills = store.activity_session.find((row) => row.pillar_id === 6);
+  if (lifeSkills)
+    for (const participantId of [4, 5])
+      add("activity_attendance", { session_id: lifeSkills.id, participant_id: participantId });
 }
