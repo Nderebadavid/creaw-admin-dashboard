@@ -71,6 +71,21 @@ export function participantColumns(
       ),
     },
     {
+      id: "curriculum",
+      header: "Curriculum",
+      cell: (row) =>
+        row.curriculum ? (
+          <div className="font-medium text-creaw-ink-soft">
+            {row.curriculum.done}/{row.curriculum.total}
+            {row.curriculum.behind && (
+              <p className="text-[12.5px] font-normal text-[#9A5A0E]">Behind</p>
+            )}
+          </div>
+        ) : (
+          <span className="text-creaw-faint">—</span>
+        ),
+    },
+    {
       id: "registered",
       header: "Registered",
       cell: (row) => (

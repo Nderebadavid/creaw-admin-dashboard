@@ -40,12 +40,52 @@ export const participantDtoSchema = z.object({
   county_id: positive.nullish().transform((value) => value ?? null),
   county_name: optionalText,
   current_stage_name: optionalText,
+  /** SRHR curriculum progress, derived from attendance; null unless the caller may see it. */
+  curriculum_done: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
+  curriculum_total: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
+  curriculum_last_attended: optionalText,
+  curriculum_behind: z
+    .boolean()
+    .nullish()
+    .transform((value) => value ?? null),
   /** The enrollments in pillars the caller may view (`include=enrollments`). */
   enrollments: z
     .array(enrollmentReadDtoSchema)
     .nullish()
     .transform((value) => value ?? []),
 });
+/** `GET /participants/:id?include=curriculum,curriculum_milestones`. */
+export const participantCurriculumSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      curriculum: z
+        .array(
+          z.object({
+            id: positive,
+            name: z.string(),
+            activity_type_name: z.string(),
+            sequence_no: z.number().int(),
+            attended_date: z.string().nullable(),
+          })
+        )
+        .nullish()
+        .transform((value) => value ?? []),
+      curriculum_milestones: z
+        .array(z.object({ id: positive, name: z.string(), reached_at: z.string().nullable() }))
+        .nullish()
+        .transform((value) => value ?? []),
+    }),
+    z.null(),
+  ])
+);
 export const lookupDtoSchema = z.object({
   id: positive,
   name: z.string(),

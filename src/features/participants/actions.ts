@@ -30,7 +30,16 @@ export async function listParticipantsAction(query: ParticipantQuery) {
     const clean = cleanListQuery(
       { page: query.page, pageSize: query.pageSize, search: query.search, sort: query.sort },
       {
-        sort: ["participant", "county", "pillars", "stage", "registered", "status", "updated"],
+        sort: [
+          "participant",
+          "county",
+          "pillars",
+          "stage",
+          "registered",
+          "status",
+          "updated",
+          "curriculum",
+        ],
       }
     );
     return {
@@ -41,10 +50,28 @@ export async function listParticipantsAction(query: ParticipantQuery) {
         ...clean,
         pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
         countyId: Number.isInteger(query.countyId) ? query.countyId : undefined,
+        behind: query.behind === true ? true : undefined,
       }),
     };
   } catch {
     return { ...actionResult(422, "Could not load participants"), data: null };
+  }
+}
+
+/** A participant's curriculum, loaded when the drawer opens; only for those who may view SRHR participants. */
+export async function loadParticipantCurriculumAction(id: number) {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(id) || id < 1)
+    return { ...actionResult(422, "Invalid participant"), data: null };
+  if (!hasModulePermission(session.grants, "PARTICIPANT_VIEW"))
+    return { ...actionResult(403, "Permission denied"), data: null };
+  try {
+    const detail = await (await api()).curriculum(id);
+    return detail
+      ? { ...actionResult(200, "OK"), data: detail }
+      : { ...actionResult(404, "Participant not found"), data: null };
+  } catch {
+    return { ...actionResult(500, "Could not load the curriculum"), data: null };
   }
 }
 

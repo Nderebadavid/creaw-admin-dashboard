@@ -9,8 +9,10 @@ import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts"
 import { StatusBadge } from "@/components/ui/status-badge";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
 import { formatDate, initials, titleCase } from "@/lib/format";
-import { revealParticipantAction } from "../actions";
+import { useRecordDetail } from "@/components/ui/use-record-detail";
+import { loadParticipantCurriculumAction, revealParticipantAction } from "../actions";
 import type { ParticipantView } from "../api";
+import { CurriculumSection } from "./curriculum-section";
 
 /** One participant across every pillar they are enrolled in, with audited reveals. */
 export function ParticipantDrawer({
@@ -26,6 +28,11 @@ export function ParticipantDrawer({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  // The topic list loads when the drawer opens, and only for those who have progress to show.
+  const curriculum = useRecordDetail(
+    participant?.curriculum ? participant.id : null,
+    loadParticipantCurriculumAction
+  );
   if (!participant) return null;
   const inAnyPillar = (code: string) =>
     participant.pillarIds.some((id) => hasPermission(grants, code, { pillarId: id }));
@@ -114,6 +121,14 @@ export function ParticipantDrawer({
                 updated={participant.updated}
                 notes={[["Remarks", participant.remarks ?? "—"]]}
               />
+              {participant.curriculum && (
+                <CurriculumSection
+                  summary={participant.curriculum}
+                  detail={curriculum.data}
+                  loading={curriculum.loading}
+                  error={curriculum.error}
+                />
+              )}
               <section className="flex flex-col gap-2.5">
                 <SectionTitle>Pillar enrollments</SectionTitle>
                 {participant.enrollments.map((item) => {

@@ -6,8 +6,13 @@ vi.mock("./actions", () => ({
   updateParticipantAction: vi.fn(),
   revealParticipantAction: vi.fn(),
   exportParticipantsAction: vi.fn(),
+  loadParticipantCurriculumAction: vi.fn(),
 }));
-import { registerParticipantAction } from "./actions";
+import {
+  listParticipantsAction,
+  loadParticipantCurriculumAction,
+  registerParticipantAction,
+} from "./actions";
 import { ParticipantsContent } from "./components";
 
 afterEach(() => {
@@ -70,6 +75,7 @@ const faith = {
   remarks: null,
   statusDescription: null,
   updated: null,
+  curriculum: null,
 };
 
 function renderRegistry() {
@@ -113,4 +119,128 @@ it("opens a participant in the record drawer when the row is clicked", () => {
   expect(drawer).toHaveTextContent("Participant · VAWG");
   expect(within(drawer).getByText("Pillar enrollments")).toBeInTheDocument();
   expect(within(drawer).getByRole("button", { name: "Edit participant" })).toBeInTheDocument();
+});
+
+const amina = {
+  ...faith,
+  id: 11,
+  name: "Amina Hassan",
+  pillarIds: [3],
+  enrollments: [{ ...faith.enrollments[0], id: 4, pillarId: 3, category: "Peer educator" }],
+  curriculum: { done: 6, total: 14, lastAttended: "2026-06-01", behind: true },
+};
+const srhrGrants = [
+  { permissionCode: "PARTICIPANT_VIEW", pillarId: 3 },
+  { permissionCode: "PARTICIPANT_EDIT", pillarId: 3 },
+];
+function renderSrhr(grants = srhrGrants) {
+  render(
+    <ParticipantsContent
+      initial={{ items: [faith, amina], page: 1, pageSize: 25, totalItems: 2, totalPages: 1 }}
+      catalog={{ pillars: [{ id: 3, name: "SRHR" }], counties: [], wards: [] }}
+      grants={grants}
+    />
+  );
+}
+
+it("shows curriculum progress per participant and a dash where there is none", () => {
+  renderSrhr();
+  const row = screen.getByText("Amina Hassan").closest("tr")!;
+  expect(within(row).getByText("6/14")).toBeInTheDocument();
+  expect(within(row).getByText("Behind")).toBeInTheDocument();
+  const column = screen
+    .getAllByRole("columnheader")
+    .findIndex((header) => header.textContent === "Curriculum");
+  const cells = within(screen.getByText("Faith Wanjiku").closest("tr")!).getAllByRole("cell");
+  expect(cells[column]).toHaveTextContent("—");
+});
+
+it("sorts the register by curriculum progress on the server", async () => {
+  vi.mocked(listParticipantsAction).mockResolvedValue({
+    resultCode: 200,
+    success: true,
+    message: "OK",
+    data: { items: [amina], page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+  });
+  renderSrhr();
+  fireEvent.click(screen.getByRole("button", { name: "Curriculum" }));
+  await waitFor(() =>
+    expect(listParticipantsAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sort: { by: "curriculum", order: "asc" } })
+    )
+  );
+});
+
+it("filters to participants who are behind, only for those who may view SRHR participants", async () => {
+  vi.mocked(listParticipantsAction).mockResolvedValue({
+    resultCode: 200,
+    success: true,
+    message: "OK",
+    data: { items: [amina], page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
+  });
+  renderSrhr();
+  fireEvent.change(screen.getByRole("combobox", { name: "Curriculum" }), {
+    target: { value: "behind" },
+  });
+  await waitFor(() =>
+    expect(listParticipantsAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ behind: true })
+    )
+  );
+  cleanup();
+  renderSrhr([{ permissionCode: "PARTICIPANT_VIEW", pillarId: 1 }]);
+  expect(screen.queryByRole("combobox", { name: "Curriculum" })).not.toBeInTheDocument();
+});
+
+it("opens the curriculum in the drawer: progress, topics in order, milestones", async () => {
+  vi.mocked(loadParticipantCurriculumAction).mockResolvedValue({
+    resultCode: 200,
+    success: true,
+    message: "OK",
+    data: {
+      topics: [
+        {
+          id: 1,
+          name: "Menstrual health",
+          type: "Health Talk",
+          sequence: 1,
+          attended: "2026-06-01",
+        },
+        { id: 2, name: "Contraception", type: "Health Talk", sequence: 2, attended: null },
+      ],
+      milestones: [
+        { id: 7, name: "Baseline survey", reachedAt: "2026-05-01" },
+        { id: 9, name: "Graduation", reachedAt: null },
+      ],
+    },
+  });
+  renderSrhr();
+  fireEvent.click(screen.getByText("Amina Hassan"));
+  const drawer = screen.getByRole("dialog", { name: "Amina Hassan" });
+  const section = within(drawer).getByRole("region", { name: "Curriculum" });
+  expect(section).toHaveTextContent("6 of 14 topics · 43%");
+  expect(within(section).getByText("Behind")).toBeInTheDocument();
+  const topics = await within(section).findByRole("list", { name: "Curriculum topics" });
+  expect(
+    within(topics)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent)
+  ).toEqual([
+    expect.stringContaining("Menstrual health"),
+    expect.stringContaining("Contraception"),
+  ]);
+  expect(topics).toHaveTextContent("Attended 01 Jun 2026");
+  expect(topics).toHaveTextContent("Not yet");
+  expect(within(section).getByLabelText("Curriculum milestones")).toHaveTextContent(
+    "Baseline survey01 May 2026"
+  );
+  expect(loadParticipantCurriculumAction).toHaveBeenCalledWith(11);
+});
+
+it("shows no curriculum section for a participant without progress", () => {
+  renderSrhr();
+  fireEvent.click(screen.getByText("Faith Wanjiku"));
+  const drawer = screen.getByRole("dialog", { name: "Faith Wanjiku" });
+  expect(within(drawer).queryByRole("region", { name: "Curriculum" })).not.toBeInTheDocument();
+  expect(loadParticipantCurriculumAction).not.toHaveBeenCalled();
 });

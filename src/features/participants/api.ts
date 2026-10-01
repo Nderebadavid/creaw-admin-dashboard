@@ -13,6 +13,7 @@ import { withSessionApi } from "@/lib/api/session-api";
 import {
   catalogSchema,
   participantDetailSchema,
+  participantCurriculumSchema,
   participantListSchema,
   participantMutationSchema,
   participantPickerSchema,
@@ -30,6 +31,7 @@ export const PARTICIPANT_SORT_KEYS: Record<string, string> = {
   registered: "created_at",
   status: "status",
   updated: "updated_at",
+  curriculum: "curriculum_done",
 };
 
 export interface ParticipantQuery {
@@ -40,6 +42,8 @@ export interface ParticipantQuery {
   pillarId?: number;
   countyId?: number;
   search?: string;
+  /** Only SRHR participants who are behind on the curriculum. */
+  behind?: boolean;
 }
 export interface ParticipantView {
   id: number;
@@ -67,6 +71,25 @@ export interface ParticipantView {
   statusDescription: string | null;
   updated: string | null;
   remarks: string | null;
+  /** SRHR curriculum progress; null when the caller may not see it or there is no SRHR enrolment. */
+  curriculum: CurriculumSummary | null;
+}
+export interface CurriculumSummary {
+  done: number;
+  total: number;
+  lastAttended: string | null;
+  /** Null when graduation is not visible to the caller. */
+  behind: boolean | null;
+}
+export interface CurriculumDetail {
+  topics: {
+    id: number;
+    name: string;
+    type: string;
+    sequence: number;
+    attended: string | null;
+  }[];
+  milestones: { id: number; name: string; reachedAt: string | null }[];
 }
 export interface ParticipantPage {
   items: ParticipantView[];
@@ -161,6 +184,15 @@ export function createParticipantsApi(client: ApiClient, token: string) {
       statusDescription: row.status_description,
       updated: row.updated_at,
       remarks: row.remarks,
+      curriculum:
+        row.curriculum_done === null || row.curriculum_total === null
+          ? null
+          : {
+              done: row.curriculum_done,
+              total: row.curriculum_total,
+              lastAttended: row.curriculum_last_attended,
+              behind: row.curriculum_behind,
+            },
     };
   }
   return {
@@ -187,6 +219,7 @@ export function createParticipantsApi(client: ApiClient, token: string) {
             ),
             ...(query.pillarId ? { pillarId: query.pillarId } : {}),
             ...(query.countyId ? { countyId: query.countyId } : {}),
+            ...(query.behind ? { curriculum_behind: "true" } : {}),
           },
         },
         participantListSchema
@@ -207,6 +240,34 @@ export function createParticipantsApi(client: ApiClient, token: string) {
       );
       if (!response.success || !response.data) return null;
       return toView(response.data);
+    },
+    /** The SRHR topics in order with the date attended, and the milestones, for the drawer. */
+    async curriculum(id: number): Promise<CurriculumDetail | null> {
+      const response = await client.request(
+        {
+          method: "GET",
+          path: `/participants/${id}`,
+          routeTemplate: "/participants/:id",
+          token,
+          query: { include: "curriculum,curriculum_milestones" },
+        },
+        participantCurriculumSchema
+      );
+      if (!response.success || !response.data) return null;
+      return {
+        topics: response.data.curriculum.map((row) => ({
+          id: row.id,
+          name: row.name,
+          type: row.activity_type_name,
+          sequence: row.sequence_no,
+          attended: row.attended_date,
+        })),
+        milestones: response.data.curriculum_milestones.map((row) => ({
+          id: row.id,
+          name: row.name,
+          reachedAt: row.reached_at,
+        })),
+      };
     },
     register(input: ParticipantRegistration) {
       return client.request(

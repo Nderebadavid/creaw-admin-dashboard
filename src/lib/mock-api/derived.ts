@@ -1,6 +1,13 @@
 import { hasPermission, type EffectiveGrant } from "../auth/permissions";
 import { displayName } from "./references";
 import { enrollmentRead, type Row } from "./core";
+import {
+  SRHR_PILLAR_ID,
+  curriculumMilestones,
+  curriculumProgress,
+  isBehind,
+  srhrEnrollment,
+} from "./curriculum";
 import type { MockStore, TableName } from "@/types/db";
 
 // Per-table derived fields beyond reference names, so registers can show, sort and
@@ -37,6 +44,10 @@ export const DERIVED_COLUMNS: Partial<Record<TableName, string[]>> = {
     "pillar_codes",
     "enrollment_count",
     "current_stage_name",
+    "curriculum_done",
+    "curriculum_total",
+    "curriculum_last_attended",
+    "curriculum_behind",
   ],
   ward: ["county_id", "county_name"],
   referral: ["destination_label"],
@@ -306,7 +317,28 @@ export function derivedFields(
           String(a.current_stage_date).localeCompare(String(b.current_stage_date)) || a.id - b.id
       )
       .at(-1);
+    // Curriculum progress needs attendance, which the SRHR participant grant covers; whether
+    // someone has graduated is stage-event data, so "behind" also needs that grant.
+    const enrolment = srhrEnrollment(store, row.id);
+    const mayCurriculum =
+      !!grants &&
+      !!enrolment &&
+      hasPermission(grants, "PARTICIPANT_VIEW", { pillarId: SRHR_PILLAR_ID });
+    const progress = mayCurriculum ? curriculumProgress(store, row.id) : null;
+    const mayGraduation =
+      !!grants && hasPermission(grants, "FIELD_SUBMISSION_VIEW", { pillarId: SRHR_PILLAR_ID });
+    const graduated =
+      mayCurriculum && mayGraduation
+        ? curriculumMilestones(store, enrolment!.id).some(
+            (item) => /^graduation/i.test(item.name) && item.reached_at !== null
+          )
+        : null;
     return {
+      curriculum_done: progress?.done ?? null,
+      curriculum_total: progress?.total ?? null,
+      curriculum_last_attended: progress?.lastAttended ?? null,
+      curriculum_behind:
+        progress && graduated !== null ? !graduated && isBehind(progress.lastAttended) : null,
       full_name: displayName(store, "participant", row.id),
       county_id: subCounty?.county_id ?? null,
       county_name: displayName(store, "county", subCounty?.county_id),

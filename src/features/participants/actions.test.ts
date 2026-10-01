@@ -151,3 +151,29 @@ function storeHasEnrollmentInPillar(participantId: number, pillarId: number) {
     (row) => row.participant_id === participantId && row.pillar_id === pillarId && !row.is_deleted
   );
 }
+
+describe("curriculum through the participants API", () => {
+  it("maps progress onto the view and loads topics and milestones for the drawer", async () => {
+    const api = apiFor(9); // SRHR lead
+    const page = await api.list({ pageSize: 100, sort: { by: "curriculum", order: "desc" } });
+    const srhr = page.items.filter((row) => row.curriculum);
+    expect(srhr.length).toBeGreaterThan(0);
+    expect(srhr[0].curriculum).toMatchObject({ total: 14, done: expect.any(Number) });
+    const detail = await api.curriculum(srhr[0].id);
+    expect(detail?.topics).toHaveLength(14);
+    expect(detail?.milestones.map((row) => row.name)).toContain("Graduation");
+  });
+
+  it("filters to participants who are behind", async () => {
+    const behind = await apiFor(9).list({ pageSize: 100, behind: true });
+    expect(behind.items.length).toBeGreaterThan(0);
+    expect(behind.items.every((row) => row.curriculum?.behind === true)).toBe(true);
+  });
+
+  it("gives staff without SRHR access no progress", async () => {
+    const page = await apiFor(5).list({ pageSize: 100 }); // VAWG lead
+    expect(page.items.every((row) => row.curriculum === null)).toBe(true);
+    const some = page.items[0];
+    expect((await apiFor(5).curriculum(some.id))?.topics).toEqual([]);
+  });
+});

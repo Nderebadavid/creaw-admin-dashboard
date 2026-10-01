@@ -1,4 +1,10 @@
 import { allowed, permissionCodes, rowsFor, visible, type Row } from "./core";
+import {
+  curriculumMilestones,
+  curriculumProgress,
+  SRHR_PILLAR_ID,
+  srhrEnrollment,
+} from "./curriculum";
 import type { EffectiveGrant } from "../auth/permissions";
 import type { MockStore, TableName } from "@/types/db";
 
@@ -84,6 +90,39 @@ export const INCLUDES: Partial<Record<TableName, Record<string, IncludeSpec>>> =
   },
   participant: {
     enrollments: childrenBy("enrollment", "participant_id", (row) => row.id),
+    // Derived rows, not stored ones: the SRHR topics in order with the date attended (or
+    // null), and the baseline / endline / graduation milestones. They sit in the pillar,
+    // so only callers who may view participants there receive them.
+    curriculum: {
+      table: "activity_topic",
+      permissions: ["PARTICIPANT_VIEW"],
+      children: (store, row) =>
+        srhrEnrollment(store, row.id)
+          ? curriculumProgress(store, row.id).topics.map((topic) => ({
+              ...topic,
+              status: "ACTIVE",
+              is_deleted: false,
+              pillar_id: SRHR_PILLAR_ID,
+            }))
+          : [],
+      // Already in curriculum order; the stable sort keeps it.
+      order: () => 0,
+    },
+    curriculum_milestones: {
+      table: "participant_stage_event",
+      permissions: ["FIELD_SUBMISSION_VIEW"],
+      children: (store, row) => {
+        const enrolment = srhrEnrollment(store, row.id);
+        return enrolment
+          ? curriculumMilestones(store, enrolment.id).map((item) => ({
+              ...item,
+              status: "ACTIVE",
+              is_deleted: false,
+              pillar_id: SRHR_PILLAR_ID,
+            }))
+          : [];
+      },
+    },
   },
   organisation: {
     // The stage moves of the organisation's enrolment, for its pipeline progress.
