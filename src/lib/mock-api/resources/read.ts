@@ -4,6 +4,7 @@ import { auditWrite } from "../audit";
 import { type ResourceContext } from "../context";
 import {
   allowed,
+  rowsFor,
   enrollmentRead,
   envelope,
   masked,
@@ -38,11 +39,49 @@ const RESERVED_KEYS = new Set([
   "ids",
 ]);
 
+const fullName = (row: Row | undefined) =>
+  row ? [row.first_name, row.last_name].filter(Boolean).join(" ") : null;
+const providerName = (store: MockStore, id: unknown) =>
+  id ? fullName(rowsFor(store, "external_provider").find((row) => row.id === id)) : null;
+
+/** Derived display-name columns per table; never stored, so writes naming them are rejected. */
+const DERIVED_NAME_COLUMNS: Partial<Record<TableName, string[]>> = {
+  activity_session: ["facilitator_name", "facilitator_kind"],
+  training_enrollment: ["trainer_name"],
+  counselling_session: ["counsellor_name"],
+  legal_case: ["advocate_name"],
+};
+
+/** Read-only display names for the people a record links; names only, never contacts. */
+function withNames(store: MockStore, table: TableName, row: Row): Row {
+  if (table === "activity_session") {
+    const staff = row.facilitator_user_id
+      ? fullName(rowsFor(store, "user").find((user) => user.id === row.facilitator_user_id))
+      : null;
+    return {
+      ...row,
+      facilitator_name: staff ?? providerName(store, row.facilitator_provider_id),
+      facilitator_kind: row.facilitator_user_id
+        ? "staff"
+        : row.facilitator_provider_id
+          ? "provider"
+          : null,
+    };
+  }
+  if (table === "training_enrollment")
+    return { ...row, trainer_name: providerName(store, row.trainer_provider_id) };
+  if (table === "counselling_session")
+    return { ...row, counsellor_name: providerName(store, row.counsellor_provider_id) };
+  if (table === "legal_case")
+    return { ...row, advocate_name: providerName(store, row.advocate_provider_id) };
+  return row;
+}
+
 /** Rows as the API returns them: referrals and enrollments carry derived fields, all are masked. */
 function presentRow(store: MockStore, table: TableName, row: Row): Row {
   if (table === "referral") return referralRead(store, row);
   if (table === "enrollment") return enrollmentRead(store, row);
-  return masked(table, row);
+  return withNames(store, table, masked(table, row));
 }
 
 /** Named views that bypass the generic row/list handling; undefined when none applies. */
@@ -326,9 +365,12 @@ function exportCsv(ctx: ResourceContext, rows: Row[]): Envelope {
   const submissions = table === "participant_stage_event";
   const columns = submissions
     ? ["id", "pillar", "captured", "status", "source"]
-    : Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash");
+    : [
+        ...Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash"),
+        ...(DERIVED_NAME_COLUMNS[table] ?? []),
+      ];
   const safeRow = (row: Row): Record<string, unknown> => {
-    if (!submissions) return masked(table, row);
+    if (!submissions) return presentRow(store, table, row);
     const { id, pillar: pillarName, captured, status, source } = submissionSummary(store, row);
     return { id, pillar: pillarName, captured, status, source };
   };
