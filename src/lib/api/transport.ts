@@ -12,6 +12,8 @@ export const API_ROUTE_TEMPLATES = [
   "/field-submissions",
   "/field-submissions/:id",
   "/pillars/:pillar",
+  "/pillars/:pillar/summary",
+  "/pillars/:pillar/form-options",
   "/participants",
   "/participants/:id",
   "/referrals",
@@ -33,6 +35,7 @@ export const API_ROUTE_TEMPLATES = [
   "/admin/pipelines/:id",
   "/admin/providers",
   "/admin/providers/:id",
+  "/lookups",
   "/lookups/:table",
   "/lookups/:table/:id",
 ] as const;
