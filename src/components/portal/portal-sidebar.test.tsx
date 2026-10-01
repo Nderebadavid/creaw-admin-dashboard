@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PortalSidebar } from "./portal-sidebar";
 import { navigationGroups } from "./navigation";
 
@@ -53,7 +53,6 @@ it("retains accessible names when collapsed and shows only implemented permitted
       grants={[{ permissionCode: "DASHBOARD_VIEW", pillarId: null }]}
     />
   );
-  expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("title", "Dashboard");
   expect(screen.getByText("Dashboard")).toHaveClass("sr-only");
   expect(screen.getByRole("link", { name: "VAWG" })).toHaveAttribute("href", "/pillars/vawg");
   expect(screen.queryByRole("link", { name: "Participants" })).not.toBeInTheDocument();
@@ -165,4 +164,40 @@ it("hides platform-wide admin pages from pillar-scoped grants", () => {
   expect(screen.queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Users & roles" })).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
+});
+
+it("names a collapsed icon in a tooltip on hover or keyboard focus, and hides it after", () => {
+  render(
+    <PortalSidebar
+      collapsed
+      pathname="/dashboard"
+      grants={[
+        { permissionCode: "DASHBOARD_VIEW", pillarId: null },
+        { permissionCode: "FIELD_SUBMISSION_VIEW", pillarId: null },
+      ]}
+      status={{ pendingSubmissions: 3, newReferrals: 0, grantsAwaiting: 0, overdueReports: 0 }}
+    />
+  );
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  const dashboard = screen.getByRole("link", { name: "Dashboard" });
+  fireEvent.mouseEnter(dashboard);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Dashboard");
+  fireEvent.mouseLeave(dashboard);
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  const submissions = screen.getByRole("link", { name: "Field submissions, 3 waiting" });
+  fireEvent.focus(submissions);
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Field submissions · 3 waiting");
+  fireEvent.blur(submissions);
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+});
+
+it("shows no tooltip when the sidebar is expanded, since the labels are visible", () => {
+  render(
+    <PortalSidebar
+      pathname="/dashboard"
+      grants={[{ permissionCode: "DASHBOARD_VIEW", pillarId: null }]}
+    />
+  );
+  fireEvent.mouseEnter(screen.getByRole("link", { name: "Dashboard" }));
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 });
