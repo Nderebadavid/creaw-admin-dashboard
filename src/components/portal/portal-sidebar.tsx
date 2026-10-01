@@ -1,3 +1,5 @@
+"use client";
+import { useState, type FocusEvent, type MouseEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { EffectiveGrant } from "@/lib/auth/permissions";
@@ -40,6 +42,15 @@ export function PortalSidebar({
   );
   const window = reportingWindow(today);
   const overdue = status?.overdueReports ?? 0;
+  // When collapsed, each icon names itself in a tooltip beside it, on hover or keyboard focus.
+  // It is fixed-positioned so the scrolling navigation does not clip it.
+  const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  const showTip = (label: string) => (event: MouseEvent<HTMLElement> | FocusEvent<HTMLElement>) => {
+    if (!collapsed) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    setTip({ label, top: box.top + box.height / 2, left: box.right + 10 });
+  };
+  const hideTip = () => setTip(null);
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -91,7 +102,12 @@ export function PortalSidebar({
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      title={item.label}
+                      onMouseEnter={showTip(
+                        waiting ? `${item.label} · ${waiting} waiting` : item.label
+                      )}
+                      onMouseLeave={hideTip}
+                      onFocus={showTip(waiting ? `${item.label} · ${waiting} waiting` : item.label)}
+                      onBlur={hideTip}
                       aria-label={waiting ? `${item.label}, ${waiting} waiting` : undefined}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
@@ -132,6 +148,15 @@ export function PortalSidebar({
           <p className="px-3 text-sm text-muted-foreground">No accessible pages.</p>
         )}
       </nav>
+      {collapsed && tip && (
+        <span
+          role="tooltip"
+          className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-md bg-creaw-ink px-2.5 py-1.5 text-[13px] font-semibold text-white shadow-lg"
+          style={{ top: tip.top, left: tip.left }}
+        >
+          {tip.label}
+        </span>
+      )}
       {showsCalendar && !collapsed && (
         <div className="mx-4 mb-5 mt-auto flex flex-col gap-1.5 rounded-[14px] bg-[#FDF3E3] p-[18px]">
           <p className="font-heading text-lg font-bold text-[#8C3F20]">
