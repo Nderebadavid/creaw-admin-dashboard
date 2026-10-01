@@ -88,9 +88,11 @@ export function handleReportViews(ctx: MockContext): ApiEnvelope<unknown> | unde
         "search",
         "page",
         "pageSize",
+        "facet",
       ])
     )
       return envelope(422);
+    if (query.has("facet") && query.get("facet") !== "status") return envelope(422);
     if (
       !["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].some((code) =>
         hasModulePermission(grants, code)
@@ -110,7 +112,15 @@ export function handleReportViews(ctx: MockContext): ApiEnvelope<unknown> | unde
         pageSize > 100
       )
         return envelope(422);
+      // Reports per status over every filter but the status itself.
+      const unfiltered = new URLSearchParams(query);
+      unfiltered.delete("status");
+      const status: Record<string, number> = {};
+      if (query.has("facet"))
+        for (const row of filteredCalendarRows(store, grants, unfiltered)!)
+          status[row.status] = (status[row.status] ?? 0) + 1;
       return envelope(200, {
+        ...(query.has("facet") ? { facets: { status } } : {}),
         items: records.slice((page - 1) * pageSize, page * pageSize),
         page,
         pageSize,

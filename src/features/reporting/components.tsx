@@ -16,6 +16,7 @@ import { PageHeading, type PageHeadingText } from "@/components/portal/page-head
 import type { ReportPage, ReportQuery, ReportView } from "./api";
 import { exportReportsAction, listReportsAction, viewReportDocumentAction } from "./actions";
 import { reportColumns } from "./calendar/columns";
+import { ReportSummaryCards } from "./calendar/summary-cards";
 import { AddDeadlineDialog, SubmitReportDialog } from "./calendar/report-dialogs";
 
 type Catalog = {
@@ -61,7 +62,10 @@ export function ReportingContent({
   const [actionError, setActionError] = useState("");
   const [modal, setModal] = useState<"deadline" | "submit" | null>(null);
   const [selected, setSelected] = useState<ReportView | null>(null);
-  const overdue = list.data.items.filter((row) => row.status === "overdue").length;
+  // Every overdue report in scope, not only this page's; the page's own when the API gives no counts.
+  const overdue =
+    list.data.facets?.status?.overdue ??
+    list.data.items.filter((row) => row.status === "overdue").length;
   const owners = [
     ...new Set(
       catalog.pillars.map((pillar) => pillar.lead_user_id).filter((id): id is number => id !== null)
@@ -108,6 +112,7 @@ export function ReportingContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions} /> : actions}
+      <ReportSummaryCards counts={list.data.facets?.status} />
       {overdue > 0 && (
         <AlertBanner tone="danger">
           <strong>

@@ -139,6 +139,8 @@ export interface GrantPage {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+  /** `status` holds the applications per stage over every filter but the stage itself. */
+  facets?: Record<string, Record<string, number>>;
 }
 function required<T>(result: { success: boolean; data: T | null; message: string }): T {
   if (!result.success || !result.data) throw new Error(result.message);
@@ -303,7 +305,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
       ]);
       return all - approved - declined;
     },
-    /** One page of applications; the API filters, searches and sorts. */
+    /** One page of applications with the count per stage; the API filters, searches and sorts. */
     async list(query: GrantQuery = {}): Promise<GrantPage> {
       const result = await request<import("zod").infer<typeof applicationListSchema>>(
         {
@@ -323,6 +325,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
               GRANT_SORT_KEYS
             ),
             ...(query.pillarId ? { pillarId: query.pillarId } : {}),
+            facet: "status",
           },
         },
         applicationListSchema

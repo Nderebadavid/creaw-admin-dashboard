@@ -17,6 +17,7 @@ import { pillarLook } from "@/components/portal/pillars";
 import { formatDate, initials, titleCase } from "@/lib/format";
 import type { GrantPage, GrantProgramme, GrantQuery, GrantRow } from "./api";
 import { NewApplicationDialog } from "./queue/new-application-dialog";
+import { GrantSummaryCards } from "./queue/summary-cards";
 import { exportGrantsAction, listGrantsAction } from "./actions";
 
 export { GrantDetailContent } from "./detail-content";
@@ -120,6 +121,7 @@ export function GrantsContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
+      <GrantSummaryCards counts={list.data.facets?.status} />
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{list.error}</FormBanner>
       <TableCard
