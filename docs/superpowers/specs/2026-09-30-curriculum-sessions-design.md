@@ -170,6 +170,7 @@ The live API must provide:
 - pillar-scoped `activity_session` reads, where `?table=activity_session` on `/pillars/:pillar` returns only that pillar's sessions
 - attendance create, soft delete and restore written to the audit log
 - `includeDeleted=true` on `activity_attendance` reads, for callers holding `ACTIVITY_SESSION_LOG`
+- `includeDeleted=true` on the `activity_topic` and `activity_type_definition` lookups, for callers holding `ACTIVITY_SESSION_VIEW` in any pillar, so retired names still show on old sessions
 - a write rule that a session's `activity_topic_id` belongs to its `activity_type_id`, and that the type belongs to the session's `pillar_id`
 
 The mock API already limits `/pillars/:pillar` reads to rows scoped to that pillar, so SRHR never receives Skilling sessions. A page test pins this.

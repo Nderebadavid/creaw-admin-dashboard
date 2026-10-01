@@ -129,4 +129,17 @@ describe("activity_session topic rules", () => {
     expect(result.success).toBe(true);
     expect(result.data.items.some((item: any) => item.id === row.id)).toBe(true);
   });
+
+  it("shows retired curriculum lookups to session staff but no other retired lookups", async () => {
+    const lookup = (table: string) =>
+      raw(9, {
+        method: "GET",
+        path: `/lookups/${table}`,
+        routeTemplate: "/lookups/:table",
+        query: { includeDeleted: "true", page: 1, pageSize: 100 },
+      });
+    expect((await lookup("activity_topic")).success).toBe(true);
+    expect((await lookup("activity_type_definition")).success).toBe(true);
+    expect((await lookup("ward")).resultCode).toBe(422);
+  });
 });

@@ -6,9 +6,11 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import {
   addAttendeeAction,
+  attachSessionFileAction,
   logSessionAction,
   removeAttendeeAction,
   updateSessionAction,
+  viewSessionFileAction,
 } from "./actions";
 
 // Samuel Ndegwa (user 3): Pillar Lead in pillar 2 (WEE) only, so he holds ACTIVITY_SESSION_LOG there but not in SRHR (pillar 3).
@@ -140,5 +142,80 @@ describe("session actions", () => {
       attendanceId: other.id,
     });
     expect(result.success).toBe(false);
+  });
+
+  it("lets pillar staff edit the venue of a session whose topic is retired", async () => {
+    const store = getMockStore();
+    const session = store.activity_session.find(
+      (row) => row.activity_topic_id !== null && row.pillar_id === 3
+    )!;
+    const topic = store.activity_topic.find((row) => row.id === session.activity_topic_id)!;
+    Object.assign(topic, { is_deleted: true, status: "INACTIVE" });
+    cookieStore.get.mockReturnValue({ value: issueMockToken(9) });
+    const result = await updateSessionAction({
+      ...base(),
+      sessionId: session.id,
+      activityTypeId: session.activity_type_id,
+      topicId: topic.id,
+      venue: "Retired-topic venue",
+    });
+    expect(result.success).toBe(true);
+    expect(session.venue).toBe("Retired-topic venue");
+  });
+
+  it("refuses to switch a session to a different retired topic", async () => {
+    const store = getMockStore();
+    const session = store.activity_session.find(
+      (row) => row.activity_topic_id !== null && row.pillar_id === 3
+    )!;
+    const other = store.activity_topic.find(
+      (row) =>
+        row.activity_type_id === session.activity_type_id && row.id !== session.activity_topic_id
+    )!;
+    Object.assign(other, { is_deleted: true, status: "INACTIVE" });
+    const result = await updateSessionAction({
+      ...base(),
+      sessionId: session.id,
+      activityTypeId: session.activity_type_id,
+      topicId: other.id,
+    });
+    expect(result).toMatchObject({ success: false, message: "That topic is no longer offered" });
+  });
+
+  it("refuses to log a new session on a retired topic", async () => {
+    const topic = getMockStore().activity_topic.find((row) => row.name === "Contraception")!;
+    Object.assign(topic, { is_deleted: true, status: "INACTIVE" });
+    const before = getMockStore().activity_session.length;
+    const result = await logSessionAction(base());
+    expect(result).toMatchObject({ success: false, message: "That topic is no longer offered" });
+    expect(getMockStore().activity_session).toHaveLength(before);
+  });
+
+  it("refuses to log a new session on a retired activity type", async () => {
+    const type = getMockStore().activity_type_definition.find((row) => row.name === "Health Talk")!;
+    Object.assign(type, { is_deleted: true, status: "INACTIVE" });
+    const result = await logSessionAction({ ...base(), topicId: null, topic: "x" });
+    expect(result).toMatchObject({
+      success: false,
+      message: "That activity type is no longer offered",
+    });
+  });
+
+  it("refuses to open a document owned by a different session", async () => {
+    const store = getMockStore();
+    const [a, b] = store.activity_session.filter((row) => row.pillar_id === 3);
+    const attached = await attachSessionFileAction({
+      pillar: "srhr",
+      sessionId: a.id,
+      documentType: "attendance_sheet",
+      fileUrl: "mock://sheet.pdf",
+    });
+    expect(attached.success).toBe(true);
+    const doc = store.document.at(-1)!;
+    expect(doc.owner_id).toBe(a.id);
+    const wrong = await viewSessionFileAction("srhr", b.id, doc.id);
+    expect(wrong.success).toBe(false);
+    expect(wrong.document).toBeNull();
+    expect((await viewSessionFileAction("srhr", a.id, doc.id)).success).toBe(true);
   });
 });

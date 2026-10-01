@@ -103,4 +103,20 @@ describe("pillar route", () => {
     expect(html).toContain("could not be loaded");
     expect(html).not.toContain("Session register");
   });
+
+  it("never falls back to the raw-ID domain form when sessions fail to load", async () => {
+    vi.spyOn(sessionsApi, "workspace").mockRejectedValue(new Error("timeout"));
+    cookieStore.get.mockReturnValue({ value: issueMockToken(9) });
+    const html = await render("srhr");
+    expect(html).toContain("could not be loaded");
+    // The raw-ID form sits in a closed modal; its trigger is the "Log session" button.
+    expect(html).not.toContain("Log session");
+    expect(html).not.toContain("Activity type ID");
+  });
+
+  it("keeps the Add record heading button beside Log session", async () => {
+    const html = await render("srhr");
+    expect(html).toContain("Add SRHR record");
+    expect(html).toContain("Log session");
+  });
 });

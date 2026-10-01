@@ -60,6 +60,31 @@ describe("sessions workspace", () => {
     expect(retired!.active).toBe(false);
   });
 
+  it("shows retired names to pillar staff without lookup management", async () => {
+    const store = getMockStore();
+    const topic = store.activity_topic.find((row) => row.name === "Menstrual health")!;
+    Object.assign(topic, { is_deleted: true, status: "INACTIVE" });
+    const workspace = await apiFor(9).workspace("srhr", "all", today);
+    expect(workspace.sessions.some((row) => row.topic === "Menstrual health")).toBe(true);
+    expect(workspace.topics.find((row) => row.id === topic.id)?.active).toBe(false);
+  });
+
+  it("labels unreadable attendees and unresolved types without raw ids", async () => {
+    const store = getMockStore();
+    const session = store.activity_session.find((row) => row.pillar_id === 3)!;
+    const attendee = store.activity_attendance.find((row) => row.session_id === session.id)!;
+    store.participant.splice(
+      store.participant.findIndex((row) => row.id === attendee.participant_id),
+      1
+    );
+    const type = store.activity_type_definition.find((row) => row.id === session.activity_type_id)!;
+    store.activity_type_definition.splice(store.activity_type_definition.indexOf(type), 1);
+    const workspace = await apiFor(1).workspace("srhr", "all", today);
+    const view = workspace.sessions.find((row) => row.id === session.id)!;
+    expect(view.activityType).toBe("Unknown activity type");
+    expect(view.attendees.map((row) => row.name)).toContain("Unknown participant");
+  });
+
   it("loads with no planned topics when the topic lookup fails", async () => {
     const client = clientFor();
     const request = client.request.bind(client);

@@ -159,7 +159,7 @@ export function SessionFormDialog({
             name="sessionDate"
             type="date"
             required
-            defaultValue={session?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
+            defaultValue={session?.date.slice(0, 10) ?? localToday()}
             className={fieldClass}
           />
         </label>
@@ -436,4 +436,11 @@ export function AttachSessionFileDialog({
       </form>
     </ActionDialog>
   );
+}
+
+/** Today's date in the browser's own time zone as YYYY-MM-DD (not UTC, which lags EAT overnight). */
+function localToday() {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }

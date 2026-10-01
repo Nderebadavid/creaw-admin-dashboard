@@ -98,6 +98,13 @@ export default async function PillarPage({
     download: can("DOCUMENT_DOWNLOAD"),
     export: can("REPORT_EXPORT_CSV"),
   };
+  // SRHR logs sessions through the workspace, never the raw-ID form, even when it failed to load.
+  const domainActions =
+    (pillar.code === "srhr" && sessions !== undefined) ||
+    !canCreateDomain ||
+    pillar.code === "wros" ? undefined : (
+      <PillarDomainCreateButton code={pillar.code} />
+    );
   return (
     <PillarContent
       workspace={
@@ -135,6 +142,9 @@ export default async function PillarPage({
       headingActions={
         sessionWorkspace && sessionPermissions.log ? (
           <>
+            {canCreate ? (
+              <PillarCreateButton code={pillar.code} name={pillar.name} variant="outline" />
+            ) : null}
             {pillar.code === "skilling" && canCreateDomain ? (
               <PillarDomainCreateButton code="skilling" />
             ) : null}
@@ -169,12 +179,7 @@ export default async function PillarPage({
           variant={canCreateDomain ? "outline" : "default"}
         />
       }
-      domainActions={
-        pillar.code === "srhr" && sessionWorkspace ? undefined : canCreateDomain &&
-          pillar.code !== "wros" ? (
-          <PillarDomainCreateButton code={pillar.code} />
-        ) : undefined
-      }
+      domainActions={domainActions}
       rowActions={
         canEdit
           ? (row) => <PillarEditButton code={pillar.code} id={row.id} category={row.category} />

@@ -68,16 +68,23 @@ async function sessionValues(input: unknown) {
   const session = await requireSession();
   if (!hasPermission(session.grants, "ACTIVITY_SESSION_LOG", scope(value.pillar)))
     return { error: actionResult(403, "You cannot log sessions in this pillar") };
-  const { types, topics } = await (await api()).curriculum(value.pillar);
-  if (!types.some((type) => type.id === value.activityTypeId))
-    return { error: actionResult(422, "That activity type is not part of this pillar") };
-  if (
-    value.topicId !== null &&
-    !topics.some(
-      (topic) => topic.id === value.topicId && topic.activityTypeId === value.activityTypeId
-    )
-  )
+  const client = await api();
+  const { types, topics } = await client.curriculum(value.pillar);
+  const type = types.find((item) => item.id === value.activityTypeId);
+  if (!type) return { error: actionResult(422, "That activity type is not part of this pillar") };
+  const topic =
+    value.topicId === null
+      ? undefined
+      : topics.find((item) => item.id === value.topicId && item.activityTypeId === type.id);
+  if (value.topicId !== null && !topic)
     return { error: actionResult(422, "That topic does not belong to this activity type") };
+  // A new log needs a live type and topic; an edit may keep the ones the session already has.
+  const current = value.sessionId ? await client.session(value.pillar, value.sessionId) : undefined;
+  if (value.sessionId && !current) return { error: actionResult(404, "Session not found") };
+  if (!type.active && current?.activity_type_id !== type.id)
+    return { error: actionResult(422, "That activity type is no longer offered") };
+  if (topic && !topic.active && current?.activity_topic_id !== topic.id)
+    return { error: actionResult(422, "That topic is no longer offered") };
   return {
     value,
     userId: session.user.id,

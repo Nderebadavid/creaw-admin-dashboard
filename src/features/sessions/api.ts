@@ -130,7 +130,7 @@ export function createSessionsApi(client: ApiClient, token: string) {
   const pathOf = (pillar: SessionPillar) => `/pillars/${pillar}`;
   const table = <T>(pillar: SessionPillar, name: string, schema: z.ZodType<T>, extra = {}) =>
     all<T>(pathOf(pillar), "/pillars/:pillar", { table: name, ...extra }, page(schema) as never);
-  /** Retired rows too when the caller manages lookups; otherwise the active ones. */
+  /** Retired rows too when the caller may see them; otherwise the active ones. */
   const lookup = <T>(name: string, schema: z.ZodType<T>) =>
     all<T>("/lookups/" + name, "/lookups/:table", { includeDeleted: "true" }, page(schema) as never)
       .catch(() => all<T>("/lookups/" + name, "/lookups/:table", {}, page(schema) as never))
@@ -209,7 +209,7 @@ export function createSessionsApi(client: ApiClient, token: string) {
             activityTypeId: row.activity_type_id,
             activityType:
               types.find((item) => item.id === row.activity_type_id)?.name ??
-              `Activity type #${row.activity_type_id}`,
+              "Unknown activity type",
             topicId: row.activity_topic_id,
             topic: topic?.name ?? freeTopic ?? `Session #${row.id}`,
             freeTopic,
@@ -226,9 +226,7 @@ export function createSessionsApi(client: ApiClient, token: string) {
                 return {
                   attendanceId: item.id,
                   participantId: item.participant_id,
-                  name: person
-                    ? `${person.first_name} ${person.last_name}`
-                    : `Participant #${item.participant_id}`,
+                  name: person ? `${person.first_name} ${person.last_name}` : "Unknown participant",
                   ward: ward?.name ?? null,
                   added: item.created_at,
                 };
@@ -302,6 +300,13 @@ export function createSessionsApi(client: ApiClient, token: string) {
         "activity_attendance",
         { is_deleted: deleted, status: deleted ? "INACTIVE" : "ACTIVE" },
         attendanceId
+      );
+    },
+    /** One session of a pillar, or undefined when it is not there. */
+    async session(pillar: SessionPillar, sessionId: number) {
+      const rows = await table(pillar, "activity_session", sessionSchema);
+      return rows.find(
+        (row) => row.id === sessionId && row.pillar_id === SESSION_PILLAR_IDS[pillar]
       );
     },
     async curriculum(pillar: SessionPillar) {
