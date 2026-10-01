@@ -194,7 +194,11 @@ export function RolesTab({
             ))}
           </div>
         </div>
-        <div className="flex flex-col gap-3.5 px-[22px] pb-5">
+        {/* Module cards sit in a grid (one, two or three across by width) to keep the page short. */}
+        <div
+          data-testid="permission-groups"
+          className="grid items-start gap-3.5 px-[22px] pb-5 lg:grid-cols-2 2xl:grid-cols-3"
+        >
           {selected &&
             groups.map((group) => {
               const held = group.all.filter(granted);
@@ -269,7 +273,7 @@ export function RolesTab({
               );
             })}
           {groups.length === 0 && (
-            <p className="py-8 text-center text-[14.5px] text-creaw-faint">
+            <p className="col-span-full py-8 text-center text-[14.5px] text-creaw-faint">
               No permissions match this filter.
             </p>
           )}

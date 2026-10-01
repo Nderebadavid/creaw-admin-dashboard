@@ -224,6 +224,39 @@ describe("administration screens", () => {
     expect(screen.getByText(/built-in roles cannot be edited/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /view audit log/i })).toBeDisabled();
   });
+  it("lays the permission module cards out in a grid, not one long column", () => {
+    const permission = (id: number, module: string) => ({
+      id,
+      code: `${module}_${id}`,
+      name: `Permission ${id}`,
+      module,
+      description: null,
+      status: "ACTIVE",
+      is_deleted: false,
+    });
+    render(
+      <PermissionsContent
+        roles={[
+          {
+            id: 1,
+            code: "SYSTEM_ADMIN",
+            name: "System Administrator",
+            description: null,
+            status: "ACTIVE",
+            is_deleted: false,
+            is_system_role: true,
+          },
+        ]}
+        permissions={[permission(1, "ADMIN"), permission(2, "VAWG"), permission(3, "GRANTS")]}
+        grants={[]}
+        canManageRoles
+        canManagePermissions
+      />
+    );
+    const groups = screen.getByTestId("permission-groups");
+    expect(groups).toHaveClass("grid", "lg:grid-cols-2", "2xl:grid-cols-3", "items-start");
+    expect(groups.querySelectorAll(":scope > section")).toHaveLength(3);
+  });
   it("puts role and permission creation beside the heading and explains the matrix", () => {
     render(
       <PermissionsContent
