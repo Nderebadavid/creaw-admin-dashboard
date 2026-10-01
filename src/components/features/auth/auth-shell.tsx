@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
+// Imported, so the URL carries a hash of the file and a new logo is never served from cache.
+import logo from "../../../../public/creaw-logo.png";
 
 const PILLARS = [
   { name: "VAWG", focus: "Violence against women & girls", bar: "bg-[#E0822F]" },
@@ -20,7 +22,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="pointer-events-none absolute -right-[90px] -bottom-[120px] h-60 w-60 rounded-full bg-creaw-orange opacity-[.28]" />
         <div className="relative self-start rounded-[14px] bg-white px-4 py-3">
           <Image
-            src="/creaw-logo.png"
+            src={logo}
             alt="CREAW — Centre for Rights Education and Awareness"
             width={128}
             height={91}

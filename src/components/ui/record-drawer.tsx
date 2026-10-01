@@ -90,7 +90,8 @@ export function RecordDrawer({
             </button>
           </div>
           {(status || actions) && (
-            <div className="flex flex-wrap items-center gap-2">
+            // A rule sets the record's status and actions apart from its title.
+            <div className="-mx-6 flex flex-wrap items-center gap-2 border-t border-creaw-divider px-6 pt-3.5">
               {status}
               <div className="ml-auto flex flex-wrap gap-2">{actions}</div>
             </div>
