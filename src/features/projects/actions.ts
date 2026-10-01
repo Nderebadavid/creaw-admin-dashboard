@@ -13,7 +13,7 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
 import { createProjectsApi } from "./api";
-import { projectInputSchema } from "./schemas";
+import { projectDeleteInputSchema, projectInputSchema, projectStatusInputSchema } from "./schemas";
 
 const api = () => withSessionApi(createProjectsApi);
 
@@ -67,6 +67,50 @@ export async function loadProjectOptionsAction() {
     return { ...actionResult(200, "OK"), data: await (await api()).options() };
   } catch {
     return { ...actionResult(500, "Could not load the options"), data: null };
+  }
+}
+
+/** Deactivates or reactivates a project; needs the same permission as editing it. */
+export async function setProjectStatusAction(input: unknown) {
+  const session = await requireSession();
+  const parsed = projectStatusInputSchema.safeParse(input);
+  if (!parsed.success) return actionResult(422, "Check the project status");
+  try {
+    const client = await api();
+    const project = await client.get(parsed.data.id);
+    if (!project) return actionResult(404, "Project not found");
+    if (!hasPermission(session.grants, "NARRATIVE_REPORT_MANAGE", { pillarId: project.pillarId }))
+      return actionResult(403, "You cannot manage projects in this pillar");
+    const response = await client.setStatus(project.id, parsed.data.status, parsed.data.reason);
+    if (response.success) {
+      revalidatePath("/projects");
+      revalidatePath("/grants");
+    }
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not update the project");
+  }
+}
+
+/** Deletes a project nothing depends on; needs the pillar configuration permission. */
+export async function deleteProjectAction(input: unknown) {
+  const session = await requireSession();
+  const parsed = projectDeleteInputSchema.safeParse(input);
+  if (!parsed.success) return actionResult(422, "Invalid project");
+  try {
+    const client = await api();
+    const project = await client.get(parsed.data.id);
+    if (!project) return actionResult(404, "Project not found");
+    if (!hasPermission(session.grants, "PILLAR_CONFIG_MANAGE", { pillarId: project.pillarId }))
+      return actionResult(403, "You cannot delete projects in this pillar");
+    const response = await client.remove(project.id);
+    if (response.success) {
+      revalidatePath("/projects");
+      revalidatePath("/dashboard");
+    }
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not delete the project");
   }
 }
 

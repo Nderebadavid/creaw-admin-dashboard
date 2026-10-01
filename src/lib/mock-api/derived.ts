@@ -49,6 +49,7 @@ export const DERIVED_COLUMNS: Partial<Record<TableName, string[]>> = {
     "curriculum_last_attended",
     "curriculum_behind",
   ],
+  donor: ["projects_count", "active_projects_count", "awarded_total"],
   project: [
     "applications_count",
     "awards_count",
@@ -300,6 +301,41 @@ export function derivedFields(
     return {
       county_id: subCounty?.county_id ?? null,
       county_name: displayName(store, "county", subCounty?.county_id),
+    };
+  }
+  if (table === "donor") {
+    // Only projects in pillars the caller can see count; money follows their award access.
+    const visible = store.project.filter(
+      (item) =>
+        !item.is_deleted &&
+        item.donor_id === row.id &&
+        !!grants &&
+        hasPermission(grants, "DASHBOARD_VIEW", { pillarId: item.pillar_id })
+    );
+    const awarded = visible.map((project) =>
+      !!grants && hasPermission(grants, "GRANT_AWARD_VIEW", { pillarId: project.pillar_id })
+        ? store.grant_award
+            .filter(
+              (award) =>
+                !award.is_deleted &&
+                store.grant_application.some(
+                  (application) =>
+                    application.id === award.application_id && application.project_id === project.id
+                )
+            )
+            .reduce((sum, award) => sum + award.amount_awarded, 0)
+        : null
+    );
+    return {
+      projects_count: grants ? visible.length : null,
+      active_projects_count: grants
+        ? visible.filter((item) => item.status === "ACTIVE").length
+        : null,
+      // Null unless the caller may see awards in every one of the donor's visible projects.
+      awarded_total:
+        grants && awarded.length > 0 && awarded.every((value) => value !== null)
+          ? awarded.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+          : null,
     };
   }
   if (table === "project") {

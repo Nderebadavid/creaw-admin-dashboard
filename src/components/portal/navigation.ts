@@ -9,6 +9,7 @@ import {
   ArrowLeftRight,
   Receipt,
   FolderKanban,
+  HandCoins,
   ClipboardCheck,
   CalendarDays,
   History,
@@ -55,6 +56,7 @@ export const implementedPortalRoutes: readonly string[] = [
   "/referrals",
   "/grants",
   "/projects",
+  "/donors",
   "/assessments",
   "/reporting",
   "/audit",
@@ -164,6 +166,12 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         href: "/projects",
         permissions: ["DASHBOARD_VIEW"],
         icon: FolderKanban,
+      },
+      {
+        label: "Donors",
+        href: "/donors",
+        permissions: ["DASHBOARD_VIEW"],
+        icon: HandCoins,
       },
       {
         label: "Org assessments",

@@ -24,6 +24,38 @@ export function resolvePermission(
   if (family === "assessments" && table === "organisation" && request.method === "GET")
     permission = "ORG_ASSESSMENT_VIEW";
   if (table === "referral" && request.method === "POST") permission = "REFERRAL_CREATE";
+  // Deleting (soft) is its own, stricter action: it needs the configuration or lookup
+  // permission, and is refused while other records still depend on the row.
+  if (
+    (table === "project" || table === "donor") &&
+    request.method === "PATCH" &&
+    existing &&
+    request.body &&
+    typeof request.body === "object" &&
+    (request.body as Row).is_deleted === true
+  ) {
+    if (Object.keys(request.body).some((key) => key !== "is_deleted"))
+      return envelope(422, null, "Deleting cannot be combined with other changes");
+    if (
+      table === "project" &&
+      store.grant_application.some((row) => !row.is_deleted && row.project_id === existing.id)
+    )
+      return envelope(
+        422,
+        null,
+        "This project has grant applications. Deactivate it instead of deleting it"
+      );
+    if (
+      table === "donor" &&
+      store.project.some((row) => !row.is_deleted && row.donor_id === existing.id)
+    )
+      return envelope(
+        422,
+        null,
+        "This donor still has projects. Deactivate it instead of deleting it"
+      );
+    permission = table === "project" ? "PILLAR_CONFIG_MANAGE" : "LOOKUP_MANAGE";
+  }
   if (
     table === "grant_application" &&
     request.method !== "GET" &&

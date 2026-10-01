@@ -88,6 +88,9 @@ export const INCLUDES: Partial<Record<TableName, Record<string, IncludeSpec>>> =
     checks: childrenBy("assessment_document_check", "assessment_id", (row) => row.id),
     documents: documentsOf("organisation_assessment"),
   },
+  donor: {
+    projects: childrenBy("project", "donor_id", (row) => row.id),
+  },
   project: {
     applications: childrenBy("grant_application", "project_id", (row) => row.id),
     awards: {
