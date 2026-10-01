@@ -12,6 +12,24 @@ export function formatDate(value: string): string {
   });
 }
 
+/**
+ * When a record last changed: "Just now", "5 minutes ago", "3 hours ago" or "2 days ago"
+ * for the last week, then the date. `now` is injectable so the text is testable.
+ */
+export function formatUpdated(value: string, now: Date = new Date()): string {
+  const time = Date.parse(dateOnly.test(value) ? `${value}T00:00:00` : value);
+  if (Number.isNaN(time)) return "—";
+  const seconds = Math.floor((now.getTime() - time) / 1000);
+  // Dates in the future (clock drift between servers) read as the date, not "-2 hours ago".
+  if (seconds < 0) return formatDate(value);
+  const unit = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"} ago`;
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return unit(Math.floor(seconds / 60), "minute");
+  if (seconds < 86_400) return unit(Math.floor(seconds / 3600), "hour");
+  if (seconds < 7 * 86_400) return unit(Math.floor(seconds / 86_400), "day");
+  return formatDate(value);
+}
+
 /** Fixed short month names, so every runtime renders the same text ("Sep", never "Sept"). */
 export const MONTHS_SHORT = [
   "Jan",

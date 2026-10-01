@@ -80,6 +80,7 @@ export const USER_SORT_KEYS: Record<string, string> = {
   roles: "role_names",
   scope: "scope_names",
   status: "status",
+  updated: "updated_at",
 };
 export function createAdminApi(client: ApiClient, token: string) {
   const collect = async <T>(fetchPage: (page: number) => Promise<AdminPage<T>>) => {

@@ -164,6 +164,8 @@ export const SESSION_SORT_KEYS: Record<string, string> = {
   venue: "venue",
   facilitator: "facilitator_name",
   attendees: "attendee_count",
+  record: "status",
+  updated: "updated_at",
 };
 
 /** A session as the register shows it; names arrive with the row. */

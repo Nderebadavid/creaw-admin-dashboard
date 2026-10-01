@@ -12,6 +12,7 @@ import { auditedExportAction } from "@/components/portal/data-actions";
 import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
+import { recordStatusColumn, updatedColumn } from "@/components/data-table/record-columns";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
 import { listCasesAction, loadCaseDetailAction, viewCaseFileAction } from "../actions";
@@ -81,6 +82,8 @@ const columns: DataColumn<LegalCaseView>[] = [
       </StatusBadge>
     ),
   },
+  recordStatusColumn((row) => row.status),
+  updatedColumn((row) => row.updated),
 ];
 
 /** The design's VAWG legal case register, paged by the API, with each case's record panel and actions. */

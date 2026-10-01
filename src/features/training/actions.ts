@@ -224,6 +224,8 @@ export async function listTraineesAction(query: ListQuery) {
             "status",
             "outcome",
             "grant",
+            "record",
+            "updated",
           ],
           filters: ["pathway", "training_status"],
         })

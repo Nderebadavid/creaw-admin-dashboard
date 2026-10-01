@@ -1,6 +1,7 @@
 import type { DataColumn } from "@/components/data-table/data-table";
 import { withSortValues } from "@/components/data-table/sorting";
 import { PillarChip, pillarLook } from "@/components/portal/pillars";
+import { updatedColumn } from "@/components/data-table/record-columns";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate, initials, titleCase } from "@/lib/format";
 import type { ParticipantView } from "../api";
@@ -87,5 +88,6 @@ export function participantColumns(
         </StatusBadge>
       ),
     },
+    updatedColumn((row) => row.updated),
   ]);
 }

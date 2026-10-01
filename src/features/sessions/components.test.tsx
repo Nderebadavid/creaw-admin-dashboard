@@ -276,6 +276,21 @@ describe("curriculum coverage and session register", () => {
     );
   });
 
+  it("shows the record status and when each session last changed", async () => {
+    render(<SessionWorkspaceView workspace={workspace} can={all} />);
+    const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+    expect(headers.slice(-3)).toEqual(expect.arrayContaining(["Record", "Updated"]));
+    const row = screen.getByRole("button", { name: /^Open Menstrual health/ }).closest("tr")!;
+    expect(within(row).getByText("Active")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Updated" }));
+    await waitFor(() =>
+      expect(actions.listSessionsAction).toHaveBeenLastCalledWith(
+        "srhr",
+        expect.objectContaining({ sort: { by: "updated", order: "asc" } })
+      )
+    );
+  });
+
   it("sorts and searches through the API", async () => {
     render(<SessionWorkspaceView workspace={workspace} can={all} />);
     fireEvent.click(screen.getByRole("button", { name: "Facilitator" }));
@@ -339,6 +354,14 @@ describe("session drawer", () => {
     expect(actions.loadSessionDetailAction).toHaveBeenCalledWith("srhr", 2);
     for (const tab of ["Overview", "Attendance (1)", "Documents & photos (1)", "Activity"])
       expect(await within(drawer).findByRole("tab", { name: tab })).toBeInTheDocument();
+  });
+
+  it("ends the overview with the record's status, dates and notes", async () => {
+    const drawer = await open();
+    const record = within(drawer).getByRole("region", { name: "Record" });
+    expect(within(record).getByText("Active")).toBeInTheDocument();
+    expect(record).toHaveTextContent("Created10 Sept 2026");
+    expect(record).toHaveTextContent("NotesGood turnout");
   });
 
   it("lists attendees by full name and offers add and remove", async () => {

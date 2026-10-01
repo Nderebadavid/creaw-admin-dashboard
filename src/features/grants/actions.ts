@@ -36,7 +36,7 @@ export async function listGrantsAction(query: GrantQuery) {
   try {
     const clean = cleanListQuery(
       { page: query.page, pageSize: query.pageSize, search: query.search, sort: query.sort },
-      { sort: ["applicant", "project", "requested", "type", "date", "stage"] }
+      { sort: ["applicant", "project", "requested", "type", "date", "stage", "updated"] }
     );
     return {
       ...actionResult(200, "OK"),

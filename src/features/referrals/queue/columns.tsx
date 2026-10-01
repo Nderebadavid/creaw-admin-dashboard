@@ -1,5 +1,6 @@
 import type { DataColumn } from "@/components/data-table/data-table";
 import { withSortValues } from "@/components/data-table/sorting";
+import { updatedColumn } from "@/components/data-table/record-columns";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { PillarChip, pillarLook } from "@/components/portal/pillars";
 import { formatDate, initials, titleCase } from "@/lib/format";
@@ -86,4 +87,5 @@ export const referralColumns: DataColumn<ReferralView>[] = withSortValues(referr
     header: "Status",
     cell: (row) => <StatusBadge tone={tone(row.status)}>{titleCase(row.status)}</StatusBadge>,
   },
+  updatedColumn((row) => row.updated),
 ]);

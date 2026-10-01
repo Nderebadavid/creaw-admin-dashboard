@@ -1,5 +1,6 @@
 "use client";
 
+import { updatedColumn } from "@/components/data-table/record-columns";
 import { textSortValue } from "@/components/data-table/sorting";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { useState } from "react";
@@ -78,6 +79,7 @@ export function PillarDomainTable({
     sortValue: (row) => row.status,
     cell: (row) => <StatusBadge tone={statusTone(row.status)}>{titleCase(row.status)}</StatusBadge>,
   });
+  columns.push(updatedColumn((row) => row.updated));
   return (
     <>
       {!selected && <FormBanner tone="error">{list.error}</FormBanner>}

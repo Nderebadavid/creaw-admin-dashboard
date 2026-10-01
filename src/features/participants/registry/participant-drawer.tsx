@@ -4,6 +4,7 @@ import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
@@ -58,7 +59,6 @@ export function ParticipantDrawer({
     ],
     ["Registered", formatDate(participant.registered)],
     ["Consent", participant.consentGiven ? "Recorded" : "Not recorded"],
-    ["Remarks", participant.remarks ?? "—"],
   ];
   const firstPillar = pillarLook(participant.pillarIds[0]);
   // Newest first: each enrollment, then the registration they all hang off.
@@ -107,6 +107,13 @@ export function ParticipantDrawer({
           content: (
             <div className="flex flex-col gap-[22px]">
               <FieldGrid fields={fields} />
+              <RecordSection
+                status={participant.status}
+                statusDescription={participant.statusDescription}
+                created={participant.registered}
+                updated={participant.updated}
+                notes={[["Remarks", participant.remarks ?? "—"]]}
+              />
               <section className="flex flex-col gap-2.5">
                 <SectionTitle>Pillar enrollments</SectionTitle>
                 {participant.enrollments.map((item) => {

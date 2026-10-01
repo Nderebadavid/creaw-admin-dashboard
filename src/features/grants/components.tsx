@@ -21,6 +21,7 @@ import { exportGrantsAction, listGrantsAction } from "./actions";
 
 export { GrantDetailContent } from "./detail-content";
 import { grantTone, stageLabel } from "./status";
+import { updatedColumn } from "@/components/data-table/record-columns";
 import { grantSortValues, grantStages as stages } from "./sort-values";
 
 const cellText = "font-medium text-creaw-ink-soft";
@@ -77,6 +78,7 @@ export const grantColumns: DataColumn<GrantRow>[] = withSortValues(grantSortValu
     header: "Stage",
     cell: (row) => <StatusBadge tone={grantTone(row.status)}>{stageLabel(row.status)}</StatusBadge>,
   },
+  updatedColumn((row) => row.updatedAt),
 ]);
 
 /** Grant applications queue; each row opens the application's sign-off page. */

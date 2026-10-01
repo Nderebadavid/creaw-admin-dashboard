@@ -106,7 +106,16 @@ describe("VAWG case register", () => {
   it("shows the reference columns in order from the page the server rendered", () => {
     render(<CaseRegister workspace={workspace} can={allowed} />);
     const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
-    const wanted = ["Case", "Case type", "Court", "Officer", "Next date", "Status"];
+    const wanted = [
+      "Case",
+      "Case type",
+      "Court",
+      "Officer",
+      "Next date",
+      "Status",
+      "Record",
+      "Updated",
+    ];
     // The table appends an "Open" row-action column after the data columns.
     expect(headers.slice(wanted.length)).toEqual(["Open"]);
     wanted.forEach((heading, i) => expect(headers[i]).toContain(heading));
@@ -227,6 +236,37 @@ describe("VAWG case register", () => {
     expect(screen.queryByRole("dialog", { name: "Edit legal case" })).not.toBeInTheDocument();
     // The register and the drawer's detail reload so the saved values show.
     await waitFor(() => expect(listCasesAction).toHaveBeenCalled());
+  });
+
+  it("ends the overview with the record's status, dates and masked outcome notes", async () => {
+    const withNotes = {
+      ...workspace,
+      cases: page([
+        {
+          ...legalCase,
+          status: "INACTIVE",
+          statusDescription: "Case withdrawn by the survivor",
+          outcomeNotes: "•••••••• plan",
+        },
+      ]),
+    };
+    const drawer = await open(allowed, withNotes);
+    const record = within(drawer).getByRole("region", { name: "Record" });
+    expect(record).toHaveTextContent("Record status");
+    expect(within(record).getByText("Inactive")).toBeInTheDocument();
+    expect(record).toHaveTextContent("Status noteCase withdrawn by the survivor");
+    expect(record).toHaveTextContent("Created01 Aug 2026");
+    expect(record).toHaveTextContent("Last updated01 Sept 2026");
+    expect(within(record).getByRole("button", { name: "Reveal Outcome notes" })).toBeEnabled();
+  });
+
+  it("offers no outcome-notes reveal without the reveal permission", async () => {
+    const withNotes = {
+      ...workspace,
+      cases: page([{ ...legalCase, outcomeNotes: "•••••••• plan" }]),
+    };
+    const drawer = await open({ ...allowed, reveal: false }, withNotes);
+    expect(within(drawer).queryByRole("button", { name: "Reveal Outcome notes" })).toBeNull();
   });
 
   it("shows the advocate in the overview, or Not assigned", async () => {

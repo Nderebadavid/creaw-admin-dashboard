@@ -29,7 +29,7 @@ export async function listReferralsAction(query: ReferralQuery) {
   try {
     const clean = cleanListQuery(
       { page: query.page, pageSize: query.pageSize, search: query.search, sort: query.sort },
-      { sort: ["participant", "route", "reason", "referredBy", "date", "status"] }
+      { sort: ["participant", "route", "reason", "referredBy", "date", "status", "updated"] }
     );
     return {
       ...actionResult(200, "OK"),

@@ -62,7 +62,7 @@ export async function listUsersAction(query: {
   try {
     const clean = cleanListQuery(
       { page, pageSize, search: query.search, sort: query.sort as SortState | undefined },
-      { sort: ["staff", "roles", "scope", "status"] }
+      { sort: ["staff", "roles", "scope", "status", "updated"] }
     );
     return {
       ...actionResult(200, "OK"),

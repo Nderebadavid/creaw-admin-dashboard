@@ -5,6 +5,7 @@ import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate, initials, titleCase } from "@/lib/format";
@@ -95,7 +96,17 @@ export function OrganisationDrawer({
         {
           id: "overview",
           label: "Overview",
-          content: <FieldGrid fields={fields} />,
+          content: (
+            <div className="flex flex-col gap-[22px]">
+              <FieldGrid fields={fields} />
+              <RecordSection
+                status={organisation.status}
+                statusDescription={organisation.statusDescription}
+                created={organisation.registered}
+                updated={organisation.updated}
+              />
+            </div>
+          ),
         },
         {
           id: "pipeline",

@@ -173,6 +173,8 @@ export const CASE_SORT_KEYS: Record<string, string> = {
   officer: "assigned_officer",
   nextDate: "next_court_date",
   status: "court_status",
+  record: "status",
+  updated: "updated_at",
 };
 /** The counselling register's column ids and the API fields they sort by. */
 export const SURVIVOR_SORT_KEYS: Record<string, string> = {
@@ -489,7 +491,7 @@ export function createVawgApi(client: ApiClient, token: string) {
         vawgMutationSchema
       );
     },
-    async revealCaseField(caseId: number, field: "ob_number") {
+    async revealCaseField(caseId: number, field: "ob_number" | "outcome_notes") {
       const result = await client.request(
         {
           method: "GET",
