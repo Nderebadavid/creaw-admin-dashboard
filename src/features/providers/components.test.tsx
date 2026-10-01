@@ -9,7 +9,6 @@ vi.mock("./actions", () => ({
   createProviderAction: vi.fn(async () => ({ success: true, message: "ok", resultCode: 201 })),
   updateProviderAction: vi.fn(async () => ({ success: true, message: "ok", resultCode: 200 })),
   setProviderActiveAction: vi.fn(async () => ({ success: true, message: "ok", resultCode: 200 })),
-  revealProviderContactAction: vi.fn(),
   loadProviderWorkloadAction: vi.fn(async () => ({ success: false, message: "", data: null })),
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
@@ -79,7 +78,7 @@ const directory: ProviderDirectory = {
     },
   ],
 };
-const all = { manage: true, reveal: true, export: true };
+const all = { manage: true, export: true };
 
 describe("provider directory", () => {
   it("lists providers with the directory columns and filters", () => {
@@ -97,7 +96,8 @@ describe("provider directory", () => {
     const drawer = screen.getByRole("dialog");
     expect(drawer).toHaveTextContent("External provider");
     expect(drawer).toHaveTextContent("Counsellor · Nairobi Women's Hospital");
-    expect(within(drawer).getByRole("button", { name: /Reveal phone/i })).toBeEnabled();
+    expect(within(drawer).getByLabelText("Phone")).toHaveTextContent("••••• ••0 221");
+    expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).not.toBeInTheDocument();
     fireEvent.click(within(drawer).getByRole("tab", { name: /Linked work/ }));
     expect(drawer).toHaveTextContent("Facility referral day");
   });
@@ -182,12 +182,7 @@ describe("provider directory", () => {
   });
 
   it("hides management controls without permission", () => {
-    render(
-      <ProviderRegister
-        directory={directory}
-        can={{ manage: false, reveal: false, export: false }}
-      />
-    );
+    render(<ProviderRegister directory={directory} can={{ manage: false, export: false }} />);
     expect(screen.queryByRole("button", { name: "Add provider" })).not.toBeInTheDocument();
   });
 });

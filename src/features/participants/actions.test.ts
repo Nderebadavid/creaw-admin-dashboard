@@ -69,20 +69,9 @@ describe("participant workflows", () => {
     expect(forbidden.resultCode).toBe(403);
   });
 
-  it("audits an authorized sensitive reveal and otherwise keeps the field masked", async () => {
-    const api = apiFor(1);
-    const detail = await api.get(1);
+  it("keeps the identity number masked on the detail read", async () => {
+    const detail = await apiFor(1).get(1);
     expect(detail?.idNumber).not.toBe("29481172");
-    const result = await api.reveal(1, "id_number");
-    expect(result).toMatchObject({ success: true, data: { id_number: "29481172" } });
-    expect(getMockStore().audit_logs.at(-1)?.action).toBe("REVEAL");
-    expect(JSON.stringify(getMockStore().audit_logs)).not.toContain("29481172");
-  });
-
-  it("does not reveal identity data to a viewer without reveal permission", async () => {
-    const audits = getMockStore().audit_logs.length;
-    expect((await apiFor(13).reveal(1, "id_number")).resultCode).toBe(403);
-    expect(getMockStore().audit_logs).toHaveLength(audits);
   });
 
   it("shows the latest pipeline stage instead of the enrollment entry category", async () => {

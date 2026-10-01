@@ -20,7 +20,7 @@ export const organisationDtoSchema = z.object({
   registration_number: z.string().nullable(),
   ward_id: id.nullable(),
   address: z.string().nullable(),
-  // Sensitive: arrives masked (a string) unless revealed.
+  // Sensitive: arrives masked (a string).
   has_bank_account: z.union([z.boolean(), z.string()]).nullable(),
   due_diligence_status: z.string(),
   due_diligence_date: z.string().nullable(),

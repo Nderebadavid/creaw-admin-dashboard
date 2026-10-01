@@ -2,7 +2,7 @@
 /**
  * Server Actions for Skilling trainees: enrolling and editing a placement,
  * recording its outcome, recommending a graduate to WEE for a business grant,
- * and the audited salary reveal.
+ *
  *
  * Each action re-checks the session, validates its input and checks the
  * permission in the Skilling pillar before calling the API, which enforces the
@@ -10,7 +10,6 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { RevealResult } from "@/components/ui/masked-field";
 import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
@@ -183,22 +182,6 @@ export async function setRecommendationAction(input: unknown) {
     return done(await client.update(traineeId, { recommended_for_grant: recommend }));
   } catch {
     return actionResult(500, "Could not save the recommendation");
-  }
-}
-
-export async function revealSalaryAction(traineeId: number): Promise<RevealResult> {
-  const session = await requireSession();
-  if (!Number.isSafeInteger(traineeId) || traineeId < 1)
-    return { success: false, error: "Invalid trainee" };
-  if (!hasPermission(session.grants, "SENSITIVE_REVEAL", scope))
-    return { success: false, error: "Permission denied" };
-  try {
-    const result = await (await api()).revealSalary(traineeId);
-    if (!result.success || result.value === null)
-      return { success: false, error: result.message || "Nothing to reveal" };
-    return { success: true, value: `KES ${Number(result.value).toLocaleString("en-KE")}` };
-  } catch {
-    return { success: false, error: "Could not reveal the salary" };
   }
 }
 

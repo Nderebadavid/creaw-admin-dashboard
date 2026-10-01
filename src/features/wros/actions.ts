@@ -10,7 +10,6 @@
 import { revalidatePath } from "next/cache";
 import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
-import { auditedRevealAction } from "@/components/portal/data-actions";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { cleanListQuery, type ListQuery } from "@/lib/api/list";
@@ -59,25 +58,6 @@ export async function moveOrganisationStageAction(input: unknown) {
   } catch {
     return actionResult(500, "Could not record the stage");
   }
-}
-
-/** Audited reveal of the organisation's bank-account status. */
-export async function revealOrganisationBankAction(organisationId: number) {
-  if (!Number.isSafeInteger(organisationId) || organisationId < 1)
-    return { success: false as const, error: "Invalid organisation" };
-  const result = await auditedRevealAction(
-    {
-      path: "/pillars/wros",
-      routeTemplate: "/pillars/:pillar",
-      query: { table: "organisation", id: organisationId },
-    },
-    "has_bank_account"
-  );
-  if (!result.success) return result;
-  return {
-    success: true as const,
-    value: result.value === "true" ? "Yes" : result.value === "false" ? "No" : result.value,
-  };
 }
 
 /** One page of partner organisations for the register; the API filters, searches and sorts. */

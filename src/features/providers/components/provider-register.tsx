@@ -145,7 +145,7 @@ export function ProviderRegister({
       <FormBanner tone="error">{error}</FormBanner>
       <TableCard
         title="Provider directory"
-        subtitle="Open a provider to see their linked work or reveal their contact details"
+        subtitle="Open a provider to see their linked work and contact details"
         chipsLabel="Provider type"
         chips={["All", ...providerTypes].map((value) => ({
           label: value === "All" ? value : providerTypeLabel(value),

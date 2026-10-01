@@ -7,7 +7,6 @@ import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/sto
 import {
   enrolTraineeAction,
   recordOutcomeAction,
-  revealSalaryAction,
   setRecommendationAction,
   updateTraineeAction,
 } from "./actions";
@@ -224,19 +223,6 @@ describe("grant recommendation action", () => {
         recommend: false,
       })
     ).toMatchObject({ message: "WEE has already accepted this recommendation" });
-  });
-});
-
-describe("salary reveal", () => {
-  it("reveals the salary in shillings to Skilling reveal holders only", async () => {
-    expect(await revealSalaryAction(traineeId("Tailoring & design"))).toEqual({
-      success: true,
-      value: "KES 18,000",
-    });
-    signIn(OUTSIDER);
-    expect(await revealSalaryAction(traineeId("Tailoring & design"))).toMatchObject({
-      success: false,
-    });
   });
 });
 

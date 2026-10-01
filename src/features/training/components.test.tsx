@@ -11,7 +11,6 @@ vi.mock("./actions", () => ({
   updateTraineeAction: vi.fn(),
   recordOutcomeAction: vi.fn(async () => ({ success: true, resultCode: 200, message: "OK" })),
   setRecommendationAction: vi.fn(async () => ({ success: true, resultCode: 200, message: "OK" })),
-  revealSalaryAction: vi.fn(),
   listTraineesAction: vi.fn(),
   loadTraineeOptionsAction: vi.fn(),
 }));
@@ -127,8 +126,8 @@ const workspace: TrainingWorkspace = {
     acceptedByWee: 1,
   },
 };
-const allowed = { edit: true, recommend: true, reveal: true, export: true };
-const denied = { edit: false, recommend: false, reveal: false, export: false };
+const allowed = { edit: true, recommend: true, export: true };
+const denied = { edit: false, recommend: false, export: false };
 
 const table = () => within(screen.getByRole("table", { name: "Trainee register" }));
 
@@ -241,7 +240,7 @@ describe("trainee drawer", () => {
     expect(drawer).toHaveTextContent("James Otieno");
     expect(drawer).toHaveTextContent("Self-employed");
     expect(drawer).toHaveTextContent("•8000");
-    expect(within(drawer).getByRole("button", { name: "Reveal Monthly salary" })).toBeEnabled();
+    expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
     for (const tab of ["Overview", "Grant hand-off", "Activity"])
       expect(within(drawer).getByRole("tab", { name: tab })).toBeInTheDocument();
   });
@@ -299,7 +298,6 @@ describe("trainee drawer", () => {
     expect(within(drawer).getByRole("button", { name: "Edit" })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: /Record outcome/ })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: /Recommend for grant/ })).toBeDisabled();
-    expect(within(drawer).queryByRole("button", { name: "Reveal Monthly salary" })).toBeNull();
   });
 });
 

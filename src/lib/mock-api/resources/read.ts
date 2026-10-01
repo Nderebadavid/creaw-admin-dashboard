@@ -261,40 +261,22 @@ function providerWorkload(store: MockStore, providerId: number) {
   };
 }
 
-/** One row, optionally with an audited reveal of a sensitive field or a document download. */
+/** One row, optionally as a document download. Sensitive fields are never returned unmasked. */
 function readSingle(ctx: ResourceContext, existing: Row): Envelope {
-  const { request, store, query, userId, grants, pillar, table, permission } = ctx;
-  // Providers have no pillar scope, so a reveal-only caller is judged by the reveal rule below.
-  const revealOnly =
-    table === "external_provider" && permission === "SENSITIVE_REVEAL" && query.has("reveal");
-  if (!revealOnly && !allowed(store, grants, permission, table, existing)) return envelope(403);
-  // A reveal-only holder gets the one field, not the row, so ids cannot be looped to browse.
-  const trimmed = revealOnly && !hasPermission(grants, "PROVIDER_MANAGE");
+  const { request, store, query, userId, grants, table, permission } = ctx;
+  if (!allowed(store, grants, permission, table, existing)) return envelope(403);
+  // There is no reveal: a masked field stays masked for every caller.
+  if (query.has("reveal")) return envelope(422, null, "Sensitive fields cannot be revealed");
   const includes = parseIncludes(table, query.get("include"));
   if (!includes) return envelope(422, null, "Unknown include");
-  const result = trimmed
-    ? { id: existing.id }
-    : withIncludes(
-        store,
-        grants,
-        table,
-        presentRow(store, table, existing, grants),
-        includes,
-        (child, row) => presentRow(store, child, row, grants)
-      );
-  if (query.has("reveal")) {
-    const field = query.get("reveal")!;
-    if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
-    const mayReveal =
-      table === "external_provider"
-        ? hasPermission(grants, "PROVIDER_MANAGE") ||
-          hasModulePermission(grants, "SENSITIVE_REVEAL")
-        : allowed(store, grants, "SENSITIVE_REVEAL", table, existing) &&
-          !(pillar && !hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: pillar.id }));
-    if (!mayReveal) return envelope(403);
-    result[field] = existing[field];
-    auditWrite(store, request, userId, table, existing, existing, "REVEAL");
-  }
+  const result = withIncludes(
+    store,
+    grants,
+    table,
+    presentRow(store, table, existing, grants),
+    includes,
+    (child, row) => presentRow(store, child, row, grants)
+  );
   if (query.has("download")) {
     if (table !== "document" || query.get("download") !== "true") return envelope(422);
     if (!allowed(store, grants, "DOCUMENT_DOWNLOAD", table, existing)) return envelope(403);

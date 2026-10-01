@@ -1,7 +1,6 @@
 /**
  * Typed client for the external provider directory: providers with their
- * institution, masked contacts and linked work, plus the writes and the audited
- * contact reveal. Reads go through /admin/providers; the API masks the contacts.
+ * institution, masked contacts and linked work, plus the writes. Reads go through /admin/providers; the API masks the contacts.
  */
 import { z } from "zod";
 import type { ApiClient } from "@/lib/api/client";
@@ -68,8 +67,6 @@ const workloadSchema = z.object({
 });
 const providerWithWorkloadSchema = providerSchema.extend({ workload: workloadSchema.optional() });
 const institutionSchema = z.object({ id, name: z.string(), status: z.string().optional() });
-/** A reveal-only caller gets just the id and the revealed field back. */
-const revealSchema = z.object({ id, phone_number: nullableText, email: nullableText });
 const page = <T extends z.ZodType>(item: T) =>
   createEnvelopeSchema(z.union([createPaginatedSchema(item), z.null()]));
 export const providerMutationSchema = createEnvelopeSchema(
@@ -187,23 +184,6 @@ export function createProvidersApi(client: ApiClient, token: string) {
     update: (providerId: number, values: Values) => write("PATCH", values, providerId),
     setActive: (providerId: number, active: boolean) =>
       write("PATCH", { status: active ? "ACTIVE" : "INACTIVE" }, providerId),
-    /** The full contact value; the API audits every reveal. */
-    async reveal(providerId: number, field: "phone_number" | "email") {
-      const result = await client.request(
-        {
-          method: "GET",
-          path: `${PATH}/${providerId}`,
-          routeTemplate: ITEM_TEMPLATE,
-          token,
-          query: { reveal: field },
-        },
-        createEnvelopeSchema(z.union([revealSchema, z.null()]))
-      );
-      return {
-        ...result,
-        data: result.data?.[field] == null ? null : { value: result.data[field] },
-      };
-    },
   };
 }
 

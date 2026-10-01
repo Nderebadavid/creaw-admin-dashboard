@@ -14,9 +14,8 @@ const raw = (userId: number, request: Record<string, unknown>) =>
     { parse: (value: unknown) => value } as never
   ) as Promise<{ success: boolean; resultCode: number; data: any; message: string }>;
 
-// User 9 (Pillar Lead for SRHR, role 3) holds SENSITIVE_REVEAL scoped to pillar 3
-// and neither PROVIDER_MANAGE nor any ADMIN permission.
-const SENSITIVE_REVEAL_ONLY_USER = 9;
+// User 9 (Pillar Lead for SRHR, role 3) holds neither PROVIDER_MANAGE nor any ADMIN permission.
+const NON_MANAGER_USER = 9;
 
 describe("provider directory", () => {
   const list = (userId: number, query: Record<string, unknown> = {}) =>
@@ -46,27 +45,6 @@ describe("provider directory", () => {
   it("refuses the directory to users without PROVIDER_MANAGE", async () => {
     expect((await list(9)).resultCode).toBe(403);
     expect((await one(9, 1)).resultCode).toBe(403);
-  });
-
-  it("reveals a contact for PROVIDER_MANAGE holders and audits it", async () => {
-    const before = getMockStore().audit_logs.length;
-    const result = await one(1, 1, { reveal: "phone_number" });
-    expect(result.data.phone_number).toBe("0711 900 221");
-    expect(getMockStore().audit_logs.length).toBe(before + 1);
-  });
-
-  it("lets a pillar-scoped SENSITIVE_REVEAL holder reveal a contact but not browse", async () => {
-    const userId = SENSITIVE_REVEAL_ONLY_USER;
-    const revealed = (await one(userId, 1, { reveal: "email" })).data;
-    expect(revealed.email).toBe("faith.kimani@nwh.example");
-    expect(revealed).toEqual({ id: 1, email: "faith.kimani@nwh.example" });
-    expect(revealed).not.toHaveProperty("notes");
-    expect(revealed).not.toHaveProperty("first_name");
-    const full = (await one(1, 1, { reveal: "email" })).data;
-    expect(full.first_name).toBe("Faith");
-    expect(full.email).toBe("faith.kimani@nwh.example");
-    expect((await one(userId, 1)).resultCode).toBe(403);
-    expect((await list(userId)).resultCode).toBe(403);
   });
 
   it("creates, edits and deactivates a provider, keeping contacts masked in responses", async () => {
@@ -137,10 +115,8 @@ describe("provider directory", () => {
     expect((await post({ phone_number: "••••0221" })).resultCode).toBe(422);
   });
 
-  it("refuses the workload view to a reveal-only holder, alone or combined with a reveal", async () => {
-    const userId = SENSITIVE_REVEAL_ONLY_USER;
-    expect((await one(userId, 1, { reveal: "email", include: "workload" })).resultCode).toBe(403);
-    expect((await one(userId, 1, { include: "workload" })).resultCode).toBe(403);
+  it("refuses the workload view to users without PROVIDER_MANAGE", async () => {
+    expect((await one(NON_MANAGER_USER, 1, { include: "workload" })).resultCode).toBe(403);
   });
 
   it("caps the workload at five items, newest first", async () => {

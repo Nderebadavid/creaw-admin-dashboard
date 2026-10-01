@@ -1,6 +1,6 @@
 // Columns labelled “sensitive field” in the SQL DDL, plus legal_case.ob_number, which the
 // VAWG design mandates as sensitive. Participant names are deliberately shown in full
-// (a product decision); ID number and phone stay masked behind the audited reveal.
+// (a product decision); ID number and phone stay masked everywhere; the portal has no reveal.
 export const SENSITIVE_FIELDS: Readonly<Record<string, readonly string[]>> = {
   user: ["password_hash", "phone_number", "email"],
   participant: ["id_number", "phone_number"],

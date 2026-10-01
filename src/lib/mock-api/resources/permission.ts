@@ -15,16 +15,6 @@ export function resolvePermission(
   let permission =
     permissionCodes[table]?.[request.method === "GET" ? 0 : 1] ??
     (request.method === "GET" ? "DASHBOARD_VIEW" : "LOOKUP_MANAGE");
-  // A pillar-scoped SENSITIVE_REVEAL holder may reveal a provider contact without browsing the directory.
-  if (
-    table === "external_provider" &&
-    request.method === "GET" &&
-    ctx.query.has("reveal") &&
-    [...ctx.query.keys()].every((key) => key === "reveal") &&
-    !hasPermission(grants, "PROVIDER_MANAGE") &&
-    hasModulePermission(grants, "SENSITIVE_REVEAL")
-  )
-    permission = "SENSITIVE_REVEAL";
   if (family === "admin/pipelines") permission = "PILLAR_CONFIG_MANAGE";
   if (family === "lookups" && request.method !== "GET") permission = "LOOKUP_MANAGE";
   if (family === "lookups" && request.method === "GET" && hasPermission(grants, "LOOKUP_MANAGE"))

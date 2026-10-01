@@ -43,10 +43,11 @@ describe("record section", () => {
     render(
       <RecordSection
         status="ACTIVE"
-        notes={[["Outcome notes", <button key="x">Reveal outcome notes</button>]]}
+        notes={[["Outcome notes", <span key="x">•••••••• plan</span>]]}
       />
     );
-    expect(screen.getByRole("button", { name: "Reveal outcome notes" })).toBeInTheDocument();
+    expect(screen.getByText("•••••••• plan")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reveal|hide/i })).not.toBeInTheDocument();
   });
 });
 

@@ -222,24 +222,28 @@ describe("mock repository contracts", () => {
       })
     ).toMatchObject({ resultCode: 201 });
   });
-  it("reveals only requested permitted fields and audits the reveal without retaining the secret", async () => {
+  it("refuses every reveal request, even for an administrator, and keeps the field masked", async () => {
+    const audits = getMockStore().audit_logs.length;
     const result = await request({
+      token: "mock-user-1",
       path: "/participants/1",
       routeTemplate: "/participants/:id",
       query: { reveal: "id_number" },
     });
-    expect(result).toMatchObject({ resultCode: 200, data: { id_number: "29481172" } });
-    expect(JSON.stringify(result.data)).not.toContain("0712448481");
-    expect(getMockStore().audit_logs.at(-1)?.action).toBe("REVEAL");
-    expect(JSON.stringify(getMockStore().audit_logs)).not.toContain("29481172");
-    expect(
-      await request({
-        token: "mock-user-11",
-        path: "/participants/1",
-        routeTemplate: "/participants/:id",
-        query: { reveal: "id_number" },
-      })
-    ).toMatchObject({ resultCode: 403 });
+    expect(result).toMatchObject({
+      resultCode: 422,
+      message: "Sensitive fields cannot be revealed",
+    });
+    expect(JSON.stringify(result)).not.toContain("29481172");
+    expect(getMockStore().audit_logs).toHaveLength(audits);
+    const normal = await request({
+      token: "mock-user-1",
+      path: "/participants/1",
+      routeTemplate: "/participants/:id",
+    });
+    expect(normal.resultCode).toBe(200);
+    expect((normal.data as { id_number: string }).id_number).not.toBe("29481172");
+    expect((normal.data as { id_number: string }).id_number).toContain("•");
   });
   it("supports all approved screen list families", async () => {
     const paths = [
@@ -468,7 +472,7 @@ describe("mock repository contracts", () => {
       data: { overall_recommendation: "award" },
     });
   });
-  it("supports pillar-owned detail, reveal, updates and soft deletion through query.id", async () => {
+  it("supports pillar-owned detail, updates and soft deletion through query.id", async () => {
     const target = {
       token: "mock-user-5",
       path: "/pillars/vawg",
@@ -478,13 +482,6 @@ describe("mock repository contracts", () => {
     const detail = await request(target);
     expect(detail).toMatchObject({ resultCode: 200, data: { id: 1, enrollment_id: 1 } });
     expect(JSON.stringify(detail.data)).not.toContain("Safety plan");
-    expect(
-      await request({ ...target, query: { ...target.query, reveal: "outcome_notes" } })
-    ).toMatchObject({
-      resultCode: 200,
-      data: { outcome_notes: "Safety plan and shelter referral discussed." },
-    });
-    expect(getMockStore().audit_logs.at(-1)?.action).toBe("REVEAL");
     expect(
       await request({ ...target, method: "PATCH", body: { court_status: "ruled" } })
     ).toMatchObject({ resultCode: 200 });

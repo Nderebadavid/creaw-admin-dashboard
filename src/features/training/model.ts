@@ -140,7 +140,6 @@ export interface TrainingWorkspace {
 export interface TrainingPermissions {
   edit: boolean;
   recommend: boolean;
-  reveal: boolean;
   export: boolean;
 }
 

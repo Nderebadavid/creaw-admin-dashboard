@@ -4,7 +4,6 @@ vi.mock("./actions", () => ({
   listParticipantsAction: vi.fn(),
   registerParticipantAction: vi.fn(),
   updateParticipantAction: vi.fn(),
-  revealParticipantAction: vi.fn(),
   exportParticipantsAction: vi.fn(),
   loadParticipantCurriculumAction: vi.fn(),
 }));
@@ -107,7 +106,7 @@ it("puts the page actions beside the heading, like the design", () => {
 it("frames the registry in the design's list card", () => {
   renderRegistry();
   expect(screen.getByRole("heading", { name: "Participant registry" })).toBeInTheDocument();
-  expect(screen.getByText("IDs masked — reveal inside a record (logged)")).toBeInTheDocument();
+  expect(screen.getByText("IDs and phone numbers are always masked")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "VAWG" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByText("Click a row to open the record")).toBeInTheDocument();
 });

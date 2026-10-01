@@ -10,11 +10,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
 import { formatDate, initials, titleCase } from "@/lib/format";
 import { useRecordDetail } from "@/components/ui/use-record-detail";
-import { loadParticipantCurriculumAction, revealParticipantAction } from "../actions";
+import { loadParticipantCurriculumAction } from "../actions";
 import type { ParticipantView } from "../api";
 import { CurriculumSection } from "./curriculum-section";
 
-/** One participant across every pillar they are enrolled in, with audited reveals. */
+/** One participant across every pillar they are enrolled in. */
 export function ParticipantDrawer({
   participant,
   grants,
@@ -36,11 +36,6 @@ export function ParticipantDrawer({
   if (!participant) return null;
   const inAnyPillar = (code: string) =>
     participant.pillarIds.some((id) => hasPermission(grants, code, { pillarId: id }));
-  // Reveals are server actions that write an audit entry for every disclosure.
-  const reveal = (field: "id_number" | "phone_number") =>
-    inAnyPillar("SENSITIVE_REVEAL")
-      ? () => revealParticipantAction(participant.id, field)
-      : undefined;
   const fields: [string, React.ReactNode][] = [
     ["Full name", participant.name],
     ["Gender", participant.gender ? titleCase(participant.gender) : "Not recorded"],
@@ -48,21 +43,11 @@ export function ParticipantDrawer({
     ["Ward / location", participant.ward],
     [
       "National ID number",
-      <MaskedField
-        key="id"
-        label="ID number"
-        maskedValue={participant.idNumber ?? "—"}
-        revealAction={reveal("id_number")}
-      />,
+      <MaskedField key="id" label="ID number" maskedValue={participant.idNumber ?? "—"} />,
     ],
     [
       "Phone",
-      <MaskedField
-        key="phone"
-        label="Phone number"
-        maskedValue={participant.phoneNumber ?? "—"}
-        revealAction={reveal("phone_number")}
-      />,
+      <MaskedField key="phone" label="Phone number" maskedValue={participant.phoneNumber ?? "—"} />,
     ],
     ["Registered", formatDate(participant.registered)],
     ["Consent", participant.consentGiven ? "Recorded" : "Not recorded"],

@@ -55,11 +55,6 @@ describe("providers directory", () => {
     expect(institutions.some((row) => row.id === institution.id)).toBe(false);
   });
 
-  it("reveals a contact for a reveal-only holder from the trimmed response", async () => {
-    const result = await apiFor(9).reveal(1, "email");
-    expect(result.data).toEqual({ value: "faith.kimani@nwh.example" });
-  });
-
   it("offers the partner institutions for the form", async () => {
     const { institutions } = await apiFor(1).directory();
     expect(institutions.length).toBeGreaterThan(0);

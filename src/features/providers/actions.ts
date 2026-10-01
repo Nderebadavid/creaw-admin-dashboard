@@ -1,7 +1,7 @@
 "use server";
 /**
  * Server Actions for the external provider directory: creating and editing a
- * provider, activating or deactivating one, and audited reveals of a contact.
+ * provider, activating or deactivating one.
  *
  * Each action re-checks the session, validates its input and checks the
  * permission before calling the API, which enforces the same rules again and
@@ -9,10 +9,9 @@
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { RevealResult } from "@/components/ui/masked-field";
 import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
-import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
+import { hasPermission } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
 import { createProvidersApi } from "./api";
 import { providerTypes } from "./model";
@@ -114,27 +113,6 @@ export async function setProviderActiveAction(input: unknown) {
     return done(await (await api()).setActive(parsed.data.id, parsed.data.active));
   } catch {
     return actionResult(500, "Could not update the provider");
-  }
-}
-
-export async function revealProviderContactAction(
-  providerId: number,
-  field: "phone_number" | "email"
-): Promise<RevealResult> {
-  const session = await requireSession();
-  if (!Number.isSafeInteger(providerId) || providerId < 1)
-    return { success: false, error: "Invalid provider" };
-  if (field !== "phone_number" && field !== "email")
-    return { success: false, error: "Invalid field" };
-  if (!canManage(session.grants) && !hasModulePermission(session.grants, "SENSITIVE_REVEAL"))
-    return { success: false, error: "Permission denied" };
-  try {
-    const response = await (await api()).reveal(providerId, field);
-    if (!response.success) return { success: false, error: response.message };
-    if (!response.data) return { success: false, error: "Nothing recorded" };
-    return { success: true, value: response.data.value };
-  } catch {
-    return { success: false, error: "Could not reveal this field" };
   }
 }
 

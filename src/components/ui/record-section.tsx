@@ -6,7 +6,7 @@ import { formatDate, formatUpdated } from "@/lib/format";
 /**
  * The standard record facts every drawer ends with: the record's status and the reason
  * for it, when it was created and last changed, and its notes. Sensitive notes are passed
- * in already wrapped (e.g. a masked field with an audited reveal).
+ * in already wrapped (e.g. a masked field).
  */
 export function RecordSection({
   status,

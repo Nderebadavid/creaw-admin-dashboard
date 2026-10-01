@@ -96,7 +96,6 @@ export function CaseRegister({
     edit: boolean;
     attach: boolean;
     download: boolean;
-    reveal: boolean;
     export: boolean;
     /** May log counselling (shown only when the user can also view it). */
     counsel?: boolean;

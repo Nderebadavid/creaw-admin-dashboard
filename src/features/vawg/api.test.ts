@@ -60,12 +60,6 @@ describe("VAWG legal case register", () => {
     expect(getMockStore().legal_case[0].court_name).toBe("Milimani Law Courts");
   });
 
-  it("reveals the OB number through the sensitive-field resource", async () => {
-    const revealed = await apiFor(1).revealCaseField(1, "ob_number");
-    expect(revealed.success).toBe(true);
-    expect(revealed.data).toEqual({ value: "OB/44/2026" });
-  });
-
   it("names the survivor and case type on each row and pages on the server", async () => {
     const api = apiFor(1);
     const { cases } = await api.workspace();

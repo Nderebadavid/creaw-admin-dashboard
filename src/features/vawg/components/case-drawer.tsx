@@ -21,7 +21,6 @@ import { DocumentRow, FieldGrid, SectionTitle, Timeline } from "@/components/ui/
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pillarLook } from "@/components/portal/pillars";
 import { formatDate } from "@/lib/format";
-import { revealCaseObNumberAction, revealCaseOutcomeNotesAction } from "../actions";
 import { VAWG_PILLAR_ID, type LegalCaseView } from "../model";
 import { courtStatusLabel, courtStatusTone } from "./status";
 
@@ -43,7 +42,7 @@ export function CaseDrawer({
   legalCase: LegalCaseView | null;
   /** True while the case's counselling and files are loading. */
   detailLoading?: boolean;
-  can: { edit: boolean; attach: boolean; download: boolean; reveal: boolean; counsel?: boolean };
+  can: { edit: boolean; attach: boolean; download: boolean; counsel?: boolean };
   onClose: () => void;
   /** Opens the counselling log for this case's survivor; omitted when not offered. */
   onCounsel?: () => void;
@@ -64,16 +63,7 @@ export function CaseDrawer({
     ["Court file number", legalCase.courtFileNumber ?? "—"],
     [
       "OB number",
-      <MaskedField
-        key="ob"
-        label="OB number"
-        maskedValue={legalCase.obNumber ?? "—"}
-        revealAction={
-          can.reveal && legalCase.obNumber
-            ? () => revealCaseObNumberAction(legalCase.id)
-            : undefined
-        }
-      />,
+      <MaskedField key="ob" label="OB number" maskedValue={legalCase.obNumber ?? "—"} />,
     ],
     ["Assigned officer", legalCase.assignedOfficer ?? "Not assigned"],
     ["Counsellor", legalCase.counsellor ?? "Not assigned"],
@@ -169,11 +159,6 @@ export function CaseDrawer({
                       key="outcome-notes"
                       label="Outcome notes"
                       maskedValue={legalCase.outcomeNotes ?? "—"}
-                      revealAction={
-                        can.reveal && legalCase.outcomeNotes
-                          ? () => revealCaseOutcomeNotesAction(legalCase.id)
-                          : undefined
-                      }
                     />,
                   ],
                 ]}
