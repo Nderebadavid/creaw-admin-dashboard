@@ -28,6 +28,7 @@ const base = () => ({
   sessionDate: "2026-09-29",
   venue: "Kibera Ward Office",
   notes: "",
+  facilitator: { kind: "staff" as const, id: 1 },
 });
 beforeEach(() => {
   resetMockStore();
@@ -35,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("session actions", () => {
-  it("logs a session on a planned topic with the signed-in facilitator", async () => {
+  it("logs a session on a planned topic with the chosen staff facilitator", async () => {
     const result = await logSessionAction(base());
     expect(result.success).toBe(true);
     expect(getMockStore().activity_session.at(-1)).toMatchObject({
@@ -43,8 +44,71 @@ describe("session actions", () => {
       activity_topic_id: topicId("Contraception"),
       topic: null,
       facilitator_user_id: 1,
+      facilitator_provider_id: null,
       notes: null,
     });
+  });
+
+  it("logs a session facilitated by a provider, clearing the staff id", async () => {
+    const result = await logSessionAction({
+      ...base(),
+      facilitator: { kind: "provider", id: 1 },
+    });
+    expect(result.success).toBe(true);
+    expect(getMockStore().activity_session.at(-1)).toMatchObject({
+      facilitator_provider_id: 1,
+      facilitator_user_id: null,
+    });
+  });
+
+  it("refuses a facilitator outside the options, writing nothing", async () => {
+    const before = getMockStore().activity_session.length;
+    const forged = await logSessionAction({
+      ...base(),
+      facilitator: { kind: "provider", id: 999 },
+    });
+    expect(forged).toMatchObject({ success: false, message: "Choose a facilitator from the list" });
+    getMockStore().external_provider.find((row) => row.id === 2)!.status = "INACTIVE";
+    const inactive = await logSessionAction({
+      ...base(),
+      facilitator: { kind: "provider", id: 2 },
+    });
+    expect(inactive).toMatchObject({
+      success: false,
+      message: "Choose a facilitator from the list",
+    });
+    expect(getMockStore().activity_session).toHaveLength(before);
+  });
+
+  it("refuses to move a session to an outside facilitator on edit", async () => {
+    const session = getMockStore().activity_session.find((row) => row.pillar_id === 3)!;
+    const result = await updateSessionAction({
+      ...base(),
+      sessionId: session.id,
+      facilitator: { kind: "provider", id: 999 },
+    });
+    expect(result).toMatchObject({ success: false, message: "Choose a facilitator from the list" });
+  });
+
+  it("keeps a session's facilitator on edit after that person was deactivated", async () => {
+    const session = getMockStore().activity_session.find(
+      (row) => row.pillar_id === 3 && row.facilitator_provider_id === 1
+    )!;
+    getMockStore().external_provider.find((row) => row.id === 1)!.status = "INACTIVE";
+    const result = await updateSessionAction({
+      ...base(),
+      sessionId: session.id,
+      facilitator: { kind: "provider", id: 1 },
+      venue: "Moved",
+    });
+    expect(result.success).toBe(true);
+    expect(session).toMatchObject({ venue: "Moved", facilitator_provider_id: 1 });
+  });
+
+  it("requires a facilitator", async () => {
+    const { facilitator: _omit, ...rest } = base();
+    void _omit;
+    expect((await logSessionAction(rest)).success).toBe(false);
   });
 
   it("requires a free-text topic when no planned topic is chosen", async () => {
@@ -92,6 +156,7 @@ describe("session actions", () => {
       ...base(),
       sessionId: session.id,
       venue: "New venue",
+      facilitator: { kind: "staff", id: 9 },
     });
     expect(result.success).toBe(true);
     expect(session).toMatchObject({ venue: "New venue", facilitator_user_id: 9 });

@@ -35,6 +35,7 @@ const sessionInput = z.object({
   sessionDate: z.iso.date(),
   venue: text(160),
   notes: text(2000),
+  facilitator: z.object({ kind: z.enum(["staff", "provider"]), id }),
 });
 const attendeeInput = z.object({ pillar, sessionId: id, participantId: id });
 const removeInput = z.object({ pillar, sessionId: id, attendanceId: id });
@@ -85,10 +86,21 @@ async function sessionValues(input: unknown) {
     return { error: actionResult(422, "That activity type is no longer offered") };
   if (topic && !topic.active && current?.activity_topic_id !== topic.id)
     return { error: actionResult(422, "That topic is no longer offered") };
+  const { facilitator } = value;
+  const options = await client.facilitators(value.pillar);
+  const keeps =
+    current?.facilitator_user_id === (facilitator.kind === "staff" ? facilitator.id : null) &&
+    current?.facilitator_provider_id === (facilitator.kind === "provider" ? facilitator.id : null);
+  const offered = options.some(
+    (item) => item.kind === facilitator.kind && item.id === facilitator.id
+  );
+  if (!offered && !(current && keeps))
+    return { error: actionResult(422, "Choose a facilitator from the list") };
   return {
     value,
-    userId: session.user.id,
     body: {
+      facilitator_user_id: facilitator.kind === "staff" ? facilitator.id : null,
+      facilitator_provider_id: facilitator.kind === "provider" ? facilitator.id : null,
       activity_type_id: value.activityTypeId,
       activity_topic_id: value.topicId,
       topic: value.topicId === null ? value.topic : null,
@@ -108,7 +120,6 @@ export async function logSessionAction(input: unknown) {
     ).logSession(checked.value.pillar, {
       ...checked.body,
       pillar_id: SESSION_PILLAR_IDS[checked.value.pillar],
-      facilitator_user_id: checked.userId,
     });
     return done(checked.value.pillar, response);
   } catch {

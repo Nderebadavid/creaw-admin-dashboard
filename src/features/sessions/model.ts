@@ -12,7 +12,18 @@ export const periodLabels: Record<SessionPeriod, string> = {
 export const parsePeriod = (value: unknown): SessionPeriod =>
   sessionPeriods.includes(value as SessionPeriod) ? (value as SessionPeriod) : "quarter";
 
-export type FacilitatorLabel = "CREAW staff" | "External provider" | "Not assigned";
+export type FacilitatorKind = "staff" | "provider";
+/** Who led a session: a name (never an id) and, when known, whether they are staff or a provider. */
+export interface FacilitatorView {
+  name: string;
+  kind: FacilitatorKind | null;
+}
+export interface FacilitatorOption {
+  kind: FacilitatorKind;
+  id: number;
+  name: string;
+  detail: string;
+}
 export interface ActivityTypeOption {
   id: number;
   name: string;
@@ -50,7 +61,8 @@ export interface SessionView {
   date: string;
   venue: string | null;
   notes: string | null;
-  facilitator: FacilitatorLabel;
+  facilitator: FacilitatorView;
+  facilitatorRef: { kind: FacilitatorKind; id: number } | null;
   communityWide: boolean;
   attendees: AttendeeView[];
   documents: SessionDocument[];
@@ -88,6 +100,9 @@ export interface SessionWorkspace {
   topics: ActivityTopicOption[];
   /** People an attendee can be picked from, labelled "<masked name> · <ward>" (plus "#<id>" only to tell identical labels apart). */
   participants: { id: number; label: string }[];
+  /** Active staff and providers a session can be assigned to; [] when the user can't log or the read fails. */
+  facilitators: FacilitatorOption[];
+  currentUser: { id: number; name: string } | null;
 }
 
 /** What the signed-in user may do on the sessions page. */

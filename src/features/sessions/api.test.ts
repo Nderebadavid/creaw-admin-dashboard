@@ -12,6 +12,62 @@ const apiFor = (userId: number, client = clientFor()) =>
   createSessionsApi(client, issueMockToken(userId));
 const today = new Date(2026, 8, 30);
 
+describe("session facilitators", () => {
+  it("lists facilitator options only for users who can log sessions", async () => {
+    const withLog = await apiFor(9).workspace("srhr", "all", today, { canLog: true });
+    expect(withLog.facilitators.map((row) => row.name)).toContain("Faith Kimani");
+    expect(withLog.facilitators.find((row) => row.name === "Faith Kimani")).toMatchObject({
+      kind: "provider",
+      id: 1,
+    });
+    const without = await apiFor(9).workspace("srhr", "all", today, { canLog: false });
+    expect(without.facilitators).toEqual([]);
+    expect((await apiFor(9).workspace("srhr", "all", today)).facilitators).toEqual([]);
+  });
+
+  it("passes the current user through and survives a failed options read", async () => {
+    const client = clientFor();
+    const real = client.request.bind(client);
+    vi.spyOn(client, "request").mockImplementation(((
+      req: { query?: { table?: string } },
+      schema: never
+    ) =>
+      req.query?.table === "facilitator_option"
+        ? Promise.reject(new Error("down"))
+        : real(req as never, schema)) as never);
+    const workspace = await apiFor(9, client).workspace("srhr", "all", today, {
+      canLog: true,
+      currentUser: { id: 9, name: "Pat Lee" },
+    });
+    expect(workspace.facilitators).toEqual([]);
+    expect(workspace.currentUser).toEqual({ id: 9, name: "Pat Lee" });
+    expect(workspace.sessions.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to a generic label, never an id, when the name is missing", async () => {
+    const client = clientFor();
+    const real = client.request.bind(client);
+    vi.spyOn(client, "request").mockImplementation((async (req: never, schema: never) => {
+      const result = (await real(req, schema)) as {
+        data?: { items?: Record<string, unknown>[] } | null;
+      };
+      for (const item of result.data?.items ?? []) {
+        if ("facilitator_user_id" in item) {
+          delete item.facilitator_name;
+          delete item.facilitator_kind;
+        }
+      }
+      return result;
+    }) as never);
+    const workspace = await apiFor(9, client).workspace("srhr", "all", today);
+    const provider = workspace.sessions.find((row) => row.topic === "Facility referral day")!;
+    expect(provider.facilitator).toEqual({ name: "External provider", kind: "provider" });
+    const staff = workspace.sessions.find((row) => row.facilitatorRef?.kind === "staff")!;
+    expect(staff.facilitator).toEqual({ name: "CREAW staff", kind: "staff" });
+    expect(JSON.stringify(workspace.sessions.map((row) => row.facilitator))).not.toMatch(/#\d/);
+  });
+});
+
 describe("sessions workspace", () => {
   it("maps SRHR sessions with type, planned or free topic and facilitator label", async () => {
     const workspace = await apiFor(1).workspace("srhr", "quarter", today);
@@ -25,7 +81,8 @@ describe("sessions workspace", () => {
     expect(free).toMatchObject({
       topicId: null,
       freeTopic: "Facility referral day",
-      facilitator: "External provider",
+      facilitator: { name: "Faith Kimani", kind: "provider" },
+      facilitatorRef: { kind: "provider", id: 1 },
     });
     const planned = workspace.sessions.find((row) => row.topic === "Menstrual health")!;
     expect(planned.date).toBe("2026-07-01");

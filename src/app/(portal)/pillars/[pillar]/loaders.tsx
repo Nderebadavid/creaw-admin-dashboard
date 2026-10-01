@@ -38,12 +38,18 @@ export async function loadVawgWorkspace(grants: readonly EffectiveGrant[], code:
 export async function loadSessionsWorkspace(
   grants: readonly EffectiveGrant[],
   code: PillarCode,
-  period: SessionPeriod
+  period: SessionPeriod,
+  user: { id: number; name: string }
 ) {
   if (!isSessionPillar(code)) return undefined;
   if (!hasPermission(grants, "ACTIVITY_SESSION_VIEW", { pillarId: SESSION_PILLAR_IDS[code] }))
     return undefined;
-  return sessionsApi.workspace(code, period).catch(() => "failed" as const);
+  const canLog = hasPermission(grants, "ACTIVITY_SESSION_LOG", {
+    pillarId: SESSION_PILLAR_IDS[code],
+  });
+  return sessionsApi
+    .workspace(code, period, { canLog, currentUser: user })
+    .catch(() => "failed" as const);
 }
 
 /** The WRO partner register with the options its dialogs need, trimmed to the user's grants. */

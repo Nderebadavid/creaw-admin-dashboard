@@ -22,7 +22,7 @@ import {
   RemoveAttendeeDialog,
   SessionFormDialog,
 } from "./session-dialogs";
-import { SessionDrawer } from "./session-drawer";
+import { FacilitatorName, SessionDrawer } from "./session-drawer";
 
 const text = "font-medium text-creaw-ink-soft";
 
@@ -59,8 +59,8 @@ const columns: DataColumn<SessionView>[] = [
   {
     id: "facilitator",
     header: "Facilitator",
-    sortValue: (row) => row.facilitator,
-    cell: (row) => <span className={text}>{row.facilitator}</span>,
+    sortValue: (row) => row.facilitator.name,
+    cell: (row) => <FacilitatorName facilitator={row.facilitator} className={text} />,
   },
   {
     id: "attendees",
@@ -109,7 +109,7 @@ export function SessionRegister({
           (type === "All" || row.activityType === type) &&
           (!topic || (row.activityTypeId === topic.activityTypeId && row.topic === topic.topic)) &&
           (!needle ||
-            [row.activityType, row.topic, row.venue, row.facilitator]
+            [row.activityType, row.topic, row.venue, row.facilitator.name]
               .join(" ")
               .toLocaleLowerCase()
               .includes(needle))
