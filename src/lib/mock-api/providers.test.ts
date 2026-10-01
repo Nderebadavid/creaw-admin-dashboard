@@ -130,6 +130,30 @@ describe("provider directory", () => {
     expect((await post({ phone_number: "••••0221" })).resultCode).toBe(422);
   });
 
+  it("refuses the workload view to a reveal-only holder, alone or combined with a reveal", async () => {
+    const userId = SENSITIVE_REVEAL_ONLY_USER;
+    expect((await one(userId, 1, { reveal: "email", include: "workload" })).resultCode).toBe(403);
+    expect((await one(userId, 1, { include: "workload" })).resultCode).toBe(403);
+  });
+
+  it("caps the workload at five items, newest first", async () => {
+    const store = getMockStore();
+    const template = store.activity_session.find((row) => row.facilitator_provider_id === 1)!;
+    for (let day = 1; day <= 6; day++)
+      store.activity_session.push({
+        ...template,
+        id: 100 + day,
+        session_date: `2026-01-0${day}`,
+        topic: `Extra ${day}`,
+        activity_topic_id: null,
+      });
+    const { sessions } = (await one(1, 1, { include: "workload" })).data.workload;
+    expect(sessions.count).toBeGreaterThanOrEqual(6);
+    expect(sessions.recent).toHaveLength(5);
+    const dates = sessions.recent.map((item: any) => item.date);
+    expect(dates).toEqual([...dates].sort().reverse());
+  });
+
   it("summarises a provider's linked work without participant names", async () => {
     const result = await one(1, 1, { include: "workload" });
     expect(result.data.workload.counselling.count).toBeGreaterThanOrEqual(1);

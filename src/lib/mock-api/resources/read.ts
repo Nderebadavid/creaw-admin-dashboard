@@ -80,11 +80,13 @@ function readSpecialView(ctx: ResourceContext): Envelope | undefined {
         .map((item) => ({ id: item.id, name: item.name })),
     });
   }
-  if (table === "external_provider" && existing && query.get("include") === "workload")
+  if (table === "external_provider" && existing && query.get("include") === "workload") {
+    if (!hasPermission(grants, "PROVIDER_MANAGE")) return envelope(403);
     return envelope(200, {
       ...masked(table, existing),
       workload: providerWorkload(store, existing.id),
     });
+  }
   return undefined;
 }
 

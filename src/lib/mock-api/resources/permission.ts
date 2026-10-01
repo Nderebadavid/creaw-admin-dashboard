@@ -20,6 +20,7 @@ export function resolvePermission(
     table === "external_provider" &&
     request.method === "GET" &&
     ctx.query.has("reveal") &&
+    [...ctx.query.keys()].every((key) => key === "reveal") &&
     !hasPermission(grants, "PROVIDER_MANAGE") &&
     hasModulePermission(grants, "SENSITIVE_REVEAL")
   )
