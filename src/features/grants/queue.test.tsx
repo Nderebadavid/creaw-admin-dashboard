@@ -76,7 +76,7 @@ it("files a new application for a participant enrolled in the programme's pillar
   vi.mocked(listParticipantsAction).mockResolvedValue({
     ...ok,
     data: {
-      items: [{ id: 12, name: "••wadi ••ende" }],
+      items: [{ id: 12, name: "Mwadi Kyende" }],
       page: 1,
       pageSize: 100,
       totalItems: 140,
@@ -88,7 +88,7 @@ it("files a new application for a participant enrolled in the programme's pillar
   renderWithProgrammes();
   fireEvent.click(screen.getByRole("button", { name: "New application" }));
   const dialog = screen.getByRole("dialog");
-  await within(dialog).findByRole("option", { name: "••wadi ••ende · Participant #12" });
+  await within(dialog).findByRole("option", { name: "Mwadi Kyende · Participant #12" });
   expect(listParticipantsAction).toHaveBeenCalledWith({ pillarId: 2, page: 1, pageSize: 100 });
   expect(dialog).toHaveTextContent("Showing the first 1 of 140 participants in this pillar.");
   expect(

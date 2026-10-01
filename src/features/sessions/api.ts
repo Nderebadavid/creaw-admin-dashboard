@@ -394,7 +394,7 @@ export const sessionsApi = {
   },
 };
 
-/** "<masked name> · <ward>"; only exact duplicates get " · #<id>" so they stay distinguishable. */
+/** "<name> · <ward>"; only exact duplicates get " · #<id>" so they stay distinguishable. */
 function participantOptions(
   people: { id: number; first_name: string; last_name: string; ward_id?: number | null }[],
   wards: { id: number; name: string }[]

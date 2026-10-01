@@ -42,7 +42,7 @@ export const workspace: SessionWorkspace = {
         {
           attendanceId: 1,
           participantId: 5,
-          name: "••ith ••••ani",
+          name: "Faith Kamani",
           ward: "Laini Saba",
           added: "2026-09-10T09:00:00Z",
         },
@@ -115,8 +115,8 @@ export const workspace: SessionWorkspace = {
   ],
   currentUser: { id: 1, name: "Amina Hassan" },
   participants: [
-    { id: 5, label: "••ith ••••ani · Laini Saba" },
-    { id: 6, label: "••ce ••••yi · Kibera" },
+    { id: 5, label: "Faith Kamani · Laini Saba" },
+    { id: 6, label: "Grace Wanyi · Kibera" },
   ],
 };
 const all = { log: true, attach: true, download: true, export: true };
@@ -226,13 +226,13 @@ describe("session drawer", () => {
       expect(within(drawer).getByRole("tab", { name: tab })).toBeInTheDocument();
   });
 
-  it("lists attendees with masked names and offers add and remove", () => {
+  it("lists attendees by full name and offers add and remove", () => {
     const drawer = open();
     fireEvent.click(within(drawer).getByRole("tab", { name: "Attendance (1)" }));
-    expect(drawer).toHaveTextContent("••ith ••••ani");
+    expect(drawer).toHaveTextContent("Faith Kamani");
     expect(drawer).toHaveTextContent("Laini Saba");
     expect(within(drawer).getByRole("button", { name: "Add attendee" })).toBeEnabled();
-    expect(within(drawer).getByRole("button", { name: "Remove ••ith ••••ani" })).toBeEnabled();
+    expect(within(drawer).getByRole("button", { name: "Remove Faith Kamani" })).toBeEnabled();
   });
 
   it("builds the activity timeline newest first", () => {
@@ -258,7 +258,7 @@ describe("session drawer", () => {
     expect(within(drawer).getByRole("button", { name: "Attach" })).toBeDisabled();
     fireEvent.click(within(drawer).getByRole("tab", { name: "Attendance (1)" }));
     expect(within(drawer).getByRole("button", { name: "Add attendee" })).toBeDisabled();
-    expect(within(drawer).getByRole("button", { name: "Remove ••ith ••••ani" })).toBeDisabled();
+    expect(within(drawer).getByRole("button", { name: "Remove Faith Kamani" })).toBeDisabled();
     fireEvent.click(within(drawer).getByRole("tab", { name: "Documents & photos (1)" }));
     expect(within(drawer).getByRole("button", { name: "View Attendance sheet" })).toBeDisabled();
   });
@@ -428,7 +428,7 @@ describe("attendance corrections", () => {
     const options = [
       ...(within(dialog).getByLabelText("Participant") as HTMLSelectElement).options,
     ].map((o) => o.text);
-    expect(options).toEqual(["••ce ••••yi · Kibera"]);
+    expect(options).toEqual(["Grace Wanyi · Kibera"]);
     fireEvent.change(within(dialog).getByLabelText("Participant"), { target: { value: "6" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add attendee" }));
     await vi.waitFor(() =>
@@ -447,9 +447,9 @@ describe("attendance corrections", () => {
       resultCode: 200,
     } as never);
     openAttendance();
-    fireEvent.click(screen.getByRole("button", { name: "Remove ••ith ••••ani" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Faith Kamani" }));
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent("Remove ••ith ••••ani from this session's attendance?");
+    expect(dialog).toHaveTextContent("Remove Faith Kamani from this session's attendance?");
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
     await vi.waitFor(() =>
       expect(actions.removeAttendeeAction).toHaveBeenCalledWith({

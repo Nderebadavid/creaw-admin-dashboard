@@ -22,7 +22,7 @@ interface Applicants {
 
 /**
  * Files a grant application from the queue. The applicant is chosen from the
- * participants enrolled in the programme's pillar; names stay masked.
+ * participants enrolled in the programme's pillar.
  */
 export function NewApplicationDialog({
   open,

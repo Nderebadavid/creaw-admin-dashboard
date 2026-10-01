@@ -153,7 +153,7 @@ export function CaseRegister({
       <FormBanner tone="error">{error}</FormBanner>
       <TableCard
         title="Legal case register"
-        subtitle="Survivor names stay masked in lists — open a case for the full record"
+        subtitle="Open a case for the full record"
         chipsLabel="Court status"
         chips={statuses.map((label) => ({
           label,

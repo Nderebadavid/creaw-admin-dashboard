@@ -28,13 +28,13 @@ describe("referral workflows", () => {
     ).toHaveLength(before + 1);
   });
 
-  it("shows a masked participant summary to the receiving lead without source enrollment access", async () => {
+  it("names the participant to the receiving lead without source enrollment access", async () => {
     const api = apiFor(3); // WEE can view the incoming VAWG referral, not its VAWG enrollment
     expect(await api.getOrigin(7)).toBeNull();
     const referral = await api.get(4);
     expect(referral?.participantId).toBe(6);
-    expect(referral?.participant).not.toMatch(/unknown|Aisha|Mohamed/i);
-    expect(referral?.participant).toContain("•");
+    expect(referral?.participant).toMatch(/Aisha/);
+    expect(referral?.participant).not.toContain("•");
   });
 
   it("names the external institution in list and detail view models", async () => {

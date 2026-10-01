@@ -8,7 +8,6 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("./actions", () => ({
   viewCaseFileAction: vi.fn(),
-  revealSurvivorNameAction: vi.fn(),
   revealCaseObNumberAction: vi.fn(),
   updateLegalCaseAction: vi.fn(),
   setCourtStatusAction: vi.fn(),
@@ -24,7 +23,7 @@ const workspace: VawgWorkspace = {
     {
       id: 142,
       number: "CRW-VAWG-0142",
-      survivor: "Faith N.",
+      survivor: "Faith Njeri",
       participantId: 7,
       enrollmentId: 3,
       caseType: "IPV — physical",
@@ -71,6 +70,7 @@ describe("VAWG case register", () => {
     wanted.forEach((heading, i) => expect(headers[i]).toContain(heading));
     expect(screen.getByText("Kibera Law Courts")).toBeInTheDocument();
     expect(screen.getByText("Grace Otieno")).toBeInTheDocument();
+    expect(screen.getByText(/Faith Njeri/)).toBeInTheDocument();
   });
 
   it("searches the court and officer", () => {
@@ -85,13 +85,14 @@ describe("VAWG case register", () => {
   it("opens the record drawer with the reference header and fields", () => {
     const drawer = open(allowed);
     expect(drawer).toHaveTextContent("Legal case · VAWG");
-    expect(drawer).toHaveTextContent("CRW-VAWG-0142 · Faith N.");
+    expect(drawer).toHaveTextContent("CRW-VAWG-0142 · Faith Njeri");
     expect(drawer).toHaveTextContent("IPV — physical · Kibera Law Courts");
     expect(drawer).toHaveTextContent("CR 2210/26");
     expect(drawer).toHaveTextContent("Grace Otieno");
     expect(drawer).toHaveTextContent("Mercy Achieng");
     expect(within(drawer).getByRole("button", { name: "Edit" })).toBeEnabled();
     expect(within(drawer).getByRole("button", { name: "Reveal OB number" })).toBeEnabled();
+    expect(within(drawer).queryByRole("button", { name: /Reveal survivor/i })).toBeNull();
     for (const tab of ["Overview", "Documents & photos", "Activity"])
       expect(within(drawer).getByRole("tab", { name: new RegExp(tab) })).toBeInTheDocument();
   });

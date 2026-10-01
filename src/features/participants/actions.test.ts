@@ -21,8 +21,9 @@ describe("participant workflows", () => {
     const first = await api.list({ pillarId: 2, countyId, search: "female", page: 1, pageSize: 1 });
     expect(first).toMatchObject({ page: 1, pageSize: 1, totalItems: 1, totalPages: 1 });
     expect(first.items[0]).toMatchObject({ county: "Nairobi", pillarIds: [6, 2] });
-    expect(first.items[0].name).not.toBe("Faith Atieno");
+    expect(first.items[0].name).toBe("Faith Atieno");
     expect(first.items[0].idNumber).not.toBe("35510442");
+    expect(first.items[0].idNumber).toContain("•");
   });
 
   it("reads later participant pages without dropping joined enrollments", async () => {

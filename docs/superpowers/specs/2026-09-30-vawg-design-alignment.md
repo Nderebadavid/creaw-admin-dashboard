@@ -74,11 +74,11 @@ The drawer provides three tabs:
 - **Documents & photos:** attached files with audited view/download controls, required-file warnings, and attach actions.
 - **Activity:** a newest-first timeline derived from case status dates, counselling sessions, and the case-opened event.
 
-The existing status-change, attachment, document-viewing, and survivor-reveal flows remain functional. The Edit action opens a focused VAWG case dialog for case type, court, court-file number, OB number, assigned officer, counsellor, and next court date. Its server action validates the values, checks `CASE_EDIT`, updates the legal-case resource, and revalidates the page.
+The existing status-change, attachment and document-viewing flows remain functional. The Edit action opens a focused VAWG case dialog for case type, court, court-file number, OB number, assigned officer, counsellor, and next court date. Its server action validates the values, checks `CASE_EDIT`, updates the legal-case resource, and revalidates the page.
 
 ## Privacy and Permissions
 
-Survivor names remain abbreviated or masked in list contexts. Full values and protected identifiers are revealed only through audited server actions and only when the active grants allow it. OB numbers use a VAWG legal-case reveal action backed by the resource API's audited sensitive-field read; the masked value remains visible when reveal is unavailable or fails.
+**Update (2026-10-01):** participant names, including survivors', are no longer sensitive fields and are shown in full in lists, drawers, exports and audit snapshots. This was a product decision; ID number, phone and OB number stay masked. Protected identifiers are revealed only through audited server actions and only when the active grants allow it. OB numbers use a VAWG legal-case reveal action backed by the resource API's audited sensitive-field read; the masked value remains visible when reveal is unavailable or fails.
 
 Buttons remain visible or enabled according to the current permission model:
 
