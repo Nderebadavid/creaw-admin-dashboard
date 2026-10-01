@@ -7,6 +7,7 @@ vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/pillars/srhr",
   redirect: vi.fn(),
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -15,10 +16,16 @@ vi.mock("next/navigation", () => ({
 
 import { issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import { vawgApi } from "@/features/vawg/api";
+import { sessionsApi } from "@/features/sessions/api";
 import PillarPage from "./page";
 
-const render = async (pillar: string) =>
-  renderToStaticMarkup(await PillarPage({ params: Promise.resolve({ pillar }) }));
+const render = async (pillar: string, period?: string) =>
+  renderToStaticMarkup(
+    await PillarPage({
+      params: Promise.resolve({ pillar }),
+      searchParams: Promise.resolve(period ? { period } : {}),
+    })
+  );
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -59,5 +66,41 @@ describe("pillar route", () => {
     const html = await render("vawg");
     expect(html).toContain("You do not have access to this pillar.");
     expect(html).not.toContain("Open legal case");
+  });
+
+  it("composes the SRHR curriculum workspace", async () => {
+    const html = await render("srhr");
+    for (const text of [
+      "Sessions held",
+      "People reached",
+      "Topics covered",
+      "Curriculum coverage",
+      "Session register",
+      "Log session",
+    ])
+      expect(html).toContain(text);
+    expect(html).not.toContain("Outreach sessions");
+    expect(html).not.toContain("Activity type ID");
+  });
+
+  it("adds the sessions workspace beside Skilling's trainee enrollments", async () => {
+    const html = await render("skilling");
+    expect(html).toContain("Session register");
+    expect(html).toContain("Workplace conduct");
+    expect(html).toContain("Trainee enrollments");
+    expect(html).not.toContain("Facility referral day");
+  });
+
+  it("treats an invalid period as this quarter", async () => {
+    const spy = vi.spyOn(sessionsApi, "workspace");
+    await render("srhr", "decade");
+    expect(spy).toHaveBeenCalledWith("srhr", "quarter");
+  });
+
+  it("keeps the SRHR page and shows a banner when sessions fail to load", async () => {
+    vi.spyOn(sessionsApi, "workspace").mockRejectedValue(new Error("timeout"));
+    const html = await render("srhr");
+    expect(html).toContain("could not be loaded");
+    expect(html).not.toContain("Session register");
   });
 });

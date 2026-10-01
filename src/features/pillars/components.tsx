@@ -38,6 +38,8 @@ export function PillarContent({
   rowActions,
   submissions = [],
   register,
+  workspace,
+  showDomainTable = true,
   kpis,
   headingActions,
 }: {
@@ -53,6 +55,10 @@ export function PillarContent({
   submissions?: readonly SubmissionRow[];
   /** A dedicated register shown in place of the generic domain table, e.g. WRO organisations. */
   register?: React.ReactNode;
+  /** A dedicated workspace shown above the register, e.g. SRHR sessions. */
+  workspace?: React.ReactNode;
+  /** False hides the generic domain table when a workspace replaces it. */
+  showDomainTable?: boolean;
   /** The pillar's own headline cards, in place of the generic record counts. */
   kpis?: React.ReactNode;
   /** The heading's buttons, in place of the create actions. */
@@ -249,8 +255,9 @@ export function PillarContent({
           )}
         </section>
       </div>
+      {workspace}
       {register}
-      {!register && pillar.domain && (
+      {!register && showDomainTable && pillar.domain && (
         <PillarDomainTable
           domain={pillar.domain}
           actions={heading ? undefined : domainActions}
