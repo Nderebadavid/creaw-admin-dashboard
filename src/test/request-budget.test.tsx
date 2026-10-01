@@ -58,6 +58,7 @@ const pages: {
   },
   { name: "grants", load: () => import("@/app/(portal)/grants/page"), budget: 4 },
   { name: "projects", load: () => import("@/app/(portal)/projects/page"), budget: 4 },
+  { name: "donors", load: () => import("@/app/(portal)/donors/page"), budget: 4 },
   {
     name: "grant detail",
     load: () => import("@/app/(portal)/grants/[id]/page"),

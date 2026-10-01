@@ -6,12 +6,16 @@ vi.mock("./actions", () => ({
   loadProjectDetailAction: vi.fn(),
   loadProjectOptionsAction: vi.fn(),
   saveProjectAction: vi.fn(),
+  setProjectStatusAction: vi.fn(),
+  deleteProjectAction: vi.fn(),
 }));
 import {
   listProjectsAction,
   loadProjectDetailAction,
   loadProjectOptionsAction,
   saveProjectAction,
+  setProjectStatusAction,
+  deleteProjectAction,
 } from "./actions";
 import { ProjectsContent } from "./components";
 import type { ProjectView } from "./api";
@@ -221,5 +225,132 @@ describe("projects register", () => {
         expect.objectContaining({ id: 1, endDate: "2027-03-31", donorId: 3 })
       )
     );
+  });
+
+  it("edits every detail, including the pillar, status and its reason", async () => {
+    vi.mocked(saveProjectAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+    } as never);
+    vi.mocked(listProjectsAction).mockResolvedValue(page([jasiri]) as never);
+    renderProjects([
+      { permissionCode: "NARRATIVE_REPORT_MANAGE", pillarId: 2 },
+      { permissionCode: "NARRATIVE_REPORT_MANAGE", pillarId: 1 },
+    ]);
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    fireEvent.click(screen.getByRole("button", { name: "Edit project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit project" });
+    await within(dialog).findByRole("option", { name: "Mastercard Foundation" });
+    fireEvent.change(within(dialog).getByLabelText("Project name"), {
+      target: { value: "Jasiri II" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Pillar"), { target: { value: "1" } });
+    fireEvent.change(within(dialog).getByLabelText("Donor"), { target: { value: "" } });
+    fireEvent.change(within(dialog).getByLabelText("Start date"), {
+      target: { value: "2026-02-01" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Notes"), { target: { value: "Changed" } });
+    fireEvent.change(within(dialog).getByLabelText("Status"), { target: { value: "INACTIVE" } });
+    fireEvent.change(within(dialog).getByLabelText("Status reason"), {
+      target: { value: "Paused" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(saveProjectAction).toHaveBeenCalledWith({
+        id: 1,
+        pillarId: 1,
+        name: "Jasiri II",
+        donorId: null,
+        startDate: "2026-02-01",
+        endDate: "2026-12-31",
+        notes: "Changed",
+        status: "INACTIVE",
+        statusDescription: "Paused",
+      })
+    );
+  });
+
+  it("deactivates a project with an optional reason, and offers reactivation for an inactive one", async () => {
+    vi.mocked(setProjectStatusAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+    } as never);
+    vi.mocked(listProjectsAction).mockResolvedValue(page([jasiri]) as never);
+    renderProjects();
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    fireEvent.click(screen.getByRole("button", { name: "Deactivate" }));
+    const dialog = await screen.findByRole("dialog", { name: "Deactivate project" });
+    fireEvent.change(within(dialog).getByLabelText("Reason (optional)"), {
+      target: { value: "Funding ended" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Deactivate" }));
+    await waitFor(() =>
+      expect(setProjectStatusAction).toHaveBeenCalledWith({
+        id: 1,
+        status: "INACTIVE",
+        reason: "Funding ended",
+      })
+    );
+    expect(await screen.findByText("Project deactivated.")).toBeInTheDocument();
+    cleanup();
+    render(
+      <ProjectsContent
+        initial={{
+          items: [{ ...jasiri, status: "INACTIVE" }],
+          page: 1,
+          pageSize: 25,
+          totalItems: 1,
+          totalPages: 1,
+        }}
+        pillars={pillars}
+        grants={[{ permissionCode: "NARRATIVE_REPORT_MANAGE", pillarId: 2 }]}
+      />
+    );
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    expect(screen.getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
+  });
+
+  it("offers delete only to those with the pillar configuration permission, and confirms it", async () => {
+    vi.mocked(deleteProjectAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+    } as never);
+    vi.mocked(listProjectsAction).mockResolvedValue(page([vawg]) as never);
+    renderProjects();
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    cleanup();
+    renderProjects([
+      { permissionCode: "NARRATIVE_REPORT_MANAGE", pillarId: 2 },
+      { permissionCode: "PILLAR_CONFIG_MANAGE", pillarId: 2 },
+    ]);
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete project" });
+    expect(dialog).toHaveTextContent("deactivate it instead");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete project" }));
+    await waitFor(() => expect(deleteProjectAction).toHaveBeenCalledWith({ id: 1 }));
+    expect(await screen.findByText("Project deleted.")).toBeInTheDocument();
+  });
+
+  it("shows the API's refusal when a project cannot be deleted", async () => {
+    vi.mocked(deleteProjectAction).mockResolvedValue({
+      resultCode: 422,
+      success: false,
+      message: "This project has grant applications. Deactivate it instead of deleting it",
+    } as never);
+    renderProjects([
+      { permissionCode: "NARRATIVE_REPORT_MANAGE", pillarId: 2 },
+      { permissionCode: "PILLAR_CONFIG_MANAGE", pillarId: 2 },
+    ]);
+    fireEvent.click(screen.getByText("Jasiri business grants"));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete project" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete project" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("has grant applications");
   });
 });

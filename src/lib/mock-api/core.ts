@@ -56,6 +56,7 @@ export const routeTables: Record<string, TableName> = {
   referrals: "referral",
   grants: "grant_application",
   projects: "project",
+  donors: "donor",
   assessments: "organisation_assessment",
   reports: "narrative_report",
   "field-submissions": "participant_stage_event",

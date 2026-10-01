@@ -96,6 +96,9 @@ const body = (input: ProjectInput) => ({
   start_date: input.startDate ?? null,
   end_date: input.endDate ?? null,
   notes: input.notes || null,
+  ...(input.status
+    ? { status: input.status, status_description: input.statusDescription || null }
+    : {}),
 });
 
 export function createProjectsApi(client: ApiClient, token: string) {
@@ -158,6 +161,39 @@ export function createProjectsApi(client: ApiClient, token: string) {
       );
       if (!response.success || !response.data) throw new Error(response.message);
       return { pillars: response.data.tables.pillar, donors: response.data.tables.donor };
+    },
+    /** One project as the register shows it, or null when it is missing or out of scope. */
+    async get(id: number): Promise<ProjectView | null> {
+      const response = await client.request(
+        { method: "GET", path: `/projects/${id}`, routeTemplate: "/projects/:id", token },
+        projectDetailSchema
+      );
+      return response.success && response.data ? toProjectView(response.data) : null;
+    },
+    setStatus(id: number, status: "ACTIVE" | "INACTIVE", reason?: string) {
+      return client.request(
+        {
+          method: "PATCH",
+          path: `/projects/${id}`,
+          routeTemplate: "/projects/:id",
+          token,
+          body: { status, status_description: status === "ACTIVE" ? null : reason || null },
+        },
+        projectMutationSchema
+      );
+    },
+    /** Removes the project from every list; refused while grant applications are attached. */
+    remove(id: number) {
+      return client.request(
+        {
+          method: "PATCH",
+          path: `/projects/${id}`,
+          routeTemplate: "/projects/:id",
+          token,
+          body: { is_deleted: true },
+        },
+        projectMutationSchema
+      );
     },
     create(input: ProjectInput) {
       return client.request(

@@ -107,9 +107,20 @@ export const projectInputSchema = z
     startDate: date.nullable().optional(),
     endDate: date.nullable().optional(),
     notes: z.string().trim().max(2000).nullable().optional(),
+    /** Edits only: the record's own status and why it has it. */
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+    statusDescription: z.string().trim().max(255).nullable().optional(),
   })
   .refine((value) => !value.startDate || !value.endDate || value.endDate >= value.startDate, {
     message: "A project cannot end before it starts",
     path: ["endDate"],
   });
 export type ProjectInput = z.infer<typeof projectInputSchema>;
+
+export const projectStatusInputSchema = z.object({
+  id,
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+  /** Why the project is being deactivated; optional, cleared on reactivation. */
+  reason: z.string().trim().max(255).optional(),
+});
+export const projectDeleteInputSchema = z.object({ id });

@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
@@ -31,6 +31,8 @@ import {
   loadProjectDetailAction,
   loadProjectOptionsAction,
   saveProjectAction,
+  setProjectStatusAction,
+  deleteProjectAction,
 } from "./actions";
 import type { ProjectView } from "./api";
 
@@ -138,6 +140,9 @@ function ProjectDialog({
         startDate: text("startDate"),
         endDate: text("endDate"),
         notes: text("notes"),
+        ...(project
+          ? { status: String(form.get("status")), statusDescription: text("statusDescription") }
+          : {}),
       }),
       project ? "Project updated." : "Project created."
     );
@@ -229,6 +234,26 @@ function ProjectDialog({
             className={fieldClass}
           />
         </label>
+        {project && (
+          <>
+            <label className="text-sm">
+              Status
+              <select name="status" defaultValue={project.status} className={fieldClass}>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </label>
+            <label className="text-sm">
+              Status reason
+              <input
+                name="statusDescription"
+                maxLength={255}
+                defaultValue={project.statusDescription ?? ""}
+                className={fieldClass}
+              />
+            </label>
+          </>
+        )}
         <div className="sm:col-span-2">
           <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
             Cancel
@@ -238,6 +263,118 @@ function ProjectDialog({
           </Button>
         </div>
       </form>
+    </ActionDialog>
+  );
+}
+
+/** Deactivates a project (with an optional reason) or brings it back. */
+function StatusDialog({
+  open,
+  project,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  project: ProjectView | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  if (!project) return null;
+  const deactivating = project.status === "ACTIVE";
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = String(new FormData(event.currentTarget).get("reason") ?? "");
+    void submit.run(
+      setProjectStatusAction({
+        id: project!.id,
+        status: deactivating ? "INACTIVE" : "ACTIVE",
+        reason,
+      }),
+      deactivating ? "Project deactivated." : "Project reactivated."
+    );
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title={deactivating ? "Deactivate project" : "Reactivate project"}
+      description={project.name}
+      error={submit.error}
+    >
+      <form className="space-y-4" onSubmit={send}>
+        <p className="text-sm">
+          {deactivating
+            ? "An inactive project stays on record with its applications and reports, but no new applications can be filed against it."
+            : "The project will accept new applications again."}
+        </p>
+        {deactivating && (
+          <label className="block text-sm">
+            Reason (optional)
+            <input name="reason" maxLength={255} className={fieldClass} />
+          </label>
+        )}
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submit.busy}>
+            {deactivating ? "Deactivate" : "Reactivate"}
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
+  );
+}
+
+/** Confirms deleting a project; refused by the API while it has grant applications. */
+function DeleteDialog({
+  open,
+  project,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  project: ProjectView | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  if (!project) return null;
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Delete project"
+      description={project.name}
+      error={submit.error}
+    >
+      <p className="text-sm">
+        This removes the project from every list. It is only possible while no grant applications
+        are attached; otherwise deactivate it instead.
+      </p>
+      <div>
+        <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          variant="destructive"
+          disabled={submit.busy}
+          onClick={() =>
+            void submit.run(deleteProjectAction({ id: project.id }), "Project deleted.")
+          }
+        >
+          Delete project
+        </Button>
+      </div>
     </ActionDialog>
   );
 }
@@ -263,7 +400,7 @@ export function ProjectsContent({
   );
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [modal, setModal] = useState<"new" | "edit" | null>(null);
+  const [modal, setModal] = useState<"new" | "edit" | "status" | "delete" | null>(null);
   const [feedback, setFeedback] = useState("");
   const detail = useRecordDetail(selectedId, loadProjectDetailAction);
   const selected = list.data.items.find((row) => row.id === selectedId) ?? null;
@@ -271,9 +408,12 @@ export function ProjectsContent({
     .filter((item) => hasPermission(grants, "NARRATIVE_REPORT_MANAGE", { pillarId: item.id }))
     .map((item) => item.id);
   const canManage = (pillarId: number) => managedPillars.includes(pillarId);
+  const canDelete = (pillarId: number) =>
+    hasPermission(grants, "PILLAR_CONFIG_MANAGE", { pillarId });
 
   const done = (message: string) => {
     setModal(null);
+    if (modal === "delete") setSelectedId(null);
     setFeedback(message);
     void list.refresh();
     router.refresh();
@@ -375,17 +515,35 @@ export function ProjectsContent({
             </StatusBadge>
           }
           actions={
-            canManage(selected.pillarId) && (
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Edit project"
-                onClick={() => setModal("edit")}
-              >
-                <Pencil aria-hidden="true" />
-                Edit
-              </Button>
-            )
+            <>
+              {canManage(selected.pillarId) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Edit project"
+                  onClick={() => setModal("edit")}
+                >
+                  <Pencil aria-hidden="true" />
+                  Edit
+                </Button>
+              )}
+              {canManage(selected.pillarId) && (
+                <Button variant="outline" size="sm" onClick={() => setModal("status")}>
+                  {selected.status === "ACTIVE" ? (
+                    <PowerOff aria-hidden="true" />
+                  ) : (
+                    <Power aria-hidden="true" />
+                  )}
+                  {selected.status === "ACTIVE" ? "Deactivate" : "Reactivate"}
+                </Button>
+              )}
+              {canDelete(selected.pillarId) && (
+                <Button variant="outline" size="sm" onClick={() => setModal("delete")}>
+                  <Trash2 aria-hidden="true" />
+                  Delete
+                </Button>
+              )}
+            </>
           }
           tabs={[
             {
@@ -468,8 +626,20 @@ export function ProjectsContent({
           ]}
         />
       )}
+      <StatusDialog
+        open={modal === "status"}
+        project={selected}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
+      <DeleteDialog
+        open={modal === "delete"}
+        project={selected}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
       <ProjectDialog
-        open={modal !== null}
+        open={modal === "new" || modal === "edit"}
         project={modal === "edit" ? selected : null}
         pillarIds={managedPillars}
         onClose={() => setModal(null)}

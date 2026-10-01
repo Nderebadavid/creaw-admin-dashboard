@@ -15,7 +15,7 @@ async function call(
   query: Record<string, string | number> = {},
   body?: unknown
 ): Promise<{ resultCode: number; data: Json }> {
-  const routeTemplate = /^\/projects\/\d+$/.test(path) ? "/projects/:id" : path;
+  const routeTemplate = path.replace(/\/\d+$/, "/:id");
   return (await createApiClient(new MockApiTransport(handleMockRequest)).request(
     { token: issueMockToken(userId), method, path, routeTemplate, query, body } as never,
     { parse: (value: unknown) => value } as never
@@ -135,5 +135,118 @@ describe("projects", () => {
     expect((await call(5, "POST", "/projects", {}, own)).resultCode).toBe(201);
     expect((await call(5, "POST", "/projects", {}, { ...own, pillar_id: 2 })).resultCode).toBe(403);
     expect((await call(6, "POST", "/projects", {}, { ...own, name: "Nope" })).resultCode).toBe(403);
+  });
+});
+
+describe("project lifecycle", () => {
+  const projectOf = (pillarId: number) =>
+    getMockStore().project.find((row) => row.pillar_id === pillarId)!;
+
+  it("lets a pillar lead deactivate and reactivate their project, with a reason", async () => {
+    const project = projectOf(1);
+    const off = await call(
+      5,
+      "PATCH",
+      `/projects/${project.id}`,
+      {},
+      { status: "INACTIVE", status_description: "Funding ended" }
+    );
+    expect(off.resultCode).toBe(200);
+    const row = (await call(5, "GET", `/projects/${project.id}`)).data;
+    expect(row).toMatchObject({ status: "INACTIVE", status_description: "Funding ended" });
+    expect(
+      (
+        await call(
+          5,
+          "PATCH",
+          `/projects/${project.id}`,
+          {},
+          { status: "ACTIVE", status_description: null }
+        )
+      ).resultCode
+    ).toBe(200);
+    // Someone without the permission cannot.
+    expect(
+      (await call(6, "PATCH", `/projects/${project.id}`, {}, { status: "INACTIVE" })).resultCode
+    ).toBe(403);
+  });
+
+  it("no longer accepts new applications against an inactive project", async () => {
+    const project = projectOf(2);
+    await call(1, "PATCH", `/projects/${project.id}`, {}, { status: "INACTIVE" });
+    const created = await handleMockRequest({
+      method: "POST",
+      path: "/grants",
+      routeTemplate: "/grants",
+      correlationId: crypto.randomUUID(),
+      token: issueMockToken(3),
+      body: {
+        project_id: project.id,
+        participant_id: 3,
+        requested_amount: 5000,
+        grant_type: "one_off",
+        status: "PREPARED",
+      },
+    });
+    expect(created.resultCode).toBe(422);
+  });
+
+  it("edits every project detail, including pillar, status and reason", async () => {
+    const project = projectOf(1);
+    const full = {
+      pillar_id: 1,
+      name: "Safe spaces II",
+      donor_id: null,
+      start_date: "2026-02-01",
+      end_date: "2027-01-31",
+      notes: "Renamed",
+      status: "INACTIVE",
+      status_description: "Paused",
+    };
+    expect((await call(1, "PATCH", `/projects/${project.id}`, {}, full)).resultCode).toBe(200);
+    expect(getMockStore().project.find((row) => row.id === project.id)).toMatchObject({
+      name: "Safe spaces II",
+      donor_id: null,
+      status: "INACTIVE",
+      status_description: "Paused",
+    });
+  });
+
+  it("deletes only with the configuration permission and only a project nothing depends on", async () => {
+    const created = await call(
+      5,
+      "POST",
+      "/projects",
+      {},
+      { pillar_id: 1, name: "Scratch", start_date: "2026-01-01", end_date: "2026-02-01" }
+    );
+    const id = created.data.id;
+    // A pillar lead can manage but not delete.
+    expect((await call(5, "PATCH", `/projects/${id}`, {}, { is_deleted: true })).resultCode).toBe(
+      403
+    );
+    expect(
+      (await call(1, "PATCH", `/projects/${id}`, {}, { is_deleted: true, name: "x" })).resultCode
+    ).toBe(422);
+    expect((await call(1, "PATCH", `/projects/${id}`, {}, { is_deleted: true })).resultCode).toBe(
+      200
+    );
+    const list = await call(1, "GET", "/projects", { pageSize: 100 });
+    expect(list.data.items.some((row: Json) => row.id === id)).toBe(false);
+    // A project with grant applications must be deactivated instead.
+    const withApplications = getMockStore().project.find((row) =>
+      getMockStore().grant_application.some((application) => application.project_id === row.id)
+    )!;
+    const refused = await call(
+      1,
+      "PATCH",
+      `/projects/${withApplications.id}`,
+      {},
+      { is_deleted: true }
+    );
+    expect(refused.resultCode).toBe(422);
+    expect(getMockStore().project.find((row) => row.id === withApplications.id)?.is_deleted).toBe(
+      false
+    );
   });
 });
