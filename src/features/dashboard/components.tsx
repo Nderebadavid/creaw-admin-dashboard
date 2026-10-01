@@ -4,6 +4,7 @@ import { PillarCard } from "@/components/ui/pillar-card";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { pillarLookBySlug } from "@/components/portal/pillars";
 import type { DashboardOverview } from "./api";
+import { ProjectsPanel } from "@/features/projects/projects-panel";
 import { MonthlyChart, ParticipantsDonut } from "./sections/charts";
 import { ActivityFeed, CalendarPreview, FieldPreview, OverdueAlert } from "./sections/panels";
 
@@ -146,6 +147,11 @@ export function DashboardContent({
         <FieldPreview submissions={overview.recentSubmissions} canView={canViewSubmissions} />
         <CalendarPreview reports={overview.upcomingReports} />
       </div>
+      <ProjectsPanel
+        projects={overview.projects}
+        subtitle="Active funded initiatives across your pillars"
+        showPillar
+      />
       <ActivityFeed activity={overview.recentActivity} canViewAudit={canViewAudit} />
     </div>
   );

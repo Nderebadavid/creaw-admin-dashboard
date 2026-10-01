@@ -20,6 +20,8 @@ export const API_ROUTE_TEMPLATES = [
   "/referrals/:id",
   "/grants",
   "/grants/:id",
+  "/projects",
+  "/projects/:id",
   "/assessments",
   "/assessments/:id",
   "/reports",

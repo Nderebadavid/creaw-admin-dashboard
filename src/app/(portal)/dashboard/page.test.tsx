@@ -21,6 +21,7 @@ vi.mock("@/features/dashboard/api", () => ({
       pillars: [],
       monthly: [],
       participantDistribution: [],
+      projects: [],
       reportingAlerts: [],
       recentSubmissions: [],
       upcomingReports: [],

@@ -8,6 +8,7 @@ import {
   Users,
   ArrowLeftRight,
   Receipt,
+  FolderKanban,
   ClipboardCheck,
   CalendarDays,
   History,
@@ -53,6 +54,7 @@ export const implementedPortalRoutes: readonly string[] = [
   "/participants",
   "/referrals",
   "/grants",
+  "/projects",
   "/assessments",
   "/reporting",
   "/audit",
@@ -156,6 +158,12 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         permissions: ["GRANT_APPLICATION_VIEW"],
         icon: Receipt,
         badge: "grantsAwaiting",
+      },
+      {
+        label: "Projects",
+        href: "/projects",
+        permissions: ["DASHBOARD_VIEW"],
+        icon: FolderKanban,
       },
       {
         label: "Org assessments",

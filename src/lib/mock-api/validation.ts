@@ -52,6 +52,14 @@ export function validate(store: MockStore, table: TableName, row: Row, previous?
     Boolean(row.participant_id) === Boolean(row.organisation_id)
   )
     return false;
+  // A project cannot end before it starts.
+  if (
+    table === "project" &&
+    typeof row.start_date === "string" &&
+    typeof row.end_date === "string" &&
+    row.end_date.slice(0, 10) < row.start_date.slice(0, 10)
+  )
+    return false;
   if (table === "activity_session") {
     const type = rowsFor(store, "activity_type_definition").find(
       (candidate) => candidate.id === row.activity_type_id

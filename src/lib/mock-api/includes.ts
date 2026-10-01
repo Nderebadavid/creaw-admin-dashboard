@@ -88,6 +88,35 @@ export const INCLUDES: Partial<Record<TableName, Record<string, IncludeSpec>>> =
     checks: childrenBy("assessment_document_check", "assessment_id", (row) => row.id),
     documents: documentsOf("organisation_assessment"),
   },
+  project: {
+    applications: childrenBy("grant_application", "project_id", (row) => row.id),
+    awards: {
+      table: "grant_award",
+      children: (store, row) => {
+        const applicationIds = store.grant_application
+          .filter((application) => application.project_id === row.id)
+          .map((application) => application.id);
+        return rowsFor(store, "grant_award").filter((award) =>
+          applicationIds.includes(Number(award.application_id))
+        );
+      },
+    },
+    reports: {
+      table: "grant_report",
+      permissions: ["GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"],
+      children: (store, row) => {
+        const applicationIds = store.grant_application
+          .filter((application) => application.project_id === row.id)
+          .map((application) => application.id);
+        const awardIds = store.grant_award
+          .filter((award) => applicationIds.includes(award.application_id))
+          .map((award) => award.id);
+        return rowsFor(store, "grant_report").filter((report) =>
+          awardIds.includes(Number(report.grant_award_id))
+        );
+      },
+    },
+  },
   participant: {
     enrollments: childrenBy("enrollment", "participant_id", (row) => row.id),
     // Derived rows, not stored ones: the SRHR topics in order with the date attended (or

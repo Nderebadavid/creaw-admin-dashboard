@@ -24,4 +24,5 @@ export const uniqueKeys: Partial<Record<TableName, string[][]>> = {
   counselling_session: [["enrollment_id", "session_no"]],
   activity_attendance: [["session_id", "participant_id"]],
   grant_award: [["application_id"]],
+  project: [["pillar_id", "name"]],
 };

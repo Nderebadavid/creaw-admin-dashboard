@@ -1,4 +1,4 @@
-import { hasModulePermission, hasPermission } from "../../auth/permissions";
+import { hasModulePermission, hasPermission, type EffectiveGrant } from "../../auth/permissions";
 import { safeAuditRow } from "../audit";
 import { type MockContext } from "../context";
 import {
@@ -144,6 +144,32 @@ function sessionCards(store: MockStore, pillarId: number, periodText: string | n
   return { period, summary, coverage };
 }
 
+/** The pillars' active projects with the grant figures the caller may see, soonest to end first. */
+function projectCards(store: MockStore, grants: EffectiveGrant[], pillarIds: number[], limit = 8) {
+  return store.project
+    .filter(
+      (row) => !row.is_deleted && row.status === "ACTIVE" && pillarIds.includes(row.pillar_id)
+    )
+    .sort(
+      (a, b) =>
+        String(a.end_date ?? "9999").localeCompare(String(b.end_date ?? "9999")) || a.id - b.id
+    )
+    .slice(0, limit)
+    .map((row) => {
+      const view = presentRow(store, "project", row as unknown as Row, grants);
+      return {
+        id: row.id,
+        name: row.name,
+        pillar_id: row.pillar_id,
+        donor_name: view.donor_name ?? null,
+        end_date: row.end_date,
+        applications_count: view.applications_count ?? null,
+        awarded_total: view.awarded_total ?? null,
+        reports_overdue: view.reports_overdue ?? null,
+      };
+    });
+}
+
 /** How far SRHR participants are through the curriculum, as headline buckets. */
 function curriculumCards(store: MockStore, pillarId: number, mayGraduation: boolean) {
   const buckets = [
@@ -285,6 +311,7 @@ export function handlePillarSummary(ctx: MockContext) {
           ),
         }
       : null,
+    projects: projectCards(store, grants, [pillar.id]),
     cards: {
       vawg:
         code === "vawg" && can("CASE_VIEW")
@@ -530,6 +557,11 @@ export function handleDashboardOverview(ctx: MockContext) {
             };
           })
       : null,
+    projects: projectCards(
+      store,
+      grants,
+      pillars.map((pillar) => pillar.id)
+    ),
     reports: reports && {
       total: reports.length,
       overdue: reports
