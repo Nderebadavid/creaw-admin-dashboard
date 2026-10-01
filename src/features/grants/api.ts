@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import { shownPillars } from "@/components/portal/pillars";
 import { z } from "zod";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
@@ -578,7 +579,7 @@ export const grantsApi = {
     return (await bound()).get(id);
   },
   async pillars() {
-    return (await bound()).pillars();
+    return shownPillars(await (await bound()).pillars());
   },
   async programmes() {
     return (await bound()).programmes();

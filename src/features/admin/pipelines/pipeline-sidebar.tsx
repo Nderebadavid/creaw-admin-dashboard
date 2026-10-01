@@ -1,3 +1,4 @@
+import { isPillarShown } from "@/components/portal/pillars";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PipelineRecord, PipelinePillar } from "./types";
@@ -15,9 +16,11 @@ export function PipelineSidebar({
 }) {
   const stageCount = (pillarId: number) =>
     pipelines.find((row) => row.pillar_id === pillarId)?.stages.length ?? 0;
+  // Hidden from the portal for now; the prompt returns when the pillar does.
   const leadership = pillars.find(
     (row) =>
       row.code.toLowerCase() === "leadership" &&
+      isPillarShown("leadership") &&
       !pipelines.some((pipe) => pipe.pillar_id === row.id)
   );
 

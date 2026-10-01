@@ -3,6 +3,7 @@
  * dates and the grant figures the API derives for the caller. Reads and writes go
  * through /projects; the API scopes everything to the caller's pillars.
  */
+import { shownPillars } from "@/components/portal/pillars";
 import type { ApiClient } from "@/lib/api/client";
 import { listParams, type ListQuery } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
@@ -185,7 +186,10 @@ export function createProjectsApi(client: ApiClient, token: string) {
         projectOptionsSchema
       );
       if (!response.success || !response.data) throw new Error(response.message);
-      return { pillars: response.data.tables.pillar, donors: response.data.tables.donor };
+      return {
+        pillars: shownPillars(response.data.tables.pillar),
+        donors: response.data.tables.donor,
+      };
     },
     /** One project as the register shows it, or null when it is missing or out of scope. */
     async get(id: number): Promise<ProjectView | null> {

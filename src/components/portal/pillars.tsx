@@ -106,3 +106,19 @@ export function PillarChip({ id, fallback }: { id: number; fallback?: string }) 
     </span>
   );
 }
+
+/**
+ * Pillars hidden from the portal for now because they hold no data yet. Their records,
+ * configuration and look stay in place; remove an id here to bring the pillar back.
+ */
+export const HIDDEN_PILLAR_IDS: readonly number[] = [4]; // Leadership
+
+/** Whether the portal shows a pillar, by id or by slug ("leadership"). */
+export function isPillarShown(pillar: number | string): boolean {
+  const id = typeof pillar === "number" ? pillar : looks.find((look) => look.slug === pillar)?.id;
+  return id === undefined || !HIDDEN_PILLAR_IDS.includes(id);
+}
+
+/** Keeps only the pillars the portal shows. */
+export const shownPillars = <T extends { id: number }>(rows: readonly T[]): T[] =>
+  rows.filter((row) => isPillarShown(row.id));

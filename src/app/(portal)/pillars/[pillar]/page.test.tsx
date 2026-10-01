@@ -178,7 +178,7 @@ describe("pillar route", () => {
     expect(html).toContain("Log session");
   });
 
-  it.each(["vawg", "wee", "srhr", "skilling", "wros", "leadership"])(
+  it.each(["vawg", "wee", "srhr", "skilling", "wros"])(
     "keeps the %s heading row free of buttons",
     async (pillar) => {
       const html = await render(pillar);
@@ -197,5 +197,9 @@ describe("pillar route", () => {
     expect(vawg.lastIndexOf("Open legal case")).toBeGreaterThan(
       vawg.indexOf("Legal case register")
     );
+  });
+
+  it("has no Leadership page while the pillar is hidden", async () => {
+    await expect(render("leadership")).rejects.toThrow("NEXT_NOT_FOUND");
   });
 });

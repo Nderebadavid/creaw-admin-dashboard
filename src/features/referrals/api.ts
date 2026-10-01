@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import { shownPillars } from "@/components/portal/pillars";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
@@ -338,7 +339,7 @@ export const referralsApi = {
     return (await withSessionApi(createReferralsApi)).countByStatus(status);
   },
   async pillars() {
-    return (await withSessionApi(createReferralsApi)).pillars();
+    return shownPillars(await (await withSessionApi(createReferralsApi)).pillars());
   },
   async destinations() {
     return (await withSessionApi(createReferralsApi)).destinations();

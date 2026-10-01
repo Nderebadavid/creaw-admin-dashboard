@@ -1,4 +1,5 @@
 "use client";
+import { isPillarShown } from "@/components/portal/pillars";
 import { useClientPaging } from "@/components/data-table/use-client-paging";
 import { useClientSort } from "@/components/data-table/use-client-sort";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
@@ -217,7 +218,7 @@ export function LookupContent({
         <div className="px-5">
           <Pagination {...pager} />
         </div>
-        {table === "pillar" && (
+        {table === "pillar" && isPillarShown("leadership") && (
           <p className="mx-5 mb-5 rounded-lg bg-creaw-canvas p-3 text-sm text-creaw-body">
             Leadership has a pillar row but no pipeline yet. Configure its pathway under Pipeline
             config.
