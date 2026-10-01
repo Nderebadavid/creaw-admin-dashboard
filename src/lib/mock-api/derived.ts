@@ -49,6 +49,13 @@ export const DERIVED_COLUMNS: Partial<Record<TableName, string[]>> = {
     "curriculum_last_attended",
     "curriculum_behind",
   ],
+  project: [
+    "applications_count",
+    "awards_count",
+    "awarded_total",
+    "disbursed_total",
+    "reports_overdue",
+  ],
   ward: ["county_id", "county_name"],
   referral: ["destination_label"],
   external_provider: ["sessions_count", "counselling_count", "trainees_count", "cases_count"],
@@ -293,6 +300,45 @@ export function derivedFields(
     return {
       county_id: subCounty?.county_id ?? null,
       county_name: displayName(store, "county", subCounty?.county_id),
+    };
+  }
+  if (table === "project") {
+    // Money and reporting figures follow the grant grants the caller holds in the pillar.
+    const scope = { pillarId: Number(row.pillar_id) };
+    const mayApplications = !!grants && hasPermission(grants, "GRANT_APPLICATION_VIEW", scope);
+    const mayAwards = !!grants && hasPermission(grants, "GRANT_AWARD_VIEW", scope);
+    const mayReports =
+      !!grants &&
+      (hasPermission(grants, "GRANT_REPORT_VIEW", scope) ||
+        hasPermission(grants, "GRANT_REPORT_MANAGE", scope));
+    const applications = store.grant_application.filter(
+      (item) => !item.is_deleted && item.project_id === row.id
+    );
+    const awards = store.grant_award.filter(
+      (item) =>
+        !item.is_deleted &&
+        applications.some((application) => application.id === item.application_id)
+    );
+    const awardIds = new Set(awards.map((item) => item.id));
+    const today = new Date().toISOString().slice(0, 10);
+    return {
+      applications_count: mayApplications ? applications.length : null,
+      awards_count: mayAwards ? awards.length : null,
+      awarded_total: mayAwards ? awards.reduce((sum, item) => sum + item.amount_awarded, 0) : null,
+      disbursed_total: mayAwards
+        ? store.grant_disbursement
+            .filter((item) => !item.is_deleted && awardIds.has(item.grant_id))
+            .reduce((sum, item) => sum + item.amount, 0)
+        : null,
+      reports_overdue: mayReports
+        ? store.grant_report.filter(
+            (item) =>
+              !item.is_deleted &&
+              awardIds.has(item.grant_award_id) &&
+              !item.submitted_date &&
+              item.due_date < today
+          ).length
+        : null,
     };
   }
   if (table === "participant") {

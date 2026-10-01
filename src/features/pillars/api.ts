@@ -57,6 +57,8 @@ export interface PillarView {
   activeCount: number;
   /** The pillar's headline cards, computed by the API for the caller's scope. */
   cards: PillarSummaryDto["cards"];
+  /** The pillar's active projects, soonest to end first. */
+  projects: PillarSummaryDto["projects"];
   stages: string[];
   /** The pipeline's stages in order, with their ids. */
   pipelineStages: { id: number; name: string }[];
@@ -238,6 +240,7 @@ export function createPillarsApi(client: ApiClient, token: string) {
         activeCount:
           head.enrollments?.active ?? records.items.filter((row) => row.status === "ACTIVE").length,
         cards: head.cards,
+        projects: head.projects,
         hasPipeline: Boolean(head.pipeline),
         stages: stages.map((row) => row.name),
         pipelineStages: stages.map((row) => ({ id: row.id, name: row.name })),

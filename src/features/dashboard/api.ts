@@ -41,6 +41,8 @@ export interface DashboardOverview {
   monthly: { month: string; newCount: number; completedCount: number }[];
   participantDistribution: { name: string; count: number; color: string; href?: string }[];
   reportingAlerts: string[];
+  /** Active projects across the pillars in scope, soonest to end first. */
+  projects: import("@/features/projects/schemas").ProjectCard[];
   recentSubmissions: {
     id: number;
     title: string;
@@ -160,6 +162,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
           href,
         })),
         reportingAlerts,
+        projects: dto.projects,
         recentSubmissions: (dto.recent_submissions ?? []).map((row) => {
           const pillar = pillars.find((item) => item.id === row.pillar_id);
           return {

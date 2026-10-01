@@ -1,3 +1,4 @@
+import { projectCardSchema } from "@/features/projects/schemas";
 import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 
@@ -71,6 +72,10 @@ export const pillarSummarySchema = createEnvelopeSchema(
           counties: z.array(z.string()),
         })
         .nullable(),
+      projects: z
+        .array(projectCardSchema)
+        .nullish()
+        .transform((value) => value ?? []),
       cards: z.object({
         vawg: z
           .object({

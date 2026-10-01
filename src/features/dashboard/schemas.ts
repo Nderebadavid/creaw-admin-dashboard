@@ -1,3 +1,4 @@
+import { projectCardSchema } from "@/features/projects/schemas";
 import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 
@@ -119,6 +120,10 @@ export const dashboardOverviewSchema = createEnvelopeSchema(
           })
         )
         .nullable(),
+      projects: z
+        .array(projectCardSchema)
+        .nullish()
+        .transform((value) => value ?? []),
       reports: z
         .object({
           total: z.number().int(),

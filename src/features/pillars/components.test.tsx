@@ -29,6 +29,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
+      projects: [],
       cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     const html = renderToStaticMarkup(<PillarContent pillar={pillar} canCreate={false} />);
@@ -54,6 +55,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
+      projects: [],
       cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     const html = renderToStaticMarkup(
@@ -79,6 +81,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
+      projects: [],
       cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     const html = renderToStaticMarkup(
@@ -119,6 +122,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
+      projects: [],
       cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     expect(
@@ -143,6 +147,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
+      projects: [],
       cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
       domain: {
         title: "Grant applications",
@@ -190,6 +195,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
+      projects: [],
       cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
       stageCounts: [
         { name: "Intake", count: 40 },

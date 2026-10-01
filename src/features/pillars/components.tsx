@@ -11,6 +11,7 @@ import type { SubmissionRow } from "@/features/submissions/api";
 import { PillarDomainTable } from "./domain-table";
 import { PillarRecordsTable } from "./records-table";
 import { PipelineFunnel } from "./overview/pipeline-funnel";
+import { ProjectsPanel } from "@/features/projects/projects-panel";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 
 /** What one row of each pillar's register is. */
@@ -249,6 +250,9 @@ export function PillarContent({
           )}
         </section>
       </div>
+      {pillar.projects.length > 0 && (
+        <ProjectsPanel projects={pillar.projects} subtitle={`${pillar.name} funded initiatives`} />
+      )}
       {workspace}
       {register}
       {!register && showDomainTable && pillar.domain && (
