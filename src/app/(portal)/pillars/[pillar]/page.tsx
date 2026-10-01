@@ -138,7 +138,9 @@ export default async function PillarPage({
     export: can("REPORT_EXPORT_CSV"),
   };
   const enrolTrainee =
-    trainingWorkspace && trainingPermissions.edit ? <EnrolTraineeButton /> : null;
+    trainingWorkspace && trainingPermissions.edit ? (
+      <EnrolTraineeButton key="enrol-trainee" />
+    ) : null;
   // SRHR logs sessions and Skilling enrols trainees through their workspaces, never the
   // raw-ID form, even when a workspace failed to load. WEE applications are filed from the
   // grants page, so its table offers no "New application".
@@ -157,6 +159,7 @@ export default async function PillarPage({
       toolbar={
         sessionPermissions.log && (
           <LogSessionButton
+            key="log-session"
             pillar={sessionWorkspace.pillar}
             currentUser={sessionWorkspace.currentUser}
           />
@@ -201,6 +204,7 @@ export default async function PillarPage({
               can={vawgPermissions}
               toolbar={
                 <VawgHeadingActions
+                  key="case-actions"
                   currentUserId={session.user.id}
                   canExport={false}
                   canOpenCase={vawgPermissions.edit}
@@ -213,7 +217,7 @@ export default async function PillarPage({
                 can={counsellingPermissions}
                 toolbar={
                   counsellingPermissions.log && (
-                    <LogCounsellingButton currentUserId={session.user.id} />
+                    <LogCounsellingButton key="log-counselling" currentUserId={session.user.id} />
                   )
                 }
               />
