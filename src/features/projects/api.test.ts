@@ -69,4 +69,19 @@ describe("projects API client", () => {
     expect(options.pillars.length).toBeGreaterThan(0);
     expect(options.donors.length).toBeGreaterThan(0);
   });
+
+  it("gives each approved application its award and payments in the project detail", async () => {
+    const store = getMockStore();
+    const award = store.grant_award[0];
+    const application = store.grant_application.find((row) => row.id === award.application_id)!;
+    const detail = await apiFor(1).detail(application.project_id);
+    const row = detail!.applications.find((item) => item.id === application.id)!;
+    expect(row.award).toMatchObject({ id: award.id, amount: award.amount_awarded });
+    expect(row.award!.payments.length).toBe(
+      store.grant_disbursement.filter((item) => item.grant_id === award.id && !item.is_deleted)
+        .length
+    );
+    const pending = detail!.applications.find((item) => item.status !== "APPROVED");
+    if (pending) expect(pending.award).toBeNull();
+  });
 });

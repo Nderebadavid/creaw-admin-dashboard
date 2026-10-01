@@ -34,7 +34,8 @@ import {
   setProjectStatusAction,
   deleteProjectAction,
 } from "./actions";
-import type { ProjectView } from "./api";
+import type { ProjectDetail, ProjectView } from "./api";
+import { updateAwardAction, updateDisbursementAction } from "@/features/grants/actions";
 
 const kes = (value: number) => `KES ${value.toLocaleString("en-KE")}`;
 const money = (value: number | null) => (value === null ? "—" : kes(value));
@@ -379,6 +380,162 @@ function DeleteDialog({
   );
 }
 
+type ProjectAward = ProjectDetail["applications"][number]["award"];
+
+/** Changes one grant's awarded amount from the project panel. */
+function AwardAmountDialog({
+  open,
+  application,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  application: ProjectDetail["applications"][number] | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  const award = application?.award as NonNullable<ProjectAward> | null | undefined;
+  if (!application || !award) return null;
+  const paid = award.payments.reduce((sum, item) => sum + item.amount, 0);
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(new FormData(event.currentTarget).get("amount"));
+    void submit.run(
+      updateAwardAction({ applicationId: application!.id, amount }),
+      "Awarded amount updated."
+    );
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Edit awarded amount"
+      description={`${application.applicant} · ${kes(application.amount)} requested`}
+      error={submit.error}
+    >
+      <form key={award.id} className="space-y-4" onSubmit={send}>
+        <label className="block text-sm">
+          Awarded amount (KES)
+          <input
+            name="amount"
+            type="number"
+            min={paid > 0 ? paid : 1}
+            step="0.01"
+            required
+            defaultValue={award.amount}
+            className={fieldClass}
+          />
+        </label>
+        <p className="text-xs text-creaw-faint">
+          It cannot be more than was requested
+          {paid > 0 ? ` or less than the ${paid.toLocaleString("en-KE")} already paid` : ""}.
+        </p>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submit.busy}>
+            Save amount
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
+  );
+}
+
+/** Corrects one recorded payment from the project panel. */
+function PaymentEditDialog({
+  open,
+  application,
+  paymentId,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  application: ProjectDetail["applications"][number] | null;
+  paymentId: number | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  const payment = application?.award?.payments.find((item) => item.id === paymentId);
+  if (!application || !payment) return null;
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    void submit.run(
+      updateDisbursementAction({
+        applicationId: application!.id,
+        disbursementId: payment!.id,
+        amount: Number(form.get("amount")),
+        date: String(form.get("date")),
+        notes: String(form.get("notes") ?? ""),
+      }),
+      "Payment updated."
+    );
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Edit payment"
+      description={`${application.applicant} · total payments cannot exceed the award`}
+      error={submit.error}
+    >
+      <form key={payment.id} className="space-y-4" onSubmit={send}>
+        <label className="block text-sm">
+          Amount (KES)
+          <input
+            name="amount"
+            type="number"
+            min="1"
+            step="0.01"
+            required
+            defaultValue={payment.amount}
+            className={fieldClass}
+          />
+        </label>
+        <label className="block text-sm">
+          Payment date
+          <input
+            name="date"
+            type="date"
+            required
+            defaultValue={payment.date?.slice(0, 10)}
+            className={fieldClass}
+          />
+        </label>
+        <label className="block text-sm">
+          Reference or note
+          <input
+            name="notes"
+            maxLength={255}
+            defaultValue={payment.notes ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={submit.busy}>
+            Save payment
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
+  );
+}
+
 /** Funded projects across the pillars the user can see: donor, dates and grant figures. */
 export function ProjectsContent({
   heading,
@@ -400,7 +557,13 @@ export function ProjectsContent({
   );
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [modal, setModal] = useState<"new" | "edit" | "status" | "delete" | null>(null);
+  const [modal, setModal] = useState<
+    "new" | "edit" | "status" | "delete" | "award" | "payment" | null
+  >(null);
+  const [editing, setEditing] = useState<{
+    applicationId: number;
+    paymentId: number | null;
+  } | null>(null);
   const [feedback, setFeedback] = useState("");
   const detail = useRecordDetail(selectedId, loadProjectDetailAction);
   const selected = list.data.items.find((row) => row.id === selectedId) ?? null;
@@ -408,6 +571,12 @@ export function ProjectsContent({
     .filter((item) => hasPermission(grants, "NARRATIVE_REPORT_MANAGE", { pillarId: item.id }))
     .map((item) => item.id);
   const canManage = (pillarId: number) => managedPillars.includes(pillarId);
+  const canEditAward = (pillarId: number) =>
+    hasPermission(grants, "GRANT_APPLICATION_APPROVE", { pillarId });
+  const canEditPayment = (pillarId: number) =>
+    hasPermission(grants, "GRANT_DISBURSEMENT_RECORD", { pillarId });
+  const editingApplication =
+    detail.data?.applications.find((item) => item.id === editing?.applicationId) ?? null;
   const canDelete = (pillarId: number) =>
     hasPermission(grants, "PILLAR_CONFIG_MANAGE", { pillarId });
 
@@ -415,6 +584,7 @@ export function ProjectsContent({
     setModal(null);
     if (modal === "delete") setSelectedId(null);
     setFeedback(message);
+    detail.reload();
     void list.refresh();
     router.refresh();
   };
@@ -577,19 +747,84 @@ export function ProjectsContent({
                       <p className="text-[13.5px] text-creaw-faint">{detail.error}</p>
                     )}
                     {detail.data?.applications.map((item) => (
-                      <a
+                      <div
                         key={item.id}
-                        href={`/grants/${item.id}`}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-creaw-line bg-white px-4 py-3 text-[14px]"
+                        className="flex flex-col gap-2 rounded-xl border border-creaw-line bg-white px-4 py-3 text-[14px]"
                       >
-                        <span>
-                          <span className="font-semibold">{item.applicant}</span>
-                          <span className="block text-[12.5px] text-creaw-faint">
-                            {titleCase(item.grantType)} · {kes(item.amount)}
+                        <a
+                          href={`/grants/${item.id}`}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span>
+                            <span className="font-semibold">{item.applicant}</span>
+                            <span className="block text-[12.5px] text-creaw-faint">
+                              {titleCase(item.grantType)} · {kes(item.amount)} requested
+                            </span>
                           </span>
-                        </span>
-                        <StatusBadge tone="neutral">{titleCase(item.status)}</StatusBadge>
-                      </a>
+                          <StatusBadge tone="neutral">{titleCase(item.status)}</StatusBadge>
+                        </a>
+                        {item.award && (
+                          <div className="flex flex-col gap-1 border-t border-creaw-divider pt-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span>
+                                Awarded <b>{kes(item.award.amount)}</b>
+                              </span>
+                              {canEditAward(selected.pillarId) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={`Edit awarded amount for ${item.applicant}`}
+                                  onClick={() => {
+                                    setEditing({ applicationId: item.id, paymentId: null });
+                                    setModal("award");
+                                  }}
+                                >
+                                  <Pencil size={14} aria-hidden="true" />
+                                  Edit
+                                </Button>
+                              )}
+                            </div>
+                            {item.award.payments.map((payment, index) => (
+                              <div
+                                key={payment.id}
+                                className="flex items-center justify-between gap-2 text-[13px] text-creaw-ink-soft"
+                              >
+                                <span>
+                                  {payment.notes || `Payment ${index + 1}`}
+                                  {payment.date ? ` · ${formatDate(payment.date)}` : ""}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <span className="font-semibold tabular-nums">
+                                    {kes(payment.amount)}
+                                  </span>
+                                  {canEditPayment(selected.pillarId) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      aria-label={`Edit payment ${index + 1} for ${item.applicant}`}
+                                      onClick={() => {
+                                        setEditing({
+                                          applicationId: item.id,
+                                          paymentId: payment.id,
+                                        });
+                                        setModal("payment");
+                                      }}
+                                    >
+                                      <Pencil size={14} aria-hidden="true" />
+                                      Edit
+                                    </Button>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                            {item.award.payments.length === 0 && (
+                              <span className="text-[13px] text-creaw-faint">
+                                No payments recorded.
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ))}
                     {detail.data && detail.data.applications.length === 0 && (
                       <p className="text-[13.5px] text-creaw-faint">
@@ -626,6 +861,19 @@ export function ProjectsContent({
           ]}
         />
       )}
+      <AwardAmountDialog
+        open={modal === "award"}
+        application={editingApplication}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
+      <PaymentEditDialog
+        open={modal === "payment"}
+        application={editingApplication}
+        paymentId={editing?.paymentId ?? null}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
       <StatusDialog
         open={modal === "status"}
         project={selected}

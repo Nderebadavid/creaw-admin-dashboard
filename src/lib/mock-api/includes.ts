@@ -104,6 +104,22 @@ export const INCLUDES: Partial<Record<TableName, Record<string, IncludeSpec>>> =
         );
       },
     },
+    disbursements: {
+      table: "grant_disbursement",
+      children: (store, row) => {
+        const awardIds = store.grant_award
+          .filter((award) =>
+            store.grant_application.some(
+              (application) =>
+                application.id === award.application_id && application.project_id === row.id
+            )
+          )
+          .map((award) => award.id);
+        return rowsFor(store, "grant_disbursement").filter((payment) =>
+          awardIds.includes(Number(payment.grant_id))
+        );
+      },
+    },
     reports: {
       table: "grant_report",
       permissions: ["GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"],
