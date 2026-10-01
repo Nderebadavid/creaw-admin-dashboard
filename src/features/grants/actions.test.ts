@@ -98,12 +98,12 @@ describe("grant workflows", () => {
     });
   });
 
-  it("denies approval without the scoped permission and keeps amounts masked", async () => {
+  it("denies approval without the scoped permission and returns amounts in full", async () => {
     const api = apiFor(3);
     expect((await api.advance(2, "APPROVED")).resultCode).toBe(403);
     const detail = await apiFor(1).get(1);
-    expect(detail?.award?.amountAwarded).not.toBe("55000");
-    expect(detail?.disbursements[0].amount).not.toBe("27500");
+    expect(detail?.award?.amountAwarded).toBe(55000);
+    expect(detail?.disbursements[0].amount).toBe(27500);
   });
 
   it("audits application pack downloads and filtered export", async () => {
@@ -114,7 +114,6 @@ describe("grant workflows", () => {
     const exported = await api.export({ pillarId: 2, status: "APPROVED" });
     expect(exported.success).toBe(true);
     expect(getMockStore().audit_logs.at(-1)?.action).toBe("EXPORT");
-    expect(exported.data?.content).not.toContain("27500");
   });
 
   it("joins awards and disbursements beyond the first page", async () => {

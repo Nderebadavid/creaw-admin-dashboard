@@ -4,7 +4,6 @@ import {
   type EffectiveGrant,
   hasModulePermission,
 } from "../auth/permissions";
-import { isSensitiveField, maskSensitiveValue } from "../sensitive-fields";
 import { tableDefinitions } from "./schema";
 import { type ApiEnvelope } from "@/types/api";
 import { type MockStore, type TableName } from "@/types/db";
@@ -224,19 +223,9 @@ export function allowed(
     scopes(store, table, row).some((pillarId) => hasPermission(grants, code, { pillarId }))
   );
 }
-export function masked(table: TableName, row: Row, audit = false): Row {
-  return Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [
-      key,
-      key === "password_hash"
-        ? "[REDACTED]"
-        : isSensitiveField(table, key) && value !== null
-          ? audit
-            ? "[REDACTED]"
-            : maskSensitiveValue(value)
-          : value,
-    ])
-  ) as Row;
+/** A row as the API returns it. Nothing is masked; password hashes alone never leave. */
+export function safeRow(_table: TableName, row: Row): Row {
+  return "password_hash" in row ? ({ ...row, password_hash: "[REDACTED]" } as Row) : row;
 }
 export function addsGrantsBeyondActor(
   store: MockStore,
@@ -262,12 +251,14 @@ export function referralRead(store: MockStore, row: Row): Row {
   const participant = store.participant.find(
     (item) => item.id === enrollment?.participant_id && !item.is_deleted
   );
-  const safeParticipant = participant ? masked("participant", participant as unknown as Row) : null;
+  const safeParticipant = participant
+    ? safeRow("participant", participant as unknown as Row)
+    : null;
   const partner = store.partner_institution.find(
     (item) => item.id === row.to_partner_institution_id
   );
   return {
-    ...masked("referral", row),
+    ...safeRow("referral", row),
     participant_summary: safeParticipant
       ? {
           id: safeParticipant.id,
@@ -301,7 +292,7 @@ export function enrollmentRead(store: MockStore, row: Row): Row {
     .at(-1);
   const stage = store.stage_definition.find((item) => item.id === latestEvent?.stage_definition_id);
   return {
-    ...masked("enrollment", row),
+    ...safeRow("enrollment", row),
     current_stage: stage?.name ?? null,
     current_stage_date: latestEvent?.event_date ?? null,
   };

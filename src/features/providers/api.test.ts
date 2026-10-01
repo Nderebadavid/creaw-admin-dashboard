@@ -12,11 +12,11 @@ const apiFor = (userId: number, client = clientFor()) =>
   createProvidersApi(client, issueMockToken(userId));
 
 describe("providers directory", () => {
-  it("maps providers with institution, masked contacts and linked work", async () => {
+  it("maps providers with institution, contacts and linked work", async () => {
     const { providers } = await apiFor(1).directory();
     const faith = providers.find((row) => row.name === "Faith Kimani")!;
     expect(faith).toMatchObject({ type: "counsellor", active: true });
-    expect(faith.phone).toMatch(/•/);
+    expect(faith.phone).toBe("0711 900 221");
     expect(faith.linkedWork).toBe(
       faith.workload.sessions.count +
         faith.workload.counselling.count +

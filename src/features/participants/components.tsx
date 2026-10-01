@@ -80,7 +80,7 @@ export function ParticipantsContent({
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Participant registry"
-        subtitle="IDs and phone numbers are always masked"
+        subtitle="One registry across every pillar"
         chipsLabel="Pillar filter"
         chips={[
           {

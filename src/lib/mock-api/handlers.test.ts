@@ -95,19 +95,24 @@ describe("mock repository contracts", () => {
     ).toMatchObject({ resultCode: 201 });
     expect(getMockStore().participant.at(-1)?.first_name).toBe("New");
   });
-  it("masks sensitive response fields by default but shows participant names", async () => {
+  it("returns participant names and contact fields in full", async () => {
     const result = await request({ path: "/participants/1", routeTemplate: "/participants/:id" });
-    expect(JSON.stringify(result)).not.toContain("29481172");
-    expect(result.data).toMatchObject({ first_name: "Faith", last_name: "Njeri" });
-    expect((result.data as { phone_number: string }).phone_number).toMatch(/^•+\d{4}$/);
+    const stored = getMockStore().participant[0];
+    expect(result.data).toMatchObject({
+      first_name: "Faith",
+      last_name: "Njeri",
+      phone_number: stored.phone_number,
+      id_number: stored.id_number,
+    });
+    expect(stored.phone_number).toMatch(/^\+?\d+$/);
   });
-  it("rejects a reveal of a participant name, which is no longer sensitive", async () => {
+  it("ignores a reveal query parameter on a single read", async () => {
     const result = await request({
       path: "/participants/1",
       routeTemplate: "/participants/:id",
       query: { reveal: "first_name" },
     });
-    expect(result.resultCode).toBe(422);
+    expect(result.resultCode).toBe(200);
   });
   it("preserves store across module reloads and resets deterministically", async () => {
     getMockStore().participant[0].remarks = "retained";
@@ -201,9 +206,6 @@ describe("mock repository contracts", () => {
     ).toMatchObject({ resultCode: 422 });
     expect(getMockStore().audit_logs).toHaveLength(auditCount);
   });
-  it("does not allow sensitive equality filters to reveal hidden information", async () => {
-    expect(await request({ query: { id_number: "29481172" } })).toMatchObject({ resultCode: 422 });
-  });
   it("rejects duplicate unique values and creates mock users without exposing password hashes", async () => {
     expect(
       await request({
@@ -222,28 +224,32 @@ describe("mock repository contracts", () => {
       })
     ).toMatchObject({ resultCode: 201 });
   });
-  it("refuses every reveal request, even for an administrator, and keeps the field masked", async () => {
-    const audits = getMockStore().audit_logs.length;
-    const result = await request({
-      token: "mock-user-1",
-      path: "/participants/1",
-      routeTemplate: "/participants/:id",
-      query: { reveal: "id_number" },
-    });
-    expect(result).toMatchObject({
-      resultCode: 422,
-      message: "Sensitive fields cannot be revealed",
-    });
-    expect(JSON.stringify(result)).not.toContain("29481172");
-    expect(getMockStore().audit_logs).toHaveLength(audits);
-    const normal = await request({
-      token: "mock-user-1",
+  it("returns a participant's id_number in full while never exposing password_hash", async () => {
+    const stored = getMockStore().participant.find((row) => row.id === 1)!;
+    expect(stored.id_number).toBeTruthy();
+    const participant = await request({
       path: "/participants/1",
       routeTemplate: "/participants/:id",
     });
-    expect(normal.resultCode).toBe(200);
-    expect((normal.data as { id_number: string }).id_number).not.toBe("29481172");
-    expect((normal.data as { id_number: string }).id_number).toContain("•");
+    expect(participant.resultCode).toBe(200);
+    expect((participant.data as { id_number: string }).id_number).toBe(stored.id_number);
+    const me = await request({ path: "/auth/me", routeTemplate: "/auth/me" });
+    expect(me.resultCode).toBe(200);
+    const storedHash = getMockStore().user[0].password_hash;
+    expect(storedHash).toBeTruthy();
+    expect(JSON.stringify(me)).not.toContain(storedHash as string);
+    expect(me.data).not.toHaveProperty("password_hash");
+    const created = await request({
+      path: "/admin/users",
+      routeTemplate: "/admin/users",
+      method: "POST",
+      body: { first_name: "Hash", last_name: "Check", username: "hash.check" },
+    });
+    expect(created.resultCode).toBe(201);
+    expect(JSON.stringify(created)).not.toContain("mock-only:no-real-password-hash");
+    expect((created.data as { password_hash?: string }).password_hash).toBe("[REDACTED]");
+    const users = await request({ path: "/admin/users", routeTemplate: "/admin/users" });
+    expect(JSON.stringify(users)).not.toContain(storedHash as string);
   });
   it("supports all approved screen list families", async () => {
     const paths = [
@@ -306,12 +312,12 @@ describe("mock repository contracts", () => {
     );
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
-  it("audits masked CSV exports and simulated document downloads", async () => {
+  it("audits CSV exports with full values and simulated document downloads", async () => {
     const exported = await request({ query: { format: "csv" } });
     expect(exported.resultCode).toBe(200);
     const csv = (exported.data as { content: string }).content;
     expect(csv).toContain("first_name");
-    expect(csv).not.toContain("29481172");
+    expect(csv).toContain(String(getMockStore().participant[0].id_number));
     expect(getMockStore().audit_logs.at(-1)?.action).toBe("EXPORT");
     const downloaded = await request({
       path: "/participants/1",
@@ -481,7 +487,9 @@ describe("mock repository contracts", () => {
     };
     const detail = await request(target);
     expect(detail).toMatchObject({ resultCode: 200, data: { id: 1, enrollment_id: 1 } });
-    expect(JSON.stringify(detail.data)).not.toContain("Safety plan");
+    expect(detail.data).toMatchObject({
+      outcome_notes: getMockStore().legal_case[0].outcome_notes,
+    });
     expect(
       await request({ ...target, method: "PATCH", body: { court_status: "ruled" } })
     ).toMatchObject({ resultCode: 200 });

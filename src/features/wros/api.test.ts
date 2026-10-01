@@ -21,8 +21,7 @@ describe("WRO organisations", () => {
     const first = page.items[0];
     expect(first.enrollmentId).toBeTypeOf("number");
     expect(first.stageCount).toBe(7);
-    // Bank-account status is sensitive and stays masked in the list.
-    expect(["Yes", "No"]).not.toContain(first.bankAccount);
+    expect(["Yes", "No", "Not recorded"]).toContain(first.bankAccount);
     expect((await stagesFor(1)).map((stage) => stage.name)).toEqual([
       "Onboarding",
       "Capacity assessment",

@@ -1,7 +1,7 @@
 import { hasPermission, hasModulePermission } from "../../auth/permissions";
 import { auditWrite } from "../audit";
 import { type MockContext } from "../context";
-import { envelope, masked, type Row, isStrictGet } from "../core";
+import { envelope, safeRow, type Row, isStrictGet } from "../core";
 import { makeRow } from "../rows";
 import { type ApiEnvelope } from "@/types/api";
 import type { MockStore } from "@/types/db";
@@ -58,7 +58,7 @@ function accessCatalog({ request, store, query, grants }: MockContext): Envelope
     pillars: store.pillar.filter(isActive).map(pillarOption),
     roles: store.role
       .filter((row) => !row.is_deleted)
-      .map((row) => masked("role", row as unknown as Row)),
+      .map((row) => safeRow("role", row as unknown as Row)),
     permission_count: hasPermission(grants, "PERMISSION_MANAGE")
       ? store.permission.filter((row) => !row.is_deleted).length
       : null,
@@ -79,14 +79,14 @@ function accessMatrix({ request, store, query, grants }: MockContext): Envelope 
   return envelope(200, {
     roles: store.role
       .filter((row) => !row.is_deleted)
-      .map((row) => masked("role", row as unknown as Row)),
+      .map((row) => safeRow("role", row as unknown as Row)),
     permissions: mayPermissions
       ? store.permission
           .filter((row) => !row.is_deleted)
-          .map((row) => masked("permission", row as unknown as Row))
+          .map((row) => safeRow("permission", row as unknown as Row))
       : [],
     grants: mayPermissions
-      ? store.role_permission.map((row) => masked("role_permission", row as unknown as Row))
+      ? store.role_permission.map((row) => safeRow("role_permission", row as unknown as Row))
       : [],
   });
 }
@@ -150,7 +150,7 @@ function createPipeline({ request, store, userId, grants }: MockContext): Envelo
   auditWrite(store, request, userId, "pipeline_definition", null, pipeline as unknown as Row);
   auditWrite(store, request, userId, "stage_definition", null, first as unknown as Row);
   auditWrite(store, request, userId, "stage_definition", null, last as unknown as Row);
-  return envelope(201, masked("pipeline_definition", pipeline as unknown as Row));
+  return envelope(201, safeRow("pipeline_definition", pipeline as unknown as Row));
 }
 
 interface StageCommand {
@@ -278,7 +278,7 @@ function stageCommand({ request, store, query, parts, userId, grants }: MockCont
     row.updated_at = cmd.now;
     auditWrite(store, request, userId, "stage_definition", before, row as unknown as Row);
   }
-  return envelope(adding ? 201 : 200, masked("stage_definition", target as unknown as Row));
+  return envelope(adding ? 201 : 200, safeRow("stage_definition", target as unknown as Row));
 }
 
 /** Admin catalogues and the guarded pipeline/stage commands; undefined for other routes. */

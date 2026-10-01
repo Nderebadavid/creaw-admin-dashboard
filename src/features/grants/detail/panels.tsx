@@ -116,9 +116,6 @@ export function SignoffChain({
   );
 }
 
-/** Parses a plain or "KES"-prefixed amount; masked values (e.g. "••••") give NaN. */
-const amountOf = (value: string) =>
-  /^(KES\s*)?[\d,.\s]+$/i.test(value.trim()) ? Number(value.replace(/[^\d.]/g, "")) : Number.NaN;
 const kes = (value: number) => `KES ${value.toLocaleString("en-KE")}`;
 
 /** Paid-to-date against the award, with each recorded payment below. */
@@ -134,11 +131,9 @@ export function DisbursementPanel({
   onRecord: () => void;
 }) {
   const award = detail.award;
-  const paid = detail.disbursements.reduce((sum, item) => sum + amountOf(item.amount), 0);
-  const awarded = award ? amountOf(award.amountAwarded) : Number.NaN;
-  // Amounts are sensitive; when any is masked the totals stay masked too.
-  const known = Number.isFinite(paid) && Number.isFinite(awarded) && awarded > 0;
-  const percent = known ? Math.min(100, Math.round((paid / awarded) * 100)) : 0;
+  const paid = detail.disbursements.reduce((sum, item) => sum + item.amount, 0);
+  const awarded = award ? award.amountAwarded : Number.NaN;
+  const percent = awarded > 0 ? Math.min(100, Math.round((paid / awarded) * 100)) : 0;
 
   return (
     <section className={`${card} flex flex-col gap-4`}>
@@ -161,12 +156,8 @@ export function DisbursementPanel({
         <>
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-baseline justify-between gap-1.5">
-              <span className="font-heading text-[32px] font-bold">
-                {known ? kes(paid) : "KES ••••"}
-              </span>
-              <span className="text-sm text-creaw-faint">
-                of {known ? kes(awarded) : `${award.currency} ${award.amountAwarded}`} awarded
-              </span>
+              <span className="font-heading text-[32px] font-bold">{kes(paid)}</span>
+              <span className="text-sm text-creaw-faint">of {kes(awarded)} awarded</span>
             </div>
             <div
               role="progressbar"
@@ -191,11 +182,7 @@ export function DisbursementPanel({
                     {item.date ? formatDate(item.date) : "Date pending"}
                   </p>
                 </div>
-                <span className="font-semibold tabular-nums">
-                  {Number.isFinite(amountOf(item.amount))
-                    ? kes(amountOf(item.amount))
-                    : item.amount}
-                </span>
+                <span className="font-semibold tabular-nums">{kes(item.amount)}</span>
               </li>
             ))}
           </ul>

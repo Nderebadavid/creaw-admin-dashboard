@@ -1,7 +1,6 @@
 "use client";
 import { Pencil, Power, PowerOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle } from "@/components/ui/record-parts";
@@ -70,8 +69,8 @@ export function ProviderDrawer({
     ["Type", providerTypeLabel(provider.type)],
     ["Service", provider.service ?? "—"],
     ["Institution", provider.institution],
-    ["Phone", provider.phone ? <MaskedField label="Phone" maskedValue={provider.phone} /> : "—"],
-    ["Email", provider.email ? <MaskedField label="Email" maskedValue={provider.email} /> : "—"],
+    ["Phone", provider.phone ?? "—"],
+    ["Email", provider.email ?? "—"],
   ];
   return (
     <RecordDrawer

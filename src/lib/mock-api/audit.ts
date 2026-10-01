@@ -1,5 +1,4 @@
 import { type ApiRequest } from "../api/transport";
-import { isSensitiveField } from "../sensitive-fields";
 import { type Row } from "./core";
 import { makeRow } from "./rows";
 import { type MockStore, type TableName } from "@/types/db";
@@ -18,9 +17,7 @@ export function redactAuditValue(table: string | null, value: unknown, field?: s
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,
-        secretMetadataKey.test(key) || (table && isSensitiveField(table, key))
-          ? "[REDACTED]"
-          : redactAuditValue(table, item, key),
+        secretMetadataKey.test(key) ? "[REDACTED]" : redactAuditValue(table, item, key),
       ])
     );
   if (typeof value === "string" && (!field || !safeAuditStringKey.test(field))) return "[REDACTED]";

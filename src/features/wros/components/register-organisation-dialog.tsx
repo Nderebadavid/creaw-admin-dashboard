@@ -123,7 +123,7 @@ export function RegisterOrganisationDialog({
           <span>
             <span className="block font-semibold">Holds a bank account in its own name</span>
             <span className="text-[12.5px] text-creaw-faint">
-              Sensitive: always masked on the profile
+              Shown on the profile
             </span>
           </span>
         </label>

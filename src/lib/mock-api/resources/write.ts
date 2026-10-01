@@ -1,7 +1,7 @@
 import { hasPermission } from "../../auth/permissions";
 import { auditWrite } from "../audit";
 import { type ResourceContext } from "../context";
-import { allowed, envelope, masked, scopes, type Row } from "../core";
+import { allowed, envelope, safeRow, scopes, type Row } from "../core";
 import { checkLookupWrite } from "../resources/lookup-writes";
 import { checkAccessControlWrite } from "../resources/rbac-writes";
 import { checkTrainingWrite, trainingSideEffects } from "../resources/training-writes";
@@ -358,5 +358,5 @@ export function writeResource(ctx: ResourceContext): Envelope {
   enrollOnRegistration(ctx, next, now);
   enrollOnAcceptedReferral(ctx, before, next, now);
   trainingSideEffects(ctx, before, next, now);
-  return envelope(existing ? 200 : 201, masked(table, next));
+  return envelope(existing ? 200 : 201, safeRow(table, next));
 }

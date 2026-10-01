@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Check, Circle, ClipboardCheck } from "lucide-react";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
-import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle } from "@/components/ui/record-parts";
@@ -41,10 +40,7 @@ export function OrganisationDrawer({
     ["Registration no.", organisation.registrationNumber ?? "Not recorded"],
     ["Ward / county", `${organisation.ward} · ${organisation.county}`],
     ["Office address", organisation.address ?? "Not recorded"],
-    [
-      "Bank account",
-      <MaskedField key="bank" label="Bank account" maskedValue={organisation.bankAccount} />,
-    ],
+    ["Bank account", organisation.bankAccount],
     ["Programme category", organisation.entryCategory],
     ["Registered", formatDate(organisation.registered)],
   ];

@@ -2,7 +2,6 @@
 import { Flag, Pencil, UserPlus } from "lucide-react";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
-import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
@@ -41,14 +40,8 @@ export function ParticipantDrawer({
     ["Gender", participant.gender ? titleCase(participant.gender) : "Not recorded"],
     ["County", participant.county],
     ["Ward / location", participant.ward],
-    [
-      "National ID number",
-      <MaskedField key="id" label="ID number" maskedValue={participant.idNumber ?? "—"} />,
-    ],
-    [
-      "Phone",
-      <MaskedField key="phone" label="Phone number" maskedValue={participant.phoneNumber ?? "—"} />,
-    ],
+    ["National ID number", participant.idNumber ?? "—"],
+    ["Phone", participant.phoneNumber ?? "—"],
     ["Registered", formatDate(participant.registered)],
     ["Consent", participant.consentGiven ? "Recorded" : "Not recorded"],
   ];

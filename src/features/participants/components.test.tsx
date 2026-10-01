@@ -106,7 +106,7 @@ it("puts the page actions beside the heading, like the design", () => {
 it("frames the registry in the design's list card", () => {
   renderRegistry();
   expect(screen.getByRole("heading", { name: "Participant registry" })).toBeInTheDocument();
-  expect(screen.getByText("IDs and phone numbers are always masked")).toBeInTheDocument();
+  expect(screen.getByText("One registry across every pillar")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "VAWG" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByText("Click a row to open the record")).toBeInTheDocument();
 });
