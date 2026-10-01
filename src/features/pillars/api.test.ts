@@ -38,7 +38,7 @@ describe("pillar API", () => {
       local_ref: "later-stage",
     });
     const view = await createPillarsApi(createPortalApiClient(), issueMockToken(1)).get("vawg");
-    expect(view.records).toHaveLength(114);
+    expect(view.records).toHaveLength(115);
     expect(view.stageCounts?.find((row) => row.name === stage.name)?.count).toBe(1);
     expect(view.stageCounts?.[0].count).toBeLessThan(view.records.length);
   });

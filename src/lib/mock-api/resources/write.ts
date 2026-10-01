@@ -5,6 +5,7 @@ import { allowed, envelope, masked, scopes, type Row } from "../core";
 import { checkLookupWrite } from "../resources/lookup-writes";
 import { checkAccessControlWrite } from "../resources/rbac-writes";
 import { checkTrainingWrite, trainingSideEffects } from "../resources/training-writes";
+import { checkCounsellingWrite, nextSessionNo } from "../resources/counselling-writes";
 import { makeRow } from "../rows";
 import { validate } from "../validation";
 import { type ApiEnvelope } from "@/types/api";
@@ -72,6 +73,20 @@ function readWriteBody(ctx: ResourceContext): Step<Row> {
     return { error: envelope(422) };
   if (table === "pipeline_definition" || table === "stage_definition")
     return { error: envelope(422, null, "Use pipeline configuration commands") };
+  // The server numbers a survivor's counselling sessions.
+  if (
+    table === "counselling_session" &&
+    "session_no" in body &&
+    body.session_no !== existing?.session_no
+  )
+    return { error: envelope(422, null, "Session numbers are assigned by the system") };
+  if (
+    table === "counselling_session" &&
+    existing &&
+    "enrollment_id" in body &&
+    body.enrollment_id !== existing.enrollment_id
+  )
+    return { error: envelope(422, null, "A session cannot move to another survivor") };
   // Only a trainee's grant recommendation links a referral to its training record.
   if (table === "referral" && "source_training_enrollment_id" in body)
     return { error: envelope(422) };
@@ -95,6 +110,8 @@ function readWriteBody(ctx: ResourceContext): Step<Row> {
 /** Server-set values for a new row: a placeholder password, or a new referral's status and project. */
 function creationDefaults(store: MockStore, table: TableName, body: Row): Row {
   if (table === "user") return { ...body, password_hash: "mock-only:no-real-password-hash" };
+  if (table === "counselling_session")
+    return { ...body, session_no: nextSessionNo(store, body.enrollment_id) };
   if (table !== "referral") return body;
   // An internal referral lands on the destination pillar's project unless one was named.
   const defaultProject = store.project.find(
@@ -318,7 +335,9 @@ export function writeResource(ctx: ResourceContext): Envelope {
   let next = built.value;
   if (!validate(store, table, next, existing)) return envelope(422);
   const broken =
-    invariants[table]?.(store, next, existing) ?? checkTrainingWrite(ctx, next, existing);
+    invariants[table]?.(store, next, existing) ??
+    checkTrainingWrite(ctx, next, existing) ??
+    checkCounsellingWrite(ctx, next, existing);
   if (broken) return broken;
   const denied = authorizeWrite(ctx, next);
   if (denied) return denied;

@@ -1,6 +1,7 @@
 import { hasPermission } from "../../auth/permissions";
 import { type MockContext } from "../context";
 import { envelope, rowsFor, visible, type Row } from "../core";
+import { isStaffCounsellor } from "../resources/counselling-writes";
 
 const titleType = (type: unknown) => {
   const text = String(type ?? "other");
@@ -9,8 +10,9 @@ const titleType = (type: unknown) => {
 
 /**
  * People a pillar form can pick, names only: active staff and providers a session
- * logger can choose as facilitator (`facilitator_option`), or active trainer
- * providers for a trainee placement (`trainer_option`).
+ * logger can choose as facilitator (`facilitator_option`), active trainer providers
+ * for a trainee placement (`trainer_option`), or active staff and external
+ * counsellors for a counselling session (`counsellor_option`).
  */
 export function handleFacilitatorOptions(ctx: MockContext) {
   const { request, store, query, parts, grants } = ctx;
@@ -18,7 +20,7 @@ export function handleFacilitatorOptions(ctx: MockContext) {
   if (
     request.method !== "GET" ||
     parts[0] !== "pillars" ||
-    (view !== "facilitator_option" && view !== "trainer_option")
+    (view !== "facilitator_option" && view !== "trainer_option" && view !== "counsellor_option")
   )
     return undefined;
   const pillar = store.pillar.find(
@@ -27,15 +29,22 @@ export function handleFacilitatorOptions(ctx: MockContext) {
       (row.code.toLowerCase() === parts[1]?.toLowerCase() || String(row.id) === parts[1])
   );
   if (!pillar) return envelope(404);
-  const permission =
-    view === "trainer_option" ? "TRAINING_ENROLLMENT_EDIT" : "ACTIVITY_SESSION_LOG";
+  const permission = {
+    facilitator_option: "ACTIVITY_SESSION_LOG",
+    trainer_option: "TRAINING_ENROLLMENT_EDIT",
+    counsellor_option: "COUNSELLING_LOG",
+  }[view];
+  const counsellorsOnly = view === "counsellor_option";
   if (!hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   const active = (row: Row) => visible(row) && row.status === "ACTIVE";
   const trainersOnly = view === "trainer_option";
   const institutions = rowsFor(store, "partner_institution");
   const items = [
     ...rowsFor(store, "user")
-      .filter((row) => !trainersOnly && active(row))
+      .filter(
+        (row) =>
+          !trainersOnly && active(row) && (!counsellorsOnly || isStaffCounsellor(store, row.id))
+      )
       .map((user) => ({
         kind: "staff" as const,
         id: user.id,
@@ -43,7 +52,12 @@ export function handleFacilitatorOptions(ctx: MockContext) {
         detail: "CREAW staff",
       })),
     ...rowsFor(store, "external_provider")
-      .filter((row) => active(row) && (!trainersOnly || row.provider_type === "trainer"))
+      .filter(
+        (row) =>
+          active(row) &&
+          (!trainersOnly || row.provider_type === "trainer") &&
+          (!counsellorsOnly || row.provider_type === "counsellor")
+      )
       .map((provider) => {
         const institution = institutions.find(
           (row) => row.id === provider.affiliated_institution_id

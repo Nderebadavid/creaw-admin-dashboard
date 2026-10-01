@@ -49,7 +49,7 @@ const providerName = (store: MockStore, id: unknown) =>
 const DERIVED_NAME_COLUMNS: Partial<Record<TableName, string[]>> = {
   activity_session: ["facilitator_name", "facilitator_kind"],
   training_enrollment: ["trainer_name", ...TRAINING_DERIVED_COLUMNS],
-  counselling_session: ["counsellor_name"],
+  counselling_session: ["counsellor_name", "counsellor_kind"],
   legal_case: ["advocate_name"],
 };
 
@@ -71,8 +71,20 @@ function withNames(store: MockStore, table: TableName, row: Row): Row {
   }
   if (table === "training_enrollment")
     return { ...row, trainer_name: providerName(store, row.trainer_provider_id) };
-  if (table === "counselling_session")
-    return { ...row, counsellor_name: providerName(store, row.counsellor_provider_id) };
+  if (table === "counselling_session") {
+    const staff = row.counsellor_user_id
+      ? fullName(rowsFor(store, "user").find((user) => user.id === row.counsellor_user_id))
+      : null;
+    return {
+      ...row,
+      counsellor_name: staff ?? providerName(store, row.counsellor_provider_id),
+      counsellor_kind: row.counsellor_user_id
+        ? "staff"
+        : row.counsellor_provider_id
+          ? "provider"
+          : null,
+    };
+  }
   if (table === "legal_case")
     return { ...row, advocate_name: providerName(store, row.advocate_provider_id) };
   return row;

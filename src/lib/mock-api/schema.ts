@@ -689,13 +689,26 @@ export const tableDefinitions: Record<TableName, Record<string, ColumnDefinition
     },
     session_no: { kind: "number", nullable: false, integer: true },
     session_date: { kind: "string", nullable: false, date: "date" },
-    session_type: { kind: "string", nullable: false, maxLength: 30 },
+    session_type: {
+      kind: "string",
+      nullable: false,
+      maxLength: 30,
+      values: ["psychological_first_aid", "follow_up"],
+    },
     counsellor_provider_id: {
       kind: "number",
       nullable: true,
       integer: true,
       unsigned: true,
       references: "external_provider",
+    },
+    // Proposed addition: a CREAW staff counsellor; at most one of the two counsellor ids is set.
+    counsellor_user_id: {
+      kind: "number",
+      nullable: true,
+      integer: true,
+      unsigned: true,
+      references: "user",
     },
     notes: { kind: "string", nullable: true },
   },

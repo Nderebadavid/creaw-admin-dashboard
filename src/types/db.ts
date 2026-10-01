@@ -279,6 +279,8 @@ export interface CounsellingSession extends StandardColumns {
   session_date: string;
   session_type: string;
   counsellor_provider_id: number | null;
+  /** Proposed addition: a CREAW staff counsellor; at most one counsellor id is set. */
+  counsellor_user_id: number | null;
   notes: string | null;
 }
 
