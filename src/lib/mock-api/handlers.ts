@@ -14,6 +14,12 @@ import { handleDashboard } from "./routes/dashboard";
 import { handleFacilitatorOptions } from "./routes/facilitators";
 import { handleGrantRecommendations } from "./routes/grant-recommendations";
 import { handleReportViews } from "./routes/reports";
+import {
+  handleDashboardOverview,
+  handleFormOptions,
+  handleLookupBatch,
+  handlePillarSummary,
+} from "./routes/views";
 import { getMockStore, resolveMockToken } from "./store";
 import { type ApiEnvelope } from "@/types/api";
 
@@ -52,6 +58,10 @@ export async function handleMockRequest(
     handleReportViews(ctx) ??
     handleFacilitatorOptions(ctx) ??
     handleGrantRecommendations(ctx) ??
+    handleLookupBatch(ctx) ??
+    handlePillarSummary(ctx) ??
+    handleFormOptions(ctx) ??
+    handleDashboardOverview(ctx) ??
     handleDashboard(ctx);
   if (routed) return routed;
 

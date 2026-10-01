@@ -18,6 +18,8 @@ import { signoffActors, signoffHistory } from "../reporting";
 import { makeRow } from "../rows";
 import { tableDefinitions } from "../schema";
 import { TRAINING_DERIVED_COLUMNS, trainingRead } from "../training";
+import { parseIncludes, withIncludes, type IncludeRequest } from "../includes";
+import { referenceNameColumns, withReferenceNames } from "../references";
 import { filterSubmissionRows } from "@/features/submissions/filter";
 import { type ApiEnvelope, type PaginatedData } from "@/types/api";
 import type { MockStore, TableName } from "@/types/db";
@@ -38,6 +40,8 @@ const RESERVED_KEYS = new Set([
   "format",
   "includeDeleted",
   "ids",
+  "sort",
+  "include",
 ]);
 
 const fullName = (row: Row | undefined) =>
@@ -90,13 +94,38 @@ function withNames(store: MockStore, table: TableName, row: Row): Row {
   return row;
 }
 
-/** Rows as the API returns them: referrals and enrollments carry derived fields, all are masked. */
-function presentRow(store: MockStore, table: TableName, row: Row): Row {
-  if (table === "referral") return referralRead(store, row);
-  if (table === "enrollment") return enrollmentRead(store, row);
-  if (table === "training_enrollment")
-    return trainingRead(store, withNames(store, table, masked(table, row)));
-  return withNames(store, table, masked(table, row));
+/** Derived fields beyond reference names that particular tables add on read. */
+const EXTRA_DERIVED_COLUMNS: Partial<Record<TableName, string[]>> = {
+  enrollment: ["current_stage", "current_stage_date"],
+  referral: ["destination_name", "referred_by_name"],
+};
+
+/** Every field a table's rows carry on read: stored columns plus derived names and values. */
+export function presentedColumns(table: TableName): string[] {
+  return [
+    ...new Set([
+      ...Object.keys(tableDefinitions[table]),
+      ...referenceNameColumns(table),
+      ...(DERIVED_NAME_COLUMNS[table] ?? []),
+      ...(EXTRA_DERIVED_COLUMNS[table] ?? []),
+    ]),
+  ];
+}
+
+/**
+ * Rows as the API returns them: sensitive fields masked, every linked record named,
+ * plus each table's own derived fields (stages, hand-offs, people).
+ */
+export function presentRow(store: MockStore, table: TableName, row: Row): Row {
+  const base =
+    table === "referral"
+      ? referralRead(store, row)
+      : table === "enrollment"
+        ? enrollmentRead(store, row)
+        : table === "training_enrollment"
+          ? trainingRead(store, withNames(store, table, masked(table, row)))
+          : withNames(store, table, masked(table, row));
+  return withReferenceNames(store, table, base);
 }
 
 /** Named views that bypass the generic row/list handling; undefined when none applies. */
@@ -204,7 +233,18 @@ function readSingle(ctx: ResourceContext, existing: Row): Envelope {
   if (!revealOnly && !allowed(store, grants, permission, table, existing)) return envelope(403);
   // A reveal-only holder gets the one field, not the row, so ids cannot be looped to browse.
   const trimmed = revealOnly && !hasPermission(grants, "PROVIDER_MANAGE");
-  const result = trimmed ? { id: existing.id } : presentRow(store, table, existing);
+  const includes = parseIncludes(table, query.get("include"));
+  if (!includes) return envelope(422, null, "Unknown include");
+  const result = trimmed
+    ? { id: existing.id }
+    : withIncludes(
+        store,
+        grants,
+        table,
+        presentRow(store, table, existing),
+        includes,
+        (child, row) => presentRow(store, child, row)
+      );
   if (query.has("reveal")) {
     const field = query.get("reveal")!;
     if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
@@ -237,8 +277,10 @@ interface ListParams {
   pillarFilter: number | undefined;
   search: string;
   countyId: number | undefined;
-  /** Rows chosen for a lookup CSV export, or null when not exporting a selection. */
+  /** Rows chosen by `ids=` (a batch read, or a lookup CSV export selection); null for all. */
   exportIds: number[] | null;
+  sort: { key: string; direction: 1 | -1 }[];
+  includes: IncludeRequest[];
 }
 
 /** Validates paging, filters and export options; a 422 envelope for anything malformed. */
@@ -261,17 +303,14 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   )
     return envelope(422);
 
-  // `ids` selects rows for a lookup CSV export only.
-  if (
-    query.has("ids") &&
-    (family !== "lookups" ||
-      query.get("format") !== "csv" ||
-      !/^(?:[1-9]\d*(?:,[1-9]\d*)*)?$/.test(query.get("ids") ?? ""))
-  )
+  // `ids` reads a batch of rows in one call (at most 100), or selects up to 5000
+  // rows for a lookup CSV export.
+  if (query.has("ids") && !/^(?:[1-9]\d*(?:,[1-9]\d*)*)?$/.test(query.get("ids") ?? ""))
     return envelope(422);
   const idsText = query.get("ids");
   const exportIds = query.has("ids") ? (idsText ? idsText.split(",").map(Number) : []) : null;
-  if (exportIds && (exportIds.length > 5000 || exportIds.some((v) => !Number.isSafeInteger(v))))
+  const idLimit = family === "lookups" && query.get("format") === "csv" ? 5000 : 100;
+  if (exportIds && (exportIds.length > idLimit || exportIds.some((v) => !Number.isSafeInteger(v))))
     return envelope(422);
 
   // Deleted rows are visible only for grant links and to lookup managers.
@@ -291,20 +330,33 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   if (query.has("includeDeleted") && (!mayIncludeDeleted || query.get("includeDeleted") !== "true"))
     return envelope(422);
 
-  // Column filters must name a real, non-sensitive column.
-  for (const [key] of query)
-    if (
-      !RESERVED_KEYS.has(key) &&
-      (!Object.hasOwn(tableDefinitions[table], key) || isSensitiveField(table, key))
-    )
-      return envelope(422);
+  // Column filters and sorts must name a returned, non-sensitive field (stored or derived).
+  const fields = presentedColumns(table);
+  const usable = (key: string) => fields.includes(key) && !isSensitiveField(table, key);
+  for (const [key] of query) if (!RESERVED_KEYS.has(key) && !usable(key)) return envelope(422);
+
+  // `sort=a:asc,b:desc`, or the older `sortBy` + `sortOrder`.
+  const sortText =
+    query.get("sort") ?? `${query.get("sortBy") ?? "id"}:${query.get("sortOrder") ?? "asc"}`;
+  const sort: ListParams["sort"] = [];
+  for (const part of sortText.split(",")) {
+    const [key, order = "asc"] = part.trim().split(":");
+    if (!usable(key) || !["asc", "desc"].includes(order)) return envelope(422);
+    sort.push({ key, direction: order === "desc" ? -1 : 1 });
+  }
+  const includes = parseIncludes(table, query.get("include"));
+  if (!includes) return envelope(422, null, "Unknown include");
 
   const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
-  return { page, pageSize, pillarFilter, search, countyId, exportIds };
+  return { page, pageSize, pillarFilter, search, countyId, exportIds, sort, includes };
 }
 
-/** Rows the caller may see after scope, county, column, selection and search filters. */
-function filterRows(ctx: ResourceContext, params: ListParams): Row[] {
+/**
+ * Rows the caller may see after scope, county, column, selection and search filters,
+ * each paired with its presented form (masked and named), which filters, search and
+ * sort read so they work on derived names too.
+ */
+function filterRows(ctx: ResourceContext, params: ListParams): Presented[] {
   const { store, query, grants, table, rows, permission } = ctx;
   const includeDeleted = query.get("includeDeleted") === "true";
   let result = rows.filter(
@@ -320,45 +372,55 @@ function filterRows(ctx: ResourceContext, params: ListParams): Row[] {
         (item) => item.id === ward?.sub_county_id && item.county_id === params.countyId
       );
     });
-  for (const [key, value] of query)
-    if (!RESERVED_KEYS.has(key)) result = result.filter((row) => String(row[key]) === value);
   if (params.exportIds) {
     const selected = new Set(params.exportIds);
     result = result.filter((row) => selected.has(row.id));
   }
-  // Search uses the visible representation so it cannot become an oracle for
-  // masked identity numbers or other hidden data.
+  let presented = result.map((row) => ({ row, view: presentRow(store, table, row) }));
+  for (const [key, value] of query)
+    if (!RESERVED_KEYS.has(key))
+      presented = presented.filter((item) => String(item.view[key]) === value);
+  // Search uses the visible representation (masked, with names) so it cannot become
+  // an oracle for masked identity numbers or other hidden data.
   if (params.search)
-    result = result.filter((row) =>
+    presented = presented.filter(({ row, view }) =>
       table === "participant_stage_event"
         ? filterSubmissionRows([submissionSummary(store, row)], { search: params.search }).length >
           0
-        : Object.values(masked(table, row)).some(
+        : Object.values(view).some(
             (value) => typeof value === "string" && value.toLowerCase().includes(params.search)
           )
     );
-  return result;
+  return presented;
 }
 
-/** Sorts in place by a non-sensitive column; a 422 envelope for an invalid sort. */
-function sortRows(ctx: ResourceContext, rows: Row[]): Envelope | undefined {
-  const { query, table } = ctx;
-  const sortBy = query.get("sortBy") ?? "id";
-  const sortOrder = query.get("sortOrder") ?? "asc";
-  if (
-    !Object.hasOwn(tableDefinitions[table], sortBy) ||
-    !["asc", "desc"].includes(sortOrder) ||
-    isSensitiveField(table, sortBy)
-  )
-    return envelope(422);
-  const direction = sortOrder === "desc" ? -1 : 1;
-  rows.sort(
-    (a, b) =>
-      (typeof a[sortBy] === "number" && typeof b[sortBy] === "number"
-        ? Number(a[sortBy]) - Number(b[sortBy])
-        : String(a[sortBy] ?? "").localeCompare(String(b[sortBy] ?? ""))) * direction
-  );
-  return undefined;
+interface Presented {
+  row: Row;
+  view: Row;
+}
+
+/**
+ * Sorts in place by the presented fields, in order, with id as the final tie-break.
+ * Empty values sort last in either direction.
+ */
+function sortRows(rows: Presented[], sort: ListParams["sort"]) {
+  const empty = (value: unknown) => value === null || value === undefined || value === "";
+  rows.sort((a, b) => {
+    for (const { key, direction } of sort) {
+      const left = a.view[key];
+      const right = b.view[key];
+      if (empty(left) || empty(right)) {
+        if (empty(left) !== empty(right)) return empty(left) ? 1 : -1;
+        continue;
+      }
+      const order =
+        typeof left === "number" && typeof right === "number"
+          ? left - right
+          : String(left).localeCompare(String(right));
+      if (order) return order * direction;
+    }
+    return a.row.id - b.row.id;
+  });
 }
 
 /** Quotes a CSV cell and neutralises spreadsheet formulas (=, +, -, @ …). */
@@ -385,6 +447,9 @@ function exportCsv(ctx: ResourceContext, rows: Row[]): Envelope {
     : [
         ...Object.keys(tableDefinitions[table]).filter((key) => key !== "password_hash"),
         ...(DERIVED_NAME_COLUMNS[table] ?? []),
+        ...referenceNameColumns(table).filter(
+          (key) => !Object.hasOwn(tableDefinitions[table], key)
+        ),
       ];
   const safeRow = (row: Row): Record<string, unknown> => {
     if (!submissions) return presentRow(store, table, row);
@@ -426,15 +491,23 @@ export function readResource(ctx: ResourceContext): Envelope {
   const params = parseListQuery(ctx);
   if ("resultCode" in params) return params;
   const rows = filterRows(ctx, params);
-  const invalidSort = sortRows(ctx, rows);
-  if (invalidSort) return invalidSort;
-  if (ctx.query.has("format")) return exportCsv(ctx, rows);
+  sortRows(rows, params.sort);
+  if (ctx.query.has("format"))
+    return exportCsv(
+      ctx,
+      rows.map((item) => item.row)
+    );
 
-  const { page, pageSize } = params;
+  const { page, pageSize, includes } = params;
+  const { store, grants, table } = ctx;
   const data: PaginatedData<Row> = {
     items: rows
       .slice((page - 1) * pageSize, page * pageSize)
-      .map((row) => presentRow(ctx.store, ctx.table, row)),
+      .map(({ view }) =>
+        withIncludes(store, grants, table, view, includes, (child, row) =>
+          presentRow(store, child, row)
+        )
+      ),
     page,
     pageSize,
     totalItems: rows.length,

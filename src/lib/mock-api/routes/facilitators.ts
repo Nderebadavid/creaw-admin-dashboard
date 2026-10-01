@@ -1,6 +1,7 @@
 import { hasPermission } from "../../auth/permissions";
 import { type MockContext } from "../context";
 import { envelope, rowsFor, visible, type Row } from "../core";
+import type { MockStore } from "@/types/db";
 import { isStaffCounsellor } from "../resources/counselling-writes";
 
 const titleType = (type: unknown) => {
@@ -34,8 +35,26 @@ export function handleFacilitatorOptions(ctx: MockContext) {
     trainer_option: "TRAINING_ENROLLMENT_EDIT",
     counsellor_option: "COUNSELLING_LOG",
   }[view];
-  const counsellorsOnly = view === "counsellor_option";
   if (!hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
+  const items = peopleOptions(store, view);
+  return envelope(200, {
+    items,
+    page: 1,
+    pageSize: items.length || 1,
+    totalItems: items.length,
+    totalPages: 1,
+  });
+}
+
+export type PeopleOptionView = "facilitator_option" | "trainer_option" | "counsellor_option";
+
+/**
+ * Active people a form can pick, names only: staff and providers for a facilitator,
+ * trainer providers for a placement, staff counsellors and external counsellors for
+ * a counselling session.
+ */
+export function peopleOptions(store: MockStore, view: PeopleOptionView) {
+  const counsellorsOnly = view === "counsellor_option";
   const active = (row: Row) => visible(row) && row.status === "ACTIVE";
   const trainersOnly = view === "trainer_option";
   const institutions = rowsFor(store, "partner_institution");
@@ -72,11 +91,5 @@ export function handleFacilitatorOptions(ctx: MockContext) {
         };
       }),
   ];
-  return envelope(200, {
-    items,
-    page: 1,
-    pageSize: items.length || 1,
-    totalItems: items.length,
-    totalPages: 1,
-  });
+  return items;
 }
