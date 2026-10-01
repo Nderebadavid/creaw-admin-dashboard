@@ -23,14 +23,24 @@ export const ids: Record<PillarCode, number> = {
  * The VAWG case workspace, none for other pillars and users without case access there,
  * or "failed" when it can't load (the page then degrades instead of erroring).
  */
-export async function loadVawgWorkspace(grants: readonly EffectiveGrant[], code: PillarCode) {
+export async function loadVawgWorkspace(
+  grants: readonly EffectiveGrant[],
+  code: PillarCode,
+  currentUserId?: number
+) {
   const pillarId = ids.vawg;
   const allowed =
     code === "vawg" &&
     hasPermission(grants, "CASE_VIEW", { pillarId }) &&
     hasPermission(grants, "PARTICIPANT_VIEW", { pillarId });
   if (!allowed) return undefined;
-  return vawgApi.workspace().catch(() => "failed" as const);
+  return vawgApi
+    .workspace({
+      canViewCounselling: hasPermission(grants, "COUNSELLING_VIEW", { pillarId }),
+      canLogCounselling: hasPermission(grants, "COUNSELLING_LOG", { pillarId }),
+      currentUserId,
+    })
+    .catch(() => "failed" as const);
 }
 
 /**

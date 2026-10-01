@@ -24,7 +24,7 @@ export interface LegalCaseView {
   id: number;
   /** e.g. "CRW-VAWG-0001". */
   number: string;
-  /** The survivor's name as the API sends it (masked unless revealed). */
+  /** The survivor's full name. */
   survivor: string;
   participantId: number | null;
   enrollmentId: number;
@@ -52,6 +52,49 @@ export interface LegalCaseView {
   missing: string[];
 }
 
+export const counsellingTypes = ["psychological_first_aid", "follow_up"] as const;
+export type CounsellingType = (typeof counsellingTypes)[number];
+export const counsellingTypeLabels: Record<CounsellingType, string> = {
+  psychological_first_aid: "Psychological first aid",
+  follow_up: "Follow-up",
+};
+
+export type CounsellorKind = "staff" | "provider";
+/** Who gave a session: a name (never an id) and, when known, staff or external. */
+export interface CounsellorView {
+  name: string;
+  kind: CounsellorKind | null;
+}
+export interface CounsellorOption {
+  kind: CounsellorKind;
+  id: number;
+  name: string;
+  detail: string;
+}
+
+export interface CounsellingSessionView {
+  id: number;
+  enrollmentId: number;
+  /** The survivor's 1st, 2nd, 3rd… session. */
+  number: number;
+  date: string;
+  /** Null for a type outside the list (older records). */
+  type: CounsellingType | null;
+  counsellor: CounsellorView;
+  counsellorRef: { kind: CounsellorKind; id: number } | null;
+  /** As the API sends it: masked. */
+  notes: string | null;
+}
+
+/** One survivor's counselling: their sessions in order and any legal case they have. */
+export interface SurvivorCounselling {
+  enrollmentId: number;
+  participantId: number | null;
+  name: string;
+  sessions: CounsellingSessionView[];
+  caseNumber: string | null;
+}
+
 /** Headline counts for the VAWG pillar page. */
 export interface VawgSummary {
   survivors: number;
@@ -68,4 +111,16 @@ export interface VawgWorkspace {
   caseTypes: { id: number; name: string }[];
   /** VAWG enrollments a new case can be opened for, labelled with the survivor. */
   survivors: { enrollmentId: number; label: string }[];
+  /** Every VAWG survivor's counselling; null when the user cannot view counselling. */
+  counselling: SurvivorCounselling[] | null;
+  /** Active staff and external counsellors; [] when the user cannot log or the read fails. */
+  counsellors: CounsellorOption[];
+  /** The signed-in user, so a staff counsellor's own name can be the default. */
+  currentUserId: number | null;
+}
+
+/** What the signed-in user may do with counselling. */
+export interface CounsellingPermissions {
+  log: boolean;
+  reveal: boolean;
 }

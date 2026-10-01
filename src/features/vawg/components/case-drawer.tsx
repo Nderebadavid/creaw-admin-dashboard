@@ -7,6 +7,7 @@ import {
   Eye,
   FolderOpen,
   Gavel,
+  HeartHandshake,
   Paperclip,
   Pencil,
   Scale,
@@ -35,10 +36,13 @@ export function CaseDrawer({
   onStatus,
   onAttach,
   onView,
+  onCounsel,
 }: {
   legalCase: LegalCaseView | null;
-  can: { edit: boolean; attach: boolean; download: boolean; reveal: boolean };
+  can: { edit: boolean; attach: boolean; download: boolean; reveal: boolean; counsel?: boolean };
   onClose: () => void;
+  /** Opens the counselling log for this case's survivor; omitted when not offered. */
+  onCounsel?: () => void;
   onEdit: () => void;
   onStatus: () => void;
   /** Opens the attach dialog, preset to a missing form when given. */
@@ -134,6 +138,12 @@ export function CaseDrawer({
             <Paperclip />
             Attach
           </Button>
+          {onCounsel && (
+            <Button variant="outline" size="sm" disabled={!can.counsel} onClick={onCounsel}>
+              <HeartHandshake />
+              Log counselling
+            </Button>
+          )}
         </>
       }
       tabs={[

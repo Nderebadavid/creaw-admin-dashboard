@@ -17,6 +17,7 @@ import { viewCaseFileAction } from "../actions";
 import type { LegalCaseView, VawgWorkspace } from "../model";
 import { AttachCaseFileDialog, CourtStatusDialog, EditCaseDialog } from "./case-dialogs";
 import { CaseDrawer } from "./case-drawer";
+import { CounsellingFormDialog } from "./counselling-dialogs";
 import { courtStatusLabel, courtStatusTone } from "./status";
 
 const text = "font-medium text-creaw-ink-soft";
@@ -93,6 +94,8 @@ export function CaseRegister({
     download: boolean;
     reveal: boolean;
     export: boolean;
+    /** May log counselling (shown only when the user can also view it). */
+    counsel?: boolean;
   };
 }) {
   const router = useRouter();
@@ -100,7 +103,11 @@ export function CaseRegister({
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<
-    { kind: "status" } | { kind: "edit" } | { kind: "attach"; type?: string } | null
+    | { kind: "status" }
+    | { kind: "edit" }
+    | { kind: "attach"; type?: string }
+    | { kind: "counselling" }
+    | null
   >(null);
   const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [feedback, setFeedback] = useState("");
@@ -198,6 +205,18 @@ export function CaseRegister({
         onStatus={() => setModal({ kind: "status" })}
         onAttach={(type) => setModal({ kind: "attach", type })}
         onView={(documentId) => void view(documentId)}
+        onCounsel={
+          workspace.counselling !== null ? () => setModal({ kind: "counselling" }) : undefined
+        }
+      />
+      <CounsellingFormDialog
+        key={modal?.kind === "counselling" ? `counsel-${selectedId}` : "counsel-closed"}
+        open={modal?.kind === "counselling"}
+        workspace={workspace}
+        enrollmentId={selected?.enrollmentId}
+        session={null}
+        onClose={() => setModal(null)}
+        onDone={done}
       />
       <EditCaseDialog
         key={modal?.kind === "edit" ? `edit-${selectedId}` : "edit-closed"}

@@ -19,6 +19,7 @@ import {
 } from "./loaders";
 import { submissionsApi } from "@/features/submissions/api";
 import { CaseRegister } from "@/features/vawg/components/case-register";
+import { CounsellingRegister } from "@/features/vawg/components/counselling-register";
 import { VawgHeadingActions } from "@/features/vawg/components/heading-actions";
 import { VawgSummaryCards } from "@/features/vawg/components/summary-cards";
 import { parsePeriod } from "@/features/sessions/model";
@@ -70,7 +71,7 @@ export default async function PillarPage({
   const [pillar, submissions, workspace, sessions, training] = await Promise.all([
     loadPillar(code.data),
     loadSubmissions(session.grants, ids[code.data]),
-    loadVawgWorkspace(session.grants, code.data),
+    loadVawgWorkspace(session.grants, code.data, session.user.id),
     loadSessionsWorkspace(session.grants, code.data, period, {
       id: session.user.id,
       name: session.user.name,
@@ -100,6 +101,11 @@ export default async function PillarPage({
     download: can("DOCUMENT_DOWNLOAD"),
     reveal: can("SENSITIVE_REVEAL"),
     export: can("REPORT_EXPORT_CSV"),
+    counsel: can("COUNSELLING_LOG"),
+  };
+  const counsellingPermissions = {
+    log: can("COUNSELLING_LOG"),
+    reveal: can("COUNSELLING_VIEW") && can("SENSITIVE_REVEAL"),
   };
   const vawgFailed = workspace === "failed" && pillar.code === "vawg";
   const vawg = workspace !== "failed" && workspace && pillar.code === "vawg";
@@ -161,7 +167,12 @@ export default async function PillarPage({
       }
       register={
         vawg ? (
-          <CaseRegister workspace={workspace} can={vawgPermissions} />
+          <>
+            <CaseRegister workspace={workspace} can={vawgPermissions} />
+            {workspace.counselling !== null && (
+              <CounsellingRegister workspace={workspace} can={counsellingPermissions} />
+            )}
+          </>
         ) : vawgFailed ? (
           <AlertBanner tone="warning">
             The legal case register could not be loaded. Refresh the page to try again.
@@ -208,6 +219,7 @@ export default async function PillarPage({
             workspace={workspace}
             canExport={vawgPermissions.export}
             canOpenCase={vawgPermissions.edit}
+            canLogCounselling={counsellingPermissions.log}
           >
             {canCreate ? (
               <PillarCreateButton code="vawg" name={pillar.name} variant="outline" />

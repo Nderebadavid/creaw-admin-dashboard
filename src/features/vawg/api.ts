@@ -9,7 +9,14 @@ import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts
 import { collectPages } from "@/lib/api/pagination";
 import { withSessionApi } from "@/lib/api/session-api";
 import { titleCase } from "@/lib/format";
-import type { LegalCaseView, VawgWorkspace } from "./model";
+import {
+  counsellingTypes,
+  type CounsellingSessionView,
+  type CounsellorOption,
+  type LegalCaseView,
+  type SurvivorCounselling,
+  type VawgWorkspace,
+} from "./model";
 
 const id = z.number().int().positive();
 const page = <T extends z.ZodType>(item: T) =>
@@ -38,13 +45,63 @@ const caseSchema = z.object({
   closed_date: z.string().nullable(),
 });
 const enrollmentSchema = z.object({ id, participant_id: id.nullable(), pillar_id: id });
+const optionalId = id.nullish().transform((value) => value ?? null);
 const sessionSchema = z.object({
   id,
   enrollment_id: id,
   session_no: z.number(),
   session_date: z.string(),
+  session_type: z.string(),
+  counsellor_user_id: optionalId,
+  counsellor_provider_id: optionalId,
   counsellor_name: optionalText,
+  counsellor_kind: z
+    .enum(["staff", "provider"])
+    .nullish()
+    .transform((value) => value ?? null),
+  notes: optionalText,
 });
+const counsellorOptionSchema = z.object({
+  kind: z.enum(["staff", "provider"]),
+  id,
+  name: z.string(),
+  detail: z.string(),
+});
+export const counsellingReadSchema = createEnvelopeSchema(z.union([sessionSchema, z.null()]));
+
+/** A session as the register shows it; the counsellor falls back to a label, never an id. */
+function sessionView(row: z.infer<typeof sessionSchema>): CounsellingSessionView {
+  const counsellorRef = row.counsellor_user_id
+    ? { kind: "staff" as const, id: row.counsellor_user_id }
+    : row.counsellor_provider_id
+      ? { kind: "provider" as const, id: row.counsellor_provider_id }
+      : null;
+  const kind = row.counsellor_kind ?? counsellorRef?.kind ?? null;
+  const fallback =
+    kind === "staff"
+      ? "CREAW counsellor"
+      : kind === "provider"
+        ? "External counsellor"
+        : "Not recorded";
+  return {
+    id: row.id,
+    enrollmentId: row.enrollment_id,
+    number: row.session_no,
+    date: row.session_date,
+    type: counsellingTypes.find((type) => type === row.session_type) ?? null,
+    counsellor: { name: row.counsellor_name ?? fallback, kind },
+    counsellorRef,
+    notes: row.notes,
+  };
+}
+
+export interface VawgWorkspaceOptions {
+  /** Whether to read counselling (needs COUNSELLING_VIEW in VAWG). */
+  canViewCounselling?: boolean;
+  /** Whether to load the counsellor picker (needs COUNSELLING_LOG in VAWG). */
+  canLogCounselling?: boolean;
+  currentUserId?: number;
+}
 const documentSchema = z.object({
   id,
   owner_type: z.string(),
@@ -109,19 +166,23 @@ export function createVawgApi(client: ApiClient, token: string) {
     all<T>(PATH, "/pillars/:pillar", { table: name }, page(schema) as never);
 
   return {
-    async workspace(): Promise<VawgWorkspace> {
-      const [cases, enrollments, sessions, documents, caseTypes, participants] = await Promise.all([
-        table("legal_case", caseSchema),
-        table("enrollment", enrollmentSchema),
-        table("counselling_session", sessionSchema).catch(() => []),
-        table("document", documentSchema).catch(() => []),
-        all("/lookups/case_type", "/lookups/:table", {}, page(caseTypeSchema) as never).catch(
-          () => [] as z.infer<typeof caseTypeSchema>[]
-        ),
-        all("/participants", "/participants", {}, page(participantSchema) as never).catch(
-          () => [] as z.infer<typeof participantSchema>[]
-        ),
-      ]);
+    async workspace(options: VawgWorkspaceOptions = {}): Promise<VawgWorkspace> {
+      const [cases, enrollments, sessions, documents, caseTypes, participants, counsellors] =
+        await Promise.all([
+          table("legal_case", caseSchema),
+          table("enrollment", enrollmentSchema),
+          options.canViewCounselling
+            ? table("counselling_session", sessionSchema).catch(() => [])
+            : Promise.resolve([] as z.infer<typeof sessionSchema>[]),
+          table("document", documentSchema).catch(() => []),
+          all("/lookups/case_type", "/lookups/:table", {}, page(caseTypeSchema) as never).catch(
+            () => [] as z.infer<typeof caseTypeSchema>[]
+          ),
+          all("/participants", "/participants", {}, page(participantSchema) as never).catch(
+            () => [] as z.infer<typeof participantSchema>[]
+          ),
+          options.canLogCounselling ? this.counsellors() : Promise.resolve([]),
+        ]);
       const nameOf = (participantId: number | null) => {
         const person = (participants as z.infer<typeof participantSchema>[]).find(
           (row) => row.id === participantId
@@ -131,6 +192,7 @@ export function createVawgApi(client: ApiClient, token: string) {
           : `Survivor #${participantId ?? "—"}`;
       };
       const vawgEnrollments = enrollments.filter((row) => row.pillar_id === 1);
+      const sessionViews = sessions.map(sessionView).sort((a, b) => a.number - b.number);
       const views: LegalCaseView[] = cases.map((row) => {
         const enrollment = vawgEnrollments.find((item) => item.id === row.enrollment_id);
         const type = (caseTypes as z.infer<typeof caseTypeSchema>[]).find(
@@ -161,14 +223,13 @@ export function createVawgApi(client: ApiClient, token: string) {
           opened: row.opened_date,
           ruling: row.ruling_date,
           closed: row.closed_date,
-          counselling: sessions
-            .filter((session) => session.enrollment_id === row.enrollment_id)
+          counselling: sessionViews
+            .filter((session) => session.enrollmentId === row.enrollment_id)
             .map((session) => ({
-              number: session.session_no,
-              date: session.session_date,
-              counsellor: session.counsellor_name,
-            }))
-            .sort((a, b) => a.number - b.number),
+              number: session.number,
+              date: session.date,
+              counsellor: session.counsellor.kind ? session.counsellor.name : null,
+            })),
           documents: files.map((doc) => ({ id: doc.id, name: titleCase(doc.document_type) })),
           missing: type?.requires_p3_prc_forms
             ? REQUIRED_FORMS.filter(
@@ -201,7 +262,93 @@ export function createVawgApi(client: ApiClient, token: string) {
           enrollmentId: row.id,
           label: nameOf(row.participant_id),
         })),
+        counselling: options.canViewCounselling
+          ? vawgEnrollments.map<SurvivorCounselling>((row) => {
+              const legalCase = views.find((item) => item.enrollmentId === row.id);
+              return {
+                enrollmentId: row.id,
+                participantId: row.participant_id,
+                name: nameOf(row.participant_id),
+                sessions: sessionViews.filter((session) => session.enrollmentId === row.id),
+                caseNumber: legalCase?.number ?? null,
+              };
+            })
+          : null,
+        counsellors,
+        currentUserId: options.currentUserId ?? null,
       };
+    },
+    /** Active staff and external counsellors this user may pick; [] when the read fails. */
+    async counsellors(): Promise<CounsellorOption[]> {
+      return table("counsellor_option", counsellorOptionSchema).catch(() => []);
+    },
+    /** Whether an enrollment is a VAWG survivor's. */
+    async isSurvivor(enrollmentId: number) {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "enrollment", id: enrollmentId },
+        },
+        createEnvelopeSchema(z.union([enrollmentSchema, z.null()]))
+      );
+      return result.success && result.data?.pillar_id === 1;
+    },
+    /** One counselling session as the API returns it, or null when it is not there. */
+    async counsellingSession(sessionId: number) {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "counselling_session", id: sessionId },
+        },
+        counsellingReadSchema
+      );
+      return result.success ? result.data : null;
+    },
+    logCounselling(values: Record<string, string | number | null>) {
+      return client.request(
+        {
+          method: "POST",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "counselling_session" },
+          body: values,
+        },
+        vawgMutationSchema
+      );
+    },
+    updateCounselling(sessionId: number, values: Record<string, string | number | null>) {
+      return client.request(
+        {
+          method: "PATCH",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "counselling_session", id: sessionId },
+          body: values,
+        },
+        vawgMutationSchema
+      );
+    },
+    /** A session's notes, read with an audited reveal. */
+    async revealCounsellingNotes(sessionId: number) {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "counselling_session", id: sessionId, reveal: "notes" },
+        },
+        counsellingReadSchema
+      );
+      return { ...result, value: result.data?.notes ?? null };
     },
     setCourtStatus(caseId: number, courtStatus: string) {
       return client.request(
@@ -280,7 +427,7 @@ export function createVawgApi(client: ApiClient, token: string) {
 }
 
 export const vawgApi = {
-  async workspace() {
-    return (await withSessionApi(createVawgApi)).workspace();
+  async workspace(options?: VawgWorkspaceOptions) {
+    return (await withSessionApi(createVawgApi)).workspace(options);
   },
 };
