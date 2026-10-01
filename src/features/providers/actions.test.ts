@@ -4,6 +4,7 @@ const cookieStore = { get: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { revalidatePath } from "next/cache";
+import { MockApiTransport } from "@/lib/api/mock-transport";
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import {
   createProviderAction,
@@ -125,10 +126,16 @@ describe("provider actions", () => {
   it("refuses a reveal to users with neither PROVIDER_MANAGE nor SENSITIVE_REVEAL", async () => {
     cookieStore.get.mockReturnValue({ value: issueMockToken(NO_PROVIDER_ACCESS_USER) });
     const before = getMockStore().audit_logs.length;
+    // The mock API refuses this user too, so also prove the action stops before calling it.
+    const calls = vi.spyOn(MockApiTransport.prototype, "request");
     expect(await revealProviderContactAction(1, "phone_number")).toEqual({
       success: false,
       error: "Permission denied",
     });
+    expect(
+      calls.mock.calls.filter(([request]) => request.path.startsWith("/admin/providers"))
+    ).toEqual([]);
+    calls.mockRestore();
     expect(getMockStore().audit_logs.length).toBe(before);
   });
 });
