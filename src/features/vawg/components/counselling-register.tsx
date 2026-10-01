@@ -223,9 +223,12 @@ function SurvivorDrawer({
 export function CounsellingRegister({
   workspace,
   can,
+  toolbar,
 }: {
   workspace: Pick<VawgWorkspace, "counselling" | "currentUserId">;
   can: CounsellingPermissions;
+  /** Extra buttons for the register's toolbar, e.g. logging a new record. */
+  toolbar?: React.ReactNode;
 }) {
   const router = useRouter();
   const initial = workspace.counselling!;
@@ -257,6 +260,7 @@ export function CounsellingRegister({
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Counselling register"
+        actions={toolbar}
         subtitle="Psychosocial counselling, with or without a legal case — open a survivor for their sessions"
         chipsLabel="Legal case"
         chips={chips.map((label) => ({

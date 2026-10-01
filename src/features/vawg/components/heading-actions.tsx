@@ -9,7 +9,7 @@ import { OpenCaseDialog } from "./case-dialogs";
 import { exportCases } from "./case-register";
 import { LogCounsellingButton } from "./counselling-dialogs";
 
-/** The VAWG page heading's "Export CSV" and "Open legal case", as in the design. */
+/** VAWG case actions ("Open legal case", optionally CSV and logging counselling), placed in the case register toolbar. */
 export function VawgHeadingActions({
   currentUserId,
   canExport,

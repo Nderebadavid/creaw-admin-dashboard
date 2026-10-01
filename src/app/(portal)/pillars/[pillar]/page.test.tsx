@@ -177,4 +177,23 @@ describe("pillar route", () => {
     expect(html).toContain("Add SRHR record");
     expect(html).toContain("Log session");
   });
+
+  it.each(["vawg", "wee", "srhr", "skilling", "wros", "leadership"])(
+    "keeps the %s heading row free of buttons",
+    async (pillar) => {
+      const html = await render(pillar);
+      const start = html.indexOf("data-page-heading");
+      if (start < 0) return;
+      const end = html.indexOf("</h1>", start);
+      const heading = html.slice(start, html.indexOf("</div>", end) + 6);
+      expect(heading).not.toContain("<button");
+    }
+  );
+
+  it("puts the workspace actions in their registers' toolbars", async () => {
+    const srhr = await render("srhr");
+    expect(srhr.lastIndexOf("Log session")).toBeGreaterThan(srhr.indexOf("Session register"));
+    const vawg = await render("vawg");
+    expect(vawg.lastIndexOf("Open legal case")).toBeGreaterThan(vawg.indexOf("Legal case register"));
+  });
 });

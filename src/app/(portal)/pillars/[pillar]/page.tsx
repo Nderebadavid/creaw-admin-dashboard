@@ -18,6 +18,7 @@ import { submissionsApi } from "@/features/submissions/api";
 import { CaseRegister } from "@/features/vawg/components/case-register";
 import { CounsellingRegister } from "@/features/vawg/components/counselling-register";
 import { VawgHeadingActions } from "@/features/vawg/components/heading-actions";
+import { LogCounsellingButton } from "@/features/vawg/components/counselling-dialogs";
 import { VawgSummaryCards } from "@/features/vawg/components/summary-cards";
 import { parsePeriod } from "@/features/sessions/model";
 import { CurriculumProgressCard } from "@/features/participants/curriculum-card";
@@ -150,14 +151,29 @@ export default async function PillarPage({
       <PillarDomainCreateButton code={pillar.code} />
     );
   const sessionsView = sessionWorkspace ? (
-    <SessionWorkspaceView workspace={sessionWorkspace} can={sessionPermissions} />
+    <SessionWorkspaceView
+      workspace={sessionWorkspace}
+      can={sessionPermissions}
+      toolbar={
+        sessionPermissions.log && (
+          <LogSessionButton
+            pillar={sessionWorkspace.pillar}
+            currentUser={sessionWorkspace.currentUser}
+          />
+        )
+      }
+    />
   ) : sessionsFailed ? (
     <AlertBanner tone="warning">
       The session register could not be loaded. Refresh the page to try again.
     </AlertBanner>
   ) : undefined;
   const traineesView = trainingWorkspace ? (
-    <TraineeRegister workspace={trainingWorkspace} can={trainingPermissions} />
+    <TraineeRegister
+      workspace={trainingWorkspace}
+      can={trainingPermissions}
+      toolbar={enrolTrainee}
+    />
   ) : training === "failed" ? (
     <AlertBanner tone="warning">
       The trainee register could not be loaded. Refresh the page to try again.
@@ -180,9 +196,27 @@ export default async function PillarPage({
       register={
         vawg ? (
           <>
-            <CaseRegister workspace={workspace} can={vawgPermissions} />
+            <CaseRegister
+              workspace={workspace}
+              can={vawgPermissions}
+              toolbar={
+                <VawgHeadingActions
+                  currentUserId={session.user.id}
+                  canExport={false}
+                  canOpenCase={vawgPermissions.edit}
+                />
+              }
+            />
             {workspace.counselling && (
-              <CounsellingRegister workspace={workspace} can={counsellingPermissions} />
+              <CounsellingRegister
+                workspace={workspace}
+                can={counsellingPermissions}
+                toolbar={
+                  counsellingPermissions.log && (
+                    <LogCounsellingButton currentUserId={session.user.id} />
+                  )
+                }
+              />
             )}
           </>
         ) : vawgFailed ? (
@@ -221,26 +255,6 @@ export default async function PillarPage({
               />
             )}
           </>
-        ) : undefined
-      }
-      headingActions={
-        sessionWorkspace && sessionPermissions.log ? (
-          <>
-            {enrolTrainee}
-            <LogSessionButton
-              pillar={sessionWorkspace.pillar}
-              currentUser={sessionWorkspace.currentUser}
-            />
-          </>
-        ) : enrolTrainee ? (
-          <>{enrolTrainee}</>
-        ) : vawg ? (
-          <VawgHeadingActions
-            currentUserId={session.user.id}
-            canExport={vawgPermissions.export}
-            canOpenCase={vawgPermissions.edit}
-            canLogCounselling={counsellingPermissions.log}
-          ></VawgHeadingActions>
         ) : undefined
       }
       heading={{

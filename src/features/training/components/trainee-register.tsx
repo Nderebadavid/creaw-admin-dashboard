@@ -96,9 +96,12 @@ type Modal =
 export function TraineeRegister({
   workspace,
   can,
+  toolbar,
 }: {
   workspace: TrainingWorkspace;
   can: TrainingPermissions;
+  /** Extra buttons for the register's toolbar, e.g. logging a new record. */
+  toolbar?: React.ReactNode;
 }) {
   const router = useRouter();
   const list = usePagedList<TraineeView, ListQuery>(
@@ -163,18 +166,21 @@ export function TraineeRegister({
           },
         }}
         actions={
-          can.export && (
-            <ExportButton
-              label="CSV"
-              exportAction={() =>
-                auditedExportAction({
-                  path: "/pillars/skilling",
-                  routeTemplate: "/pillars/:pillar",
-                  query: { table: "training_enrollment" },
-                })
-              }
-            />
-          )
+          <>
+            {toolbar}
+            {can.export && (
+              <ExportButton
+                label="CSV"
+                exportAction={() =>
+                  auditedExportAction({
+                    path: "/pillars/skilling",
+                    routeTemplate: "/pillars/:pillar",
+                    query: { table: "training_enrollment" },
+                  })
+                }
+              />
+            )}
+          </>
         }
         footer={
           <Pagination

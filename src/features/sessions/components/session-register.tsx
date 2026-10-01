@@ -89,11 +89,14 @@ export function SessionRegister({
   can,
   topic,
   onClearTopic,
+  toolbar,
 }: {
   workspace: SessionWorkspace;
   can: SessionPermissions;
   topic?: TopicFilter | null;
   onClearTopic?: () => void;
+  /** Extra buttons for the register's toolbar, e.g. logging a new record. */
+  toolbar?: React.ReactNode;
 }) {
   const router = useRouter();
   const pillar = workspace.pillar;
@@ -182,18 +185,21 @@ export function SessionRegister({
           ) : null
         }
         actions={
-          can.export && (
-            <ExportButton
-              label="CSV"
-              exportAction={() =>
-                auditedExportAction({
-                  path: `/pillars/${workspace.pillar}`,
-                  routeTemplate: "/pillars/:pillar",
-                  query: { table: "activity_session" },
-                })
-              }
-            />
-          )
+          <>
+            {toolbar}
+            {can.export && (
+              <ExportButton
+                label="CSV"
+                exportAction={() =>
+                  auditedExportAction({
+                    path: `/pillars/${workspace.pillar}`,
+                    routeTemplate: "/pillars/:pillar",
+                    query: { table: "activity_session" },
+                  })
+                }
+              />
+            )}
+          </>
         }
         footer={
           <Pagination
@@ -285,9 +291,12 @@ export function SessionRegister({
 export function SessionWorkspaceView({
   workspace,
   can,
+  toolbar,
 }: {
   workspace: SessionWorkspace;
   can: SessionPermissions;
+  /** Extra buttons for the register's toolbar, e.g. logging a new record. */
+  toolbar?: React.ReactNode;
 }) {
   const [topic, setTopic] = useState<TopicFilter | null>(null);
   return (
@@ -298,6 +307,7 @@ export function SessionWorkspaceView({
         can={can}
         topic={topic}
         onClearTopic={() => setTopic(null)}
+        toolbar={toolbar}
       />
     </>
   );
