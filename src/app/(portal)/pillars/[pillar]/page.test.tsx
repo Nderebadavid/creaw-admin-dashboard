@@ -47,6 +47,23 @@ describe("pillar route", () => {
     expect(html).not.toContain("Active records");
   });
 
+  it("adds the counselling register and its log button for counselling staff", async () => {
+    const html = await render("vawg");
+    expect(html).toContain("Counselling register");
+    expect(html).toContain("Log counselling session");
+    expect(html).toContain("Counselling only");
+    expect(html).toContain("Cynthia Chelimo");
+  });
+
+  it("leaves counselling out for VAWG staff without counselling access", async () => {
+    // Lilian Otieno (user 5): VAWG lead with case access but no counselling permissions.
+    cookieStore.get.mockReturnValue({ value: issueMockToken(5) });
+    const html = await render("vawg");
+    expect(html).toContain("Legal case register");
+    expect(html).not.toContain("Counselling register");
+    expect(html).not.toContain("Log counselling");
+  });
+
   it("keeps the page and shows a banner when the VAWG workspace fails to load", async () => {
     vi.spyOn(vawgApi, "workspace").mockRejectedValue(new Error("timeout"));
     const html = await render("vawg");

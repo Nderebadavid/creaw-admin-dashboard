@@ -67,7 +67,9 @@ describe("VAWG legal case register", () => {
   });
 
   it("builds cases with survivor, case type, counselling and case files", async () => {
-    const { cases, summary, caseTypes, survivors } = await apiFor(1).workspace();
+    const { cases, summary, caseTypes, survivors } = await apiFor(1).workspace({
+      canViewCounselling: true,
+    });
     expect(cases.length).toBe(getMockStore().legal_case.length);
     const first = cases.find((row) => row.id === 1)!;
     expect(first).toMatchObject({ number: "CRW-VAWG-0001", courtStatus: "in_hearing" });
@@ -82,6 +84,37 @@ describe("VAWG legal case register", () => {
     expect(summary.openCases).toBe(cases.filter((row) => !row.closed).length);
     expect(caseTypes.length).toBeGreaterThan(0);
     expect(survivors.length).toBe(summary.survivors);
+  });
+
+  it("groups counselling by survivor, including those with no legal case", async () => {
+    const { counselling, counsellors, currentUserId } = await apiFor(1).workspace({
+      canViewCounselling: true,
+      canLogCounselling: true,
+      currentUserId: 1,
+    });
+    expect(currentUserId).toBe(1);
+    const withCase = counselling!.find((row) => row.caseNumber === "CRW-VAWG-0002")!;
+    expect(withCase.sessions.map((row) => row.number)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(withCase.sessions[0]).toMatchObject({
+      type: "follow_up",
+      counsellor: { name: "Cynthia Chelimo", kind: "staff" },
+      counsellorRef: { kind: "staff", id: 6 },
+    });
+    expect(withCase.sessions[0].notes).toContain("•");
+    const onlyCounselling = counselling!.filter((row) => row.caseNumber === null);
+    expect(onlyCounselling).toHaveLength(1);
+    expect(onlyCounselling[0].sessions[0]).toMatchObject({
+      type: "psychological_first_aid",
+      counsellor: { name: "Faith Kimani", kind: "provider" },
+    });
+    expect(counsellors.map((row) => row.name)).toEqual(["Cynthia Chelimo", "Faith Kimani"]);
+  });
+
+  it("leaves counselling out for users who cannot view it", async () => {
+    const workspace = await apiFor(1).workspace();
+    expect(workspace.counselling).toBeNull();
+    expect(workspace.counsellors).toEqual([]);
+    expect(workspace.cases.every((row) => row.counselling.length === 0)).toBe(true);
   });
 
   it("changes a court status, attaches a case file and audits opening it", async () => {

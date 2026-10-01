@@ -496,7 +496,7 @@ export function createSeed(): MockStore {
       enrollment_id,
       session_no,
       session_date,
-      session_type: "individual",
+      session_type: "follow_up",
       notes: "Confidential counselling session.",
     })
   );
@@ -812,6 +812,7 @@ export function createSeed(): MockStore {
     })
   );
   seedTrainees(add, store);
+  seedCounselling(add, store);
   return store;
 }
 
@@ -881,4 +882,37 @@ function seedTrainees(
   if (lifeSkills)
     for (const participantId of [4, 5])
       add("activity_attendance", { session_id: lifeSkills.id, participant_id: participantId });
+}
+
+/**
+ * Staff counselling: Cynthia Chelimo (a staff counsellor) runs the follow-ups for the
+ * second survivor, and one survivor is counselled without any legal case.
+ */
+function seedCounselling(
+  add: <K extends TableName>(table: K, input: Partial<DbTables[K]>) => DbTables[K],
+  store: MockStore
+) {
+  const cynthia = store.user.find((row) => row.username === "cynthia.chelimo")?.id ?? null;
+  for (const row of store.counselling_session)
+    if (row.enrollment_id === 7) row.counsellor_user_id = cynthia;
+  const enrollment = add("enrollment", {
+    participant_id: 2,
+    pillar_id: 1,
+    entry_category: "Counselling",
+  });
+  (
+    [
+      [1, "2026-08-18", "psychological_first_aid", { counsellor_provider_id: 1 }],
+      [2, "2026-09-15", "follow_up", { counsellor_user_id: cynthia }],
+    ] as const
+  ).forEach(([session_no, session_date, session_type, counsellor]) =>
+    add("counselling_session", {
+      enrollment_id: enrollment.id,
+      session_no,
+      session_date,
+      session_type,
+      notes: "Confidential counselling session.",
+      ...counsellor,
+    })
+  );
 }

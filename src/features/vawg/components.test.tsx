@@ -50,6 +50,9 @@ const workspace: VawgWorkspace = {
   summary: { survivors: 1, openCases: 1, sessions: 1, sessionsThisQuarter: 1, concluded: 0 },
   caseTypes: [{ id: 2, name: "IPV — physical" }],
   survivors: [],
+  counselling: null,
+  counsellors: [],
+  currentUserId: null,
 };
 const allowed = { edit: true, attach: true, download: true, reveal: true, export: true };
 const denied = { edit: false, attach: false, download: false, reveal: false, export: false };

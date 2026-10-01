@@ -8,17 +8,23 @@ import { FormBanner } from "@/components/ui/form-banner";
 import type { VawgWorkspace } from "../model";
 import { OpenCaseDialog } from "./case-dialogs";
 import { exportCases } from "./case-register";
+import { LogCounsellingButton } from "./counselling-dialogs";
 
 /** The VAWG page heading's "Export CSV" and "Open legal case", as in the design. */
 export function VawgHeadingActions({
   workspace,
   canExport,
   canOpenCase,
+  canLogCounselling = false,
   children,
 }: {
-  workspace: Pick<VawgWorkspace, "caseTypes" | "survivors">;
+  workspace: Pick<
+    VawgWorkspace,
+    "caseTypes" | "survivors" | "counselling" | "counsellors" | "currentUserId"
+  >;
   canExport: boolean;
   canOpenCase: boolean;
+  canLogCounselling?: boolean;
   /** Other heading actions, e.g. enrolling a participant in the pillar. */
   children?: React.ReactNode;
 }) {
@@ -29,6 +35,9 @@ export function VawgHeadingActions({
     <>
       {canExport && <ExportButton exportAction={exportCases} />}
       {children}
+      {canLogCounselling && workspace.counselling !== null && (
+        <LogCounsellingButton workspace={workspace} />
+      )}
       {canOpenCase && (
         <Button onClick={() => setOpen(true)}>
           <Plus />

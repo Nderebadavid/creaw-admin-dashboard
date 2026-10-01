@@ -1,7 +1,8 @@
 "use server";
 /**
- * Server Actions for the VAWG legal case register: court status changes,
- * case files, and audited reveals of a survivor's name.
+ * Server Actions for the VAWG page: legal case edits, court status changes, case
+ * files, the audited OB-number reveal, and logging and editing counselling sessions
+ * with the audited reveal of their notes.
  *
  * Each action re-checks the session, validates its input and checks the
  * permission in the VAWG pillar before calling the API, which enforces the
@@ -17,7 +18,7 @@ import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { titleCase } from "@/lib/format";
 import { caseNumber, createVawgApi } from "./api";
-import { courtStatuses, VAWG_PILLAR_ID } from "./model";
+import { counsellingTypes, courtStatuses, VAWG_PILLAR_ID } from "./model";
 
 const scope = { pillarId: VAWG_PILLAR_ID };
 const id = z.number().int().positive();
@@ -154,5 +155,110 @@ export async function viewCaseFileAction(caseId: number, documentId: number) {
     };
   } catch {
     return fail("Could not open the document");
+  }
+}
+
+/** Today in Kenya as YYYY-MM-DD, so a session logged in the evening is not "in the future". */
+const kenyaToday = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi" }).format(new Date());
+
+const counsellingInput = z.object({
+  sessionId: id.optional(),
+  enrollmentId: id.optional(),
+  sessionDate: z.iso.date(),
+  sessionType: z.enum(counsellingTypes),
+  counsellor: z.object({ kind: z.enum(["staff", "provider"]), id }),
+  /** On an edit, blank keeps the notes on file (they are masked, so never pre-filled). */
+  notes: z
+    .string()
+    .trim()
+    .max(4000)
+    .refine((value) => !value.includes("•"))
+    .transform((value) => value || null),
+});
+
+/** Validates a counselling form; the API values, or an error result. */
+async function counsellingValues(input: unknown) {
+  const parsed = counsellingInput.safeParse(input);
+  if (!parsed.success)
+    return { error: actionResult(422, "Check the session details and try again") };
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "COUNSELLING_LOG", scope))
+    return { error: actionResult(403, "You cannot log counselling sessions") };
+  const value = parsed.data;
+  if (value.sessionDate > kenyaToday())
+    return { error: actionResult(422, "A session cannot be logged for a future date") };
+  const client = await api();
+  const current = value.sessionId ? await client.counsellingSession(value.sessionId) : undefined;
+  if (value.sessionId && !current) return { error: actionResult(404, "Session not found") };
+  const { counsellor } = value;
+  const keeps =
+    current?.counsellor_user_id === (counsellor.kind === "staff" ? counsellor.id : null) &&
+    current?.counsellor_provider_id === (counsellor.kind === "provider" ? counsellor.id : null);
+  if (!(current && keeps)) {
+    const options = await client.counsellors();
+    if (!options.some((item) => item.kind === counsellor.kind && item.id === counsellor.id))
+      return { error: actionResult(422, "Choose a counsellor from the list") };
+  }
+  return {
+    value,
+    client,
+    body: {
+      session_date: value.sessionDate,
+      session_type: value.sessionType,
+      counsellor_user_id: counsellor.kind === "staff" ? counsellor.id : null,
+      counsellor_provider_id: counsellor.kind === "provider" ? counsellor.id : null,
+      ...(value.notes ? { notes: value.notes } : {}),
+    },
+  };
+}
+
+export async function logCounsellingAction(input: unknown) {
+  try {
+    const checked = await counsellingValues(input);
+    if (checked.error) return checked.error;
+    const { enrollmentId } = checked.value;
+    if (!enrollmentId || !(await checked.client.isSurvivor(enrollmentId)))
+      return actionResult(422, "Choose a survivor enrolled in VAWG");
+    const response = await checked.client.logCounselling({
+      ...checked.body,
+      enrollment_id: enrollmentId,
+    });
+    if (response.success) revalidatePath("/pillars/vawg");
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not log the session");
+  }
+}
+
+export async function updateCounsellingAction(input: unknown) {
+  try {
+    const checked = await counsellingValues(input);
+    if (checked.error) return checked.error;
+    if (!checked.value.sessionId) return actionResult(422, "Check the session details");
+    const response = await checked.client.updateCounselling(checked.value.sessionId, checked.body);
+    if (response.success) revalidatePath("/pillars/vawg");
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not update the session");
+  }
+}
+
+export async function revealCounsellingNotesAction(sessionId: number): Promise<RevealResult> {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(sessionId) || sessionId < 1)
+    return { success: false, error: "Invalid session" };
+  if (
+    !hasPermission(session.grants, "COUNSELLING_VIEW", scope) ||
+    !hasPermission(session.grants, "SENSITIVE_REVEAL", scope)
+  )
+    return { success: false, error: "Permission denied" };
+  try {
+    const result = await (await api()).revealCounsellingNotes(sessionId);
+    if (!result.success) return { success: false, error: result.message };
+    if (result.value === null) return { success: false, error: "No notes recorded" };
+    return { success: true, value: result.value };
+  } catch {
+    return { success: false, error: "Could not reveal the notes" };
   }
 }
