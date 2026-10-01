@@ -18,9 +18,14 @@ export function isSensitiveField(table: string, column: string): boolean {
   return Object.hasOwn(SENSITIVE_FIELDS, table) && SENSITIVE_FIELDS[table].includes(column);
 }
 
+/** Values longer than an ID or phone number are notes, masked without any of their characters. */
+const LONG_TEXT = 24;
+
 export function maskSensitiveValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return "••••";
   const text = String(value);
+  // Free text (case notes) shows a short fixed mask: no length, no tail, no overflow.
+  if (text.length > LONG_TEXT) return "•".repeat(12);
   return text.length <= 4 ? "•".repeat(text.length) : "•".repeat(text.length - 4) + text.slice(-4);
 }

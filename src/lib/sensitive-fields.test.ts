@@ -25,6 +25,10 @@ describe("schema sensitivity", () => {
   it("masks short values completely and preserves only the last four of long values", () => {
     expect(maskSensitiveValue("0712345678")).toBe("••••••5678");
     expect(maskSensitiveValue("123")).toBe("•••");
+    // Long free text gets a short fixed mask: nothing of the note, not even its length.
+    const note = "Survivor was referred to the safe house after the hearing was closed";
+    expect(maskSensitiveValue(note)).toBe("•".repeat(12));
+    expect(maskSensitiveValue(`${note} and the file was sealed`)).toBe("•".repeat(12));
     expect(maskSensitiveValue(null)).toBe("—");
     expect(maskSensitiveValue(true)).toBe("••••");
     expect(maskSensitiveValue("OB/44/2026")).toMatch(/•+2026$/);

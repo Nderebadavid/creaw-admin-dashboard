@@ -41,8 +41,13 @@ export function MaskedField({
     }
   }
   return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <span aria-label={label} className={value === null ? "font-mono" : undefined}>
+    <span className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-2">
+      <span
+        aria-label={label}
+        className={
+          value === null ? "break-all font-mono" : "min-w-0 whitespace-pre-wrap break-words"
+        }
+      >
         {value ?? maskedValue}
       </span>
       {revealAction && (
