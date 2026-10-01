@@ -1,16 +1,18 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
+import { usePagedList } from "@/components/data-table/use-paged-list";
+import type { ListQuery } from "@/lib/api/list";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
+import { listTraineesAction } from "../actions";
 import {
   pathwayLabels,
+  pathways,
   trainingStatuses,
   trainingStatusLabels,
   workStatusLabels,
@@ -87,7 +89,7 @@ const columns: DataColumn<TraineeView>[] = [
 type Modal =
   { kind: "edit" } | { kind: "outcome" } | { kind: "recommend"; recommend: boolean } | null;
 
-/** The Skilling trainee register. Opening a row selects it for the record panel. */
+/** The Skilling trainee register, paged by the API. Opening a row selects it for the record panel. */
 export function TraineeRegister({
   workspace,
   can,
@@ -96,61 +98,48 @@ export function TraineeRegister({
   can: TrainingPermissions;
 }) {
   const router = useRouter();
-  const [pathway, setPathway] = useState<Pathway | "All">("All");
-  const [status, setStatus] = useState<TrainingStatus | "All">("All");
+  const list = usePagedList<TraineeView, ListQuery>(
+    workspace.trainees,
+    { page: 1, pageSize: workspace.trainees.pageSize },
+    listTraineesAction
+  );
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [feedback, setFeedback] = useState("");
-  const selected = workspace.trainees.find((row) => row.id === selectedId) ?? null;
-  const pathwaysPresent = useMemo(
-    () => [...new Set(workspace.trainees.map((row) => row.pathway))],
-    [workspace.trainees]
-  );
-  const needle = search.trim().toLocaleLowerCase();
-  const filtered = useMemo(
-    () =>
-      workspace.trainees.filter(
-        (row) =>
-          (pathway === "All" || row.pathway === pathway) &&
-          (status === "All" || row.status === status) &&
-          (!needle ||
-            [row.name, row.course, row.institution].join(" ").toLocaleLowerCase().includes(needle))
-      ),
-    [workspace.trainees, pathway, status, needle]
-  );
-  const { rows, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(rows);
+  const selected = list.data.items.find((row) => row.id === selectedId) ?? null;
+  const pathway = (list.query.filters?.pathway as Pathway | undefined) ?? "All";
+  const status = (list.query.filters?.training_status as TrainingStatus | undefined) ?? "All";
+  const setFilter = (key: "pathway" | "training_status", value: string) =>
+    list.filter({
+      filters: { ...list.query.filters, [key]: value === "All" ? undefined : value },
+    });
   const done = (message: string) => {
     setModal(null);
     setFeedback(message);
+    void list.refresh();
     router.refresh();
   };
 
   return (
     <>
       <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Trainee register"
         subtitle="Placements, outcomes and grant recommendations — open a trainee for the full record"
         chipsLabel="Pathway"
-        chips={["All" as const, ...pathwaysPresent].map((value) => ({
+        chips={["All" as const, ...pathways].map((value) => ({
           label: value === "All" ? "All" : pathwayLabels[value],
           active: pathway === value,
-          onSelect: () => {
-            setPathway(value);
-            resetPage();
-          },
+          onSelect: () => setFilter("pathway", value),
         }))}
         filters={
           <label className="flex items-center gap-2 text-sm">
             Status
             <select
               value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as TrainingStatus | "All");
-                resetPage();
-              }}
+              onChange={(event) => setFilter("training_status", event.target.value)}
               className="rounded-lg border border-creaw-line-strong bg-white px-2.5 py-1.5"
             >
               <option value="All">All</option>
@@ -167,7 +156,7 @@ export function TraineeRegister({
           label: "Search trainees",
           onChange: (value) => {
             setSearch(value);
-            resetPage();
+            list.filter({ search: value || undefined });
           },
         }}
         actions={
@@ -184,24 +173,31 @@ export function TraineeRegister({
             />
           )
         }
-        footer={<Pagination {...pager} hint="Click a row to open the trainee" />}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click a row to open the trainee"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
         <DataTable
           framed={false}
           label="Trainee register"
           columns={columns}
-          rows={pageRows}
+          rows={list.data.items}
           getRowId={(row) => row.id}
           filtered={
-            filtered.length === 0 && (pathway !== "All" || status !== "All" || needle.length > 0)
+            list.data.items.length === 0 &&
+            (pathway !== "All" || status !== "All" || search.length > 0)
           }
           onRowOpen={(row) => setSelectedId(row.id)}
           rowOpenLabel={(row) => `Open ${row.name}, ${row.course ?? "course not recorded"}`}
-          sort={sorting.sort}
-          onSortChange={(sort) => {
-            sorting.onSortChange(sort);
-            resetPage();
-          }}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
         />
       </TableCard>
       <TraineeDrawer
@@ -215,7 +211,6 @@ export function TraineeRegister({
       <TraineeFormDialog
         key={modal?.kind === "edit" ? `edit-${selectedId}` : "edit-closed"}
         open={modal?.kind === "edit"}
-        workspace={workspace}
         trainee={selected}
         onClose={() => setModal(null)}
         onDone={done}

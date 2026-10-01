@@ -5,23 +5,20 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
-import type { VawgWorkspace } from "../model";
 import { OpenCaseDialog } from "./case-dialogs";
 import { exportCases } from "./case-register";
 import { LogCounsellingButton } from "./counselling-dialogs";
 
 /** The VAWG page heading's "Export CSV" and "Open legal case", as in the design. */
 export function VawgHeadingActions({
-  workspace,
+  currentUserId,
   canExport,
   canOpenCase,
   canLogCounselling = false,
   children,
 }: {
-  workspace: Pick<
-    VawgWorkspace,
-    "caseTypes" | "survivors" | "counselling" | "counsellors" | "currentUserId"
-  >;
+  /** The signed-in user, so a staff counsellor is the default counsellor. */
+  currentUserId: number | null;
   canExport: boolean;
   canOpenCase: boolean;
   canLogCounselling?: boolean;
@@ -35,9 +32,7 @@ export function VawgHeadingActions({
     <>
       {canExport && <ExportButton exportAction={exportCases} />}
       {children}
-      {canLogCounselling && workspace.counselling !== null && (
-        <LogCounsellingButton workspace={workspace} />
-      )}
+      {canLogCounselling && <LogCounsellingButton currentUserId={currentUserId} />}
       {canOpenCase && (
         <Button onClick={() => setOpen(true)}>
           <Plus />
@@ -47,7 +42,6 @@ export function VawgHeadingActions({
       <FormBanner tone="success">{feedback}</FormBanner>
       <OpenCaseDialog
         open={open}
-        workspace={workspace}
         onClose={() => setOpen(false)}
         onDone={(message) => {
           setOpen(false);

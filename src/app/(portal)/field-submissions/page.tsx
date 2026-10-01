@@ -1,31 +1,24 @@
 import { notFound } from "next/navigation";
-import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
+import { hasModulePermission } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
 import { submissionsApi } from "@/features/submissions/api";
 import { SubmissionsContent } from "@/features/submissions/components";
 
+/** Pillar ids whose grants include a permission; module-wide grants cover every pillar. */
+const pillarsWith = (
+  grants: readonly { permissionCode: string; pillarId: number | null }[],
+  code: string
+) => {
+  const own = grants.filter((grant) => grant.permissionCode === code);
+  return own.some((grant) => grant.pillarId === null)
+    ? [1, 2, 3, 4, 5, 6]
+    : own.map((grant) => grant.pillarId).filter((id): id is number => id !== null);
+};
+
 export default async function FieldSubmissionsPage() {
   const session = await requireSession();
   if (!hasModulePermission(session.grants, "FIELD_SUBMISSION_VIEW")) notFound();
-  const rows = (await submissionsApi.listAll()).filter(
-    (row) =>
-      row.pillarId !== null &&
-      hasPermission(session.grants, "FIELD_SUBMISSION_VIEW", { pillarId: row.pillarId })
-  );
-  const reviewableIds = rows
-    .filter(
-      (row) =>
-        row.pillarId !== null &&
-        hasPermission(session.grants, "FIELD_SUBMISSION_REVIEW", { pillarId: row.pillarId })
-    )
-    .map((row) => row.id);
-  const exportableIds = rows
-    .filter(
-      (row) =>
-        row.pillarId !== null &&
-        hasPermission(session.grants, "REPORT_EXPORT_CSV", { pillarId: row.pillarId })
-    )
-    .map((row) => row.id);
+  const initial = await submissionsApi.list({ page: 1, pageSize: 12 });
   return (
     <SubmissionsContent
       heading={{
@@ -33,10 +26,10 @@ export default async function FieldSubmissionsPage() {
         section: "Overview",
         description: "Data captured on the MERL mobile app, waiting for verification",
       }}
-      rows={rows}
-      reviewableIds={reviewableIds}
+      initial={initial}
+      reviewablePillarIds={pillarsWith(session.grants, "FIELD_SUBMISSION_REVIEW")}
       canExport={hasModulePermission(session.grants, "REPORT_EXPORT_CSV")}
-      exportableIds={exportableIds}
+      exportablePillarIds={pillarsWith(session.grants, "REPORT_EXPORT_CSV")}
     />
   );
 }

@@ -11,6 +11,8 @@ const topicButton =
 export interface TopicFilter {
   activityTypeId: number;
   topic: string;
+  /** The planned topic's id; null for a free-text ("Other") topic. */
+  topicId: number | null;
 }
 const plural = (count: number) => `${count} ${count === 1 ? "session" : "sessions"}`;
 
@@ -76,7 +78,11 @@ export function CoveragePanel({
                       type="button"
                       aria-label={`Show sessions on ${topic.name}`}
                       onClick={() =>
-                        onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })
+                        onTopic({
+                          activityTypeId: type.activityTypeId,
+                          topic: topic.name,
+                          topicId: topic.topicId,
+                        })
                       }
                       className={topicButton}
                     >
@@ -116,7 +122,11 @@ export function CoveragePanel({
                         type="button"
                         aria-label={`Show sessions on ${topic.name}`}
                         onClick={() =>
-                          onTopic({ activityTypeId: type.activityTypeId, topic: topic.name })
+                          onTopic({
+                            activityTypeId: type.activityTypeId,
+                            topic: topic.name,
+                            topicId: null,
+                          })
                         }
                         className={topicButton}
                       >

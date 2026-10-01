@@ -3,7 +3,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PillarContent } from "./components";
 import type { PillarView } from "./api";
 // Grant rows navigate to their sign-off page with the app router.
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("./actions", () => ({
+  listPillarRecordsAction: vi.fn(),
+  listPillarDomainAction: vi.fn(),
+  updatePillarRecordAction: vi.fn(),
+  createPillarRecordAction: vi.fn(),
+  createPillarDomainAction: vi.fn(),
+}));
 
 describe("pillar screen", () => {
   it("explains a pillar with no configured pipeline", () => {
@@ -19,6 +26,10 @@ describe("pillar screen", () => {
       records: [],
       stages: [],
       hasPipeline: false,
+      recordCount: 0,
+      activeCount: 0,
+      pipelineStages: [],
+      cards: { vawg: null, sessions: null, trainees: null },
     };
     const html = renderToStaticMarkup(<PillarContent pillar={pillar} canCreate={false} />);
     expect(html).toContain("Leadership");
@@ -40,6 +51,10 @@ describe("pillar screen", () => {
       records: [],
       stages: ["Intake"],
       hasPipeline: true,
+      recordCount: 0,
+      activeCount: 0,
+      pipelineStages: [],
+      cards: { vawg: null, sessions: null, trainees: null },
     };
     const html = renderToStaticMarkup(
       <PillarContent pillar={pillar} canCreate={false} availableCodes={["vawg"]} />
@@ -61,6 +76,10 @@ describe("pillar screen", () => {
       records: [],
       stages: ["Intake"],
       hasPipeline: true,
+      recordCount: 0,
+      activeCount: 0,
+      pipelineStages: [],
+      cards: { vawg: null, sessions: null, trainees: null },
     };
     const html = renderToStaticMarkup(
       <PillarContent
@@ -97,6 +116,10 @@ describe("pillar screen", () => {
       records: [],
       stages: ["Intake"],
       hasPipeline: true,
+      recordCount: 0,
+      activeCount: 0,
+      pipelineStages: [],
+      cards: { vawg: null, sessions: null, trainees: null },
     };
     expect(
       renderToStaticMarkup(
@@ -104,37 +127,50 @@ describe("pillar screen", () => {
       )
     ).not.toContain('href="/field-submissions"');
   });
-  it("shows the case register as the primary searchable workflow", () => {
+  it("shows the grant applications as the primary searchable workflow", () => {
     const pillar: PillarView = {
-      id: 1,
-      code: "vawg",
-      name: "VAWG",
-      fullName: "Violence Against Women & Girls",
-      leadUserId: 5,
-      color: "#B4552E",
-      tint: "#FBEDE5",
-      target: 450,
+      id: 2,
+      code: "wee",
+      name: "WEE",
+      fullName: "Women's Economic Empowerment",
+      leadUserId: 3,
+      color: "#D9772B",
+      tint: "#FDF1DE",
+      target: 300,
       records: [],
       stages: ["Intake"],
       hasPipeline: true,
+      recordCount: 0,
+      activeCount: 0,
+      pipelineStages: [],
+      cards: { vawg: null, sessions: null, trainees: null },
       domain: {
-        title: "Legal case register",
-        subtitle: "Survivor names masked",
-        columns: ["Case", "Case type"],
-        rows: [{ id: 1, title: "Case #1", values: ["Case #1", "Assault"], status: "in hearing" }],
+        title: "Grant applications",
+        subtitle: "Prepared → Reviewed → Approved sign-off chain",
+        columns: ["Applicant", "Business", "Requested"],
+        rows: [
+          {
+            id: 1,
+            title: "Application #1",
+            values: ["Rehema Karisa", "Posho mill", "KES 120,000"],
+            status: "PREPARED",
+          },
+        ],
+        totalItems: 1,
+        statuses: ["ACTIVE", "PREPARED"],
       },
     };
     const html = renderToStaticMarkup(
       <PillarContent
         pillar={pillar}
         canCreate={false}
-        domainActions={<span>Open legal case</span>}
+        domainActions={<span>New application</span>}
       />
     );
-    expect(html).toContain("Legal case register");
-    expect(html).toContain("Case #1");
-    expect(html).toContain("Search legal case register");
-    expect(html).toContain("Open legal case");
+    expect(html).toContain("Grant applications");
+    expect(html).toContain("Rehema Karisa");
+    expect(html).toContain("Search grant applications");
+    expect(html).toContain("New application");
   });
 
   it("shows the pipeline as a progression funnel and puts create beside the heading", () => {
@@ -150,6 +186,10 @@ describe("pillar screen", () => {
       records: [],
       stages: [],
       hasPipeline: true,
+      recordCount: 0,
+      activeCount: 0,
+      pipelineStages: [],
+      cards: { vawg: null, sessions: null, trainees: null },
       stageCounts: [
         { name: "Intake", count: 40 },
         { name: "Training", count: 30 },

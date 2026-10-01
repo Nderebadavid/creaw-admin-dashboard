@@ -1,12 +1,11 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HeartHandshake, Pencil, Scale } from "lucide-react";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
+import { usePagedList } from "@/components/data-table/use-paged-list";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { FormBanner } from "@/components/ui/form-banner";
@@ -14,8 +13,14 @@ import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { SectionTitle } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useRecordDetail } from "@/components/ui/use-record-detail";
+import type { ListQuery } from "@/lib/api/list";
 import { formatDate, initials } from "@/lib/format";
-import { revealCounsellingNotesAction } from "../actions";
+import {
+  listSurvivorsAction,
+  loadSurvivorSessionsAction,
+  revealCounsellingNotesAction,
+} from "../actions";
 import {
   counsellingTypeLabels,
   VAWG_PILLAR_ID,
@@ -31,7 +36,6 @@ const text = "font-medium text-creaw-ink-soft";
 const kindTag = { staff: "Staff", provider: "Provider" } as const;
 const typeLabel = (session: CounsellingSessionView) =>
   session.type ? counsellingTypeLabels[session.type] : "Session";
-const last = (row: SurvivorCounselling) => row.sessions.at(-1) ?? null;
 
 /** A counsellor's name with a small Staff or Provider tag. */
 export function CounsellorName({ counsellor }: { counsellor: CounsellorView }) {
@@ -53,39 +57,34 @@ const columns: DataColumn<SurvivorCounselling>[] = [
   {
     id: "sessions",
     header: "Sessions",
-    sortValue: (row) => row.sessions.length,
-    cell: (row) => <span className={text}>{row.sessions.length}</span>,
+    sortValue: (row) => row.sessionCount,
+    cell: (row) => <span className={text}>{row.sessionCount}</span>,
   },
   {
     id: "last",
     header: "Last session",
-    sortValue: (row) => last(row)?.date ?? "",
-    cell: (row) => {
-      const session = last(row);
-      return session ? (
+    sortValue: (row) => row.lastDate ?? "",
+    cell: (row) =>
+      row.lastDate ? (
         <div>
-          <span className={`whitespace-nowrap ${text}`}>{formatDate(session.date)}</span>
-          <p className="text-[12.5px] text-creaw-faint">{typeLabel(session)}</p>
+          <span className={`whitespace-nowrap ${text}`}>{formatDate(row.lastDate)}</span>
+          <p className="text-[12.5px] text-creaw-faint">
+            {row.lastType ? counsellingTypeLabels[row.lastType] : "Session"}
+          </p>
         </div>
       ) : (
         <span className={text}>No sessions yet</span>
-      );
-    },
+      ),
   },
   {
     id: "counsellor",
     header: "Counsellor",
-    sortValue: (row) => last(row)?.counsellor.name ?? "",
-    cell: (row) => {
-      const session = last(row);
-      return session ? (
-        <span className={text}>
-          <CounsellorName counsellor={session.counsellor} />
-        </span>
-      ) : (
-        <span className={text}>—</span>
-      );
-    },
+    sortValue: (row) => row.lastCounsellor?.name ?? "",
+    cell: (row) => (
+      <span className={text}>
+        {row.lastCounsellor ? <CounsellorName counsellor={row.lastCounsellor} /> : "—"}
+      </span>
+    ),
   },
   {
     id: "case",
@@ -96,17 +95,21 @@ const columns: DataColumn<SurvivorCounselling>[] = [
 ];
 
 const chips = ["All", "With a legal case", "Counselling only"] as const;
-type Chip = (typeof chips)[number];
 
 /** One survivor's counselling as the record panel: sessions in order and any linked case. */
 function SurvivorDrawer({
   survivor,
+  sessions,
+  loading,
   can,
   onClose,
   onLog,
   onEdit,
 }: {
   survivor: SurvivorCounselling | null;
+  /** The survivor's sessions in order, once loaded. */
+  sessions: CounsellingSessionView[] | null;
+  loading: boolean;
   can: CounsellingPermissions;
   onClose: () => void;
   onLog: () => void;
@@ -114,7 +117,7 @@ function SurvivorDrawer({
 }) {
   if (!survivor) return null;
   const look = pillarLook(VAWG_PILLAR_ID);
-  const latest = last(survivor);
+  const list = sessions ?? [];
   return (
     <RecordDrawer
       open
@@ -123,8 +126,8 @@ function SurvivorDrawer({
       kind="Counselling · VAWG"
       title={survivor.name}
       subtitle={
-        latest
-          ? `${survivor.sessions.length} sessions · last ${formatDate(latest.date)}`
+        survivor.lastDate
+          ? `${survivor.sessionCount} sessions · last ${formatDate(survivor.lastDate)}`
           : "No sessions yet"
       }
       accent={look?.color}
@@ -143,13 +146,18 @@ function SurvivorDrawer({
       tabs={[
         {
           id: "sessions",
-          label: `Sessions (${survivor.sessions.length})`,
+          label: `Sessions (${survivor.sessionCount})`,
           content: (
             <div className="flex flex-col gap-2.5">
               <SectionTitle note="Notes are confidential: each reveal is recorded in the audit log.">
                 Counselling sessions
               </SectionTitle>
-              {survivor.sessions.map((session) => (
+              {loading && (
+                <p role="status" className="text-[13.5px] text-creaw-faint">
+                  Loading sessions…
+                </p>
+              )}
+              {list.map((session) => (
                 <article
                   key={session.id}
                   aria-label={`Session ${session.number}`}
@@ -189,7 +197,7 @@ function SurvivorDrawer({
                   />
                 </article>
               ))}
-              {survivor.sessions.length === 0 && (
+              {!loading && list.length === 0 && (
                 <p className="text-[13.5px] text-creaw-faint">No counselling sessions yet.</p>
               )}
             </div>
@@ -219,89 +227,93 @@ function SurvivorDrawer({
   );
 }
 
-/** Every VAWG survivor's counselling, one row each, with logging and audited note reveals. */
+/** Every VAWG survivor's counselling, paged by the API, with logging and audited note reveals. */
 export function CounsellingRegister({
   workspace,
   can,
 }: {
-  workspace: VawgWorkspace;
+  workspace: Pick<VawgWorkspace, "counselling" | "currentUserId">;
   can: CounsellingPermissions;
 }) {
   const router = useRouter();
-  const rowsAll = useMemo(() => workspace.counselling ?? [], [workspace.counselling]);
-  const [chip, setChip] = useState<Chip>("All");
+  const initial = workspace.counselling!;
+  const list = usePagedList<SurvivorCounselling, ListQuery>(
+    initial,
+    { page: 1, pageSize: initial.pageSize },
+    listSurvivorsAction
+  );
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<
     { kind: "log" } | { kind: "edit"; session: CounsellingSessionView } | null
   >(null);
   const [feedback, setFeedback] = useState("");
-  const selected = rowsAll.find((row) => row.enrollmentId === selectedId) ?? null;
-  const needle = search.trim().toLocaleLowerCase();
-  const filtered = useMemo(
-    () =>
-      rowsAll.filter(
-        (row) =>
-          (chip === "All" ||
-            (chip === "With a legal case" ? row.caseNumber !== null : row.caseNumber === null)) &&
-          (!needle ||
-            [row.name, row.caseNumber, ...row.sessions.map((session) => session.counsellor.name)]
-              .join(" ")
-              .toLocaleLowerCase()
-              .includes(needle))
-      ),
-    [rowsAll, chip, needle]
-  );
-  const { rows, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(rows);
+  const detail = useRecordDetail(selectedId, loadSurvivorSessionsAction);
+  const selected = list.data.items.find((row) => row.enrollmentId === selectedId) ?? null;
+  const chip = list.query.filters?.has_legal_case;
+  const active = chip === undefined ? "All" : chip === "true" ? chips[1] : chips[2];
   const done = (message: string) => {
     setModal(null);
     setFeedback(message);
+    void list.refresh();
+    detail.reload();
     router.refresh();
   };
   return (
     <>
       <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Counselling register"
         subtitle="Psychosocial counselling, with or without a legal case — open a survivor for their sessions"
         chipsLabel="Legal case"
         chips={chips.map((label) => ({
           label,
-          active: chip === label,
-          onSelect: () => {
-            setChip(label);
-            resetPage();
-          },
+          active: active === label,
+          onSelect: () =>
+            list.filter({
+              filters:
+                label === "All"
+                  ? undefined
+                  : { has_legal_case: label === "With a legal case" ? "true" : "false" },
+            }),
         }))}
         search={{
           value: search,
           label: "Search counselling register",
           onChange: (value) => {
             setSearch(value);
-            resetPage();
+            list.filter({ search: value || undefined });
           },
         }}
-        footer={<Pagination {...pager} hint="Click a row to open the survivor's sessions" />}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click a row to open the survivor's sessions"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
         <DataTable
           framed={false}
           label="Counselling register"
           columns={columns}
-          rows={pageRows}
+          rows={list.data.items}
           getRowId={(row) => row.enrollmentId}
-          filtered={filtered.length === 0 && (chip !== "All" || needle.length > 0)}
+          filtered={list.data.items.length === 0 && (active !== "All" || search.length > 0)}
           onRowOpen={(row) => setSelectedId(row.enrollmentId)}
           rowOpenLabel={(row) => `Open counselling for ${row.name}`}
-          sort={sorting.sort}
-          onSortChange={(sort) => {
-            sorting.onSortChange(sort);
-            resetPage();
-          }}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
         />
       </TableCard>
       <SurvivorDrawer
         survivor={modal === null ? selected : null}
+        sessions={detail.data}
+        loading={detail.loading}
         can={can}
         onClose={() => setSelectedId(null)}
         onLog={() => setModal({ kind: "log" })}
@@ -316,7 +328,7 @@ export function CounsellingRegister({
               : `log-${selectedId}`
         }
         open={modal !== null}
-        workspace={workspace}
+        currentUserId={workspace.currentUserId}
         enrollmentId={selected?.enrollmentId}
         session={modal?.kind === "edit" ? modal.session : null}
         onClose={() => setModal(null)}

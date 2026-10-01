@@ -1,4 +1,5 @@
 /** View models shared by the sessions server code and its client components. */
+import type { PaginatedData } from "@/types/api";
 export const SESSION_PILLAR_IDS = { srhr: 3, skilling: 6 } as const;
 export type SessionPillar = keyof typeof SESSION_PILLAR_IDS;
 export const isSessionPillar = (code: string): code is SessionPillar => code in SESSION_PILLAR_IDS;
@@ -39,7 +40,6 @@ export interface ActivityTopicOption {
 export interface AttendeeView {
   attendanceId: number;
   participantId: number;
-  /** As the API sends it: masked. */
   name: string;
   ward: string | null;
   added: string;
@@ -64,10 +64,18 @@ export interface SessionView {
   facilitator: FacilitatorView;
   facilitatorRef: { kind: FacilitatorKind; id: number } | null;
   communityWide: boolean;
-  attendees: AttendeeView[];
-  documents: SessionDocument[];
+  /** Who attended, counted by the API; the names load with the session's detail. */
+  attendeeCount: number;
+  status: string;
+  /** Why the record has its status, e.g. a deactivation reason. */
+  statusDescription: string | null;
   logged: string;
   updated: string;
+}
+/** What a session's drawer loads when it opens. */
+export interface SessionDetail {
+  attendees: AttendeeView[];
+  documents: SessionDocument[];
 }
 export interface TopicCoverage {
   topicId: number;
@@ -89,19 +97,22 @@ export interface SessionSummary {
   topicsPlanned: number;
   activeTypes: number;
 }
+/** The options the session form offers, loaded when the form opens. */
+export interface SessionFormOptions {
+  activityTypes: ActivityTypeOption[];
+  topics: ActivityTopicOption[];
+  /** Active staff and providers a session can be assigned to. */
+  facilitators: FacilitatorOption[];
+}
+
+/** What the sessions page renders: page 1 of the register and the server-computed coverage. */
 export interface SessionWorkspace {
   pillar: SessionPillar;
   period: SessionPeriod;
-  /** Every session of the pillar, newest first (the register is not period-filtered). */
-  sessions: SessionView[];
+  /** The first page of the pillar's sessions, newest first. */
+  sessions: PaginatedData<SessionView>;
   coverage: TypeCoverage[];
   summary: SessionSummary;
-  activityTypes: ActivityTypeOption[];
-  topics: ActivityTopicOption[];
-  /** People an attendee can be picked from, labelled "<name> · <ward>" (plus "#<id>" only to tell identical labels apart). */
-  participants: { id: number; label: string }[];
-  /** Active staff and providers a session can be assigned to; [] when the user can't log or the read fails. */
-  facilitators: FacilitatorOption[];
   currentUser: { id: number; name: string } | null;
 }
 

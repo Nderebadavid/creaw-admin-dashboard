@@ -8,22 +8,31 @@
  */
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
+import { listParams } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
-import { collectPages } from "@/lib/api/pagination";
 import {
-  enrollmentListSchema,
-  lookupListSchema,
+  catalogSchema,
   participantDetailSchema,
   participantListSchema,
   participantMutationSchema,
-  type EnrollmentDto,
+  participantPickerSchema,
   type ParticipantDto,
   type ParticipantRegistration,
   type ParticipantUpdate,
 } from "./schemas";
 
+/** The registry's column ids and the API fields they sort by. */
+export const PARTICIPANT_SORT_KEYS: Record<string, string> = {
+  participant: "first_name,last_name",
+  county: "county_name,ward_name",
+  pillars: "pillar_codes",
+  stage: "current_stage_name",
+  registered: "created_at",
+  status: "status",
+};
+
 export interface ParticipantQuery {
-  /** A displayed column to sort by; applied by the list action, not the API. */
+  /** A displayed column to sort by, mapped to an API field by the list. */
   sort?: SortState;
   page?: number;
   pageSize?: number;
@@ -53,6 +62,9 @@ export interface ParticipantView {
   consentGiven: boolean;
   registered: string;
   status: string;
+  /** Why the record has its status, e.g. a deactivation reason. */
+  statusDescription: string | null;
+  updated: string | null;
   remarks: string | null;
 }
 export interface ParticipantPage {
@@ -69,80 +81,69 @@ export interface ParticipantCatalog {
 }
 
 export function createParticipantsApi(client: ApiClient, token: string) {
-  const listEnrollments = () =>
-    collectPages(async (page, pageSize) => {
-      const response = await client.request(
-        {
-          method: "GET",
-          path: "/participants",
-          routeTemplate: "/participants",
-          token,
-          query: { table: "enrollment", page, pageSize },
-        },
-        enrollmentListSchema
-      );
-      if (!response.success || !response.data) throw new Error(response.message);
-      return response.data;
-    });
-  const listLookup = (table: "county" | "sub_county" | "ward" | "pillar") =>
-    collectPages(async (page, pageSize) => {
-      const response = await client.request(
-        {
-          method: "GET",
-          path: `/lookups/${table}`,
-          routeTemplate: "/lookups/:table",
-          token,
-          query: { page, pageSize },
-        },
-        lookupListSchema
-      );
-      if (!response.success || !response.data) throw new Error(response.message);
-      return response.data;
-    });
-  async function catalog(): Promise<ParticipantCatalog> {
-    const [pillars, counties, subCounties, wards] = await Promise.all([
-      listLookup("pillar"),
-      listLookup("county"),
-      listLookup("sub_county"),
-      listLookup("ward"),
-    ]);
-    const subToCounty = new Map(
-      subCounties.map((row) => [row.id, "county_id" in row ? Number(row.county_id) : 0])
+  /**
+   * People matching a name search, labelled "<name> · <ward>" (plus "#<id>" only to tell
+   * identical labels apart). One small page, for pickers that search as you type.
+   */
+  async function search(text: string, limit = 20): Promise<{ id: number; label: string }[]> {
+    const response = await client.request(
+      {
+        method: "GET",
+        path: "/participants",
+        routeTemplate: "/participants",
+        token,
+        query: { page: 1, pageSize: limit, search: text, sort: "first_name:asc,last_name:asc" },
+      },
+      participantPickerSchema
     );
+    if (!response.success || !response.data) throw new Error(response.message);
+    const labels = response.data.items.map((row) => ({
+      id: row.id,
+      label: `${row.first_name} ${row.last_name} · ${row.ward_name ?? "Ward not recorded"}`,
+    }));
+    const counts = new Map<string, number>();
+    for (const { label } of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+    return labels.map(({ id, label }) => ({
+      id,
+      label: counts.get(label)! > 1 ? `${label} · #${id}` : label,
+    }));
+  }
+  /** Pillars, counties and wards in one batched call, for the filters and the register form. */
+  async function catalog(): Promise<ParticipantCatalog> {
+    const response = await client.request(
+      {
+        method: "GET",
+        path: "/lookups",
+        routeTemplate: "/lookups",
+        token,
+        query: { tables: "pillar,county,ward" },
+      },
+      catalogSchema
+    );
+    if (!response.success || !response.data) throw new Error(response.message);
+    const { tables } = response.data;
     return {
-      pillars: pillars.map((row) => ({ id: row.id, name: row.name })),
-      counties: counties.map((row) => ({ id: row.id, name: row.name })),
-      wards: wards.map((row) => ({
+      pillars: tables.pillar.map((row) => ({ id: row.id, name: row.name })),
+      counties: tables.county.map((row) => ({ id: row.id, name: row.name })),
+      wards: tables.ward.map((row) => ({
         id: row.id,
         name: row.name,
-        countyId: subToCounty.get("sub_county_id" in row ? Number(row.sub_county_id) : 0) ?? 0,
+        countyId: row.county_id ?? 0,
       })),
     };
   }
-  async function toView(
-    row: ParticipantDto,
-    enrollments: EnrollmentDto[],
-    locations: ParticipantCatalog
-  ): Promise<ParticipantView> {
-    const ward = locations.wards.find((item) => item.id === row.ward_id);
-    const county = locations.counties.find((item) => item.id === ward?.countyId);
-    const linked = enrollments.filter((item) => item.participant_id === row.id);
-    const latestStage = linked
-      .filter((item) => item.current_stage_date !== null && item.current_stage !== null)
-      .sort(
-        (a, b) =>
-          (a.current_stage_date ?? "").localeCompare(b.current_stage_date ?? "") || a.id - b.id
-      )
-      .at(-1);
+  /** A participant as the registry shows it: place, enrollments and stage arrive with the row. */
+  function toView(row: ParticipantDto): ParticipantView {
+    const linked = row.enrollments;
     return {
       id: row.id,
       name: [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" "),
       idNumber: row.id_number,
       phoneNumber: row.phone_number,
       gender: row.gender,
-      county: county?.name ?? "Not recorded",
-      countyId: county?.id ?? null,
-      ward: ward?.name ?? "Not recorded",
+      county: row.county_name ?? "Not recorded",
+      countyId: row.county_id,
+      ward: row.ward_name ?? "Not recorded",
       pillarIds: linked.map((item) => item.pillar_id),
       enrollments: linked.map((item) => ({
         id: item.id,
@@ -152,15 +153,19 @@ export function createParticipantsApi(client: ApiClient, token: string) {
         status: item.status,
         date: item.created_at,
       })),
-      currentStage: latestStage?.current_stage ?? "Not started",
+      currentStage: row.current_stage_name ?? "Not started",
       consentGiven: row.is_consent_given,
       registered: row.created_at,
       status: row.status,
+      statusDescription: row.status_description,
+      updated: row.updated_at,
       remarks: row.remarks,
     };
   }
   return {
+    search,
     catalog,
+    /** One page of participants; the API filters, searches and sorts, and embeds enrollments. */
     async list(query: ParticipantQuery = {}): Promise<ParticipantPage> {
       const response = await client.request(
         {
@@ -169,32 +174,38 @@ export function createParticipantsApi(client: ApiClient, token: string) {
           routeTemplate: "/participants",
           token,
           query: {
-            page: query.page ?? 1,
-            pageSize: query.pageSize ?? 25,
-            pillarId: query.pillarId,
-            countyId: query.countyId,
-            search: query.search,
+            ...listParams(
+              {
+                page: query.page ?? 1,
+                pageSize: query.pageSize ?? 25,
+                search: query.search,
+                sort: query.sort,
+                include: "enrollments",
+              },
+              PARTICIPANT_SORT_KEYS
+            ),
+            ...(query.pillarId ? { pillarId: query.pillarId } : {}),
+            ...(query.countyId ? { countyId: query.countyId } : {}),
           },
         },
         participantListSchema
       );
       if (!response.success || !response.data) throw new Error(response.message);
-      const [enrollments, locations] = await Promise.all([listEnrollments(), catalog()]);
-      return {
-        ...response.data,
-        items: await Promise.all(
-          response.data.items.map((row) => toView(row, enrollments, locations))
-        ),
-      };
+      return { ...response.data, items: response.data.items.map(toView) };
     },
     async get(id: number): Promise<ParticipantView | null> {
       const response = await client.request(
-        { method: "GET", path: `/participants/${id}`, routeTemplate: "/participants/:id", token },
+        {
+          method: "GET",
+          path: `/participants/${id}`,
+          routeTemplate: "/participants/:id",
+          token,
+          query: { include: "enrollments" },
+        },
         participantDetailSchema
       );
       if (!response.success || !response.data) return null;
-      const [enrollments, locations] = await Promise.all([listEnrollments(), catalog()]);
-      return toView(response.data, enrollments, locations);
+      return toView(response.data);
     },
     register(input: ParticipantRegistration) {
       return client.request(

@@ -10,8 +10,7 @@
 
 import { revalidatePath } from "next/cache";
 import { actionResult } from "@/lib/api/action-result";
-import { sortedPage } from "@/lib/api/sorted-page";
-import { referralSortValues } from "./sort-values";
+import { cleanListQuery } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
@@ -28,10 +27,22 @@ export async function listReferralsAction(query: ReferralQuery) {
   if (!hasModulePermission(session.grants, "REFERRAL_VIEW"))
     return { ...actionResult(403, "Permission denied"), data: null };
   try {
-    const { list } = await api();
+    const clean = cleanListQuery(
+      { page: query.page, pageSize: query.pageSize, search: query.search, sort: query.sort },
+      { sort: ["participant", "route", "reason", "referredBy", "date", "status"] }
+    );
     return {
       ...actionResult(200, "OK"),
-      data: await sortedPage((filters: ReferralQuery) => list(filters), query, referralSortValues),
+      data: await (
+        await api()
+      ).list(
+        {
+          ...clean,
+          pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
+          status: typeof query.status === "string" ? query.status.slice(0, 20) : undefined,
+        },
+        session.grants
+      ),
     };
   } catch {
     return { ...actionResult(422, "Could not load referrals"), data: null };
@@ -126,4 +137,25 @@ export async function exportReferralsAction(query: ReferralQuery) {
     routeTemplate: "/referrals",
     query: { pillarId: query.pillarId, status: query.status, search: query.search },
   });
+}
+
+/** Enrollments the user may refer from, loaded when the New referral dialog opens or is searched. */
+export async function loadReferralOriginsAction(search?: string) {
+  const session = await requireSession();
+  if (
+    !hasModulePermission(session.grants, "REFERRAL_CREATE") ||
+    !hasModulePermission(session.grants, "PARTICIPANT_VIEW")
+  )
+    return { success: false, message: "You cannot create referrals.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (
+        await api()
+      ).origins(typeof search === "string" ? search.slice(0, 120) : undefined),
+    };
+  } catch {
+    return { success: false, message: "Could not load the participants.", data: null };
+  }
 }

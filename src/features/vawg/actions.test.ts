@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -117,7 +117,7 @@ describe("VAWG case actions", () => {
   });
 });
 
-it("shows the editable case fields with current court details", () => {
+it("shows the editable case fields with current court details", async () => {
   const legalCase = {
     id: 1,
     number: "CRW-VAWG-0001",
@@ -134,11 +134,12 @@ it("shows the editable case fields with current court details", () => {
   render(
     createElement(EditCaseDialog, {
       legalCase,
-      caseTypes: [{ id: 2, name: "IPV" }],
       onClose: vi.fn(),
       onDone: vi.fn(),
     })
   );
+  // The case types load when the dialog opens.
+  await screen.findAllByRole("option", { name: getMockStore().case_type[0].name });
   expect(screen.getByRole("dialog", { name: "Edit legal case" })).toBeInTheDocument();
   expect(screen.getByRole("combobox", { name: "Case type" })).toHaveValue("2");
   expect(screen.getByRole("textbox", { name: "Court" })).toHaveValue("Kibera Law Courts");
@@ -149,24 +150,24 @@ it("shows the editable case fields with current court details", () => {
   expect(screen.getByLabelText("Next court date")).toHaveValue("2026-10-03");
 });
 
-it("selects the case type by ID when labels are duplicated", () => {
+it("selects the case type by ID when labels are duplicated", async () => {
+  const store = getMockStore();
+  const twin = { ...store.case_type[0], id: 900 };
+  store.case_type.push(twin);
   const legalCase = {
     id: 1,
     number: "CRW-VAWG-0001",
     survivor: "F. N.",
-    caseType: "IPV",
-    caseTypeId: 3,
+    caseType: twin.name,
+    caseTypeId: 900,
   } as LegalCaseView;
   render(
     createElement(EditCaseDialog, {
       legalCase,
-      caseTypes: [
-        { id: 2, name: "IPV" },
-        { id: 3, name: "IPV" },
-      ],
       onClose: vi.fn(),
       onDone: vi.fn(),
     })
   );
-  expect(screen.getByRole("combobox", { name: "Case type" })).toHaveValue("3");
+  await waitFor(() => expect(screen.getAllByRole("option", { name: twin.name })).toHaveLength(2));
+  expect(screen.getByRole("combobox", { name: "Case type" })).toHaveValue("900");
 });

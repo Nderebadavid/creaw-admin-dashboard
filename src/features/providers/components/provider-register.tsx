@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useRecordDetail } from "@/components/ui/use-record-detail";
 import { cn } from "@/lib/utils";
-import { setProviderActiveAction } from "../actions";
+import { loadProviderWorkloadAction, setProviderActiveAction } from "../actions";
 import {
   providerTypeLabel,
   providerTypes,
@@ -87,7 +88,10 @@ export function ProviderRegister({
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
   const [reactivating, setReactivating] = useState(false);
-  const selected = directory.providers.find((row) => row.id === selectedId) ?? null;
+  const detail = useRecordDetail(selectedId, loadProviderWorkloadAction);
+  const row = directory.providers.find((item) => item.id === selectedId) ?? null;
+  // The drawer shows each group's recent items once they have loaded.
+  const selected = row && detail.data ? { ...row, workload: detail.data } : row;
   const needle = search.trim().toLocaleLowerCase();
   const filtered = useMemo(
     () =>

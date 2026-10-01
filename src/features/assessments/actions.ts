@@ -126,3 +126,15 @@ export async function viewAssessmentDocumentAction(assessmentId: number, documen
     return { ...actionResult(500, "Could not open document"), document: null };
   }
 }
+
+/** The organisations and instruments a new assessment offers, loaded when its dialog opens. */
+export async function loadAssessmentOptionsAction() {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "ORG_ASSESSMENT_EDIT", { pillarId: 5 }))
+    return { success: false, message: "Permission denied", data: null };
+  try {
+    return { success: true, message: "OK", data: await (await api()).options() };
+  } catch {
+    return { success: false, message: "Could not load the options.", data: null };
+  }
+}

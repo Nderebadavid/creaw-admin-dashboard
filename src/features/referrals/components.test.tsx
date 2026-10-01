@@ -5,6 +5,11 @@ vi.mock("./actions", () => ({
   editReferralAction: vi.fn(),
   exportReferralsAction: vi.fn(),
   listReferralsAction: vi.fn(),
+  loadReferralOriginsAction: vi.fn(async () => ({
+    success: true,
+    message: "OK",
+    data: [{ enrollmentId: 1, pillarId: 1, participant: "Faith Njeri", category: "Legal aid" }],
+  })),
   respondReferralAction: vi.fn(),
   withdrawReferralAction: vi.fn(),
 }));
@@ -52,7 +57,6 @@ it("announces a decision failure inside the active dialog", async () => {
         { id: 1, name: "VAWG" },
         { id: 2, name: "WEE" },
       ]}
-      origins={[]}
       grants={[{ permissionCode: "REFERRAL_VIEW", pillarId: 2 }]}
     />
   );
@@ -84,18 +88,19 @@ it("submits an external institution destination from the referral dialog", async
         { id: 1, name: "VAWG" },
         { id: 2, name: "WEE" },
       ]}
-      origins={[
-        { enrollmentId: 1, pillarId: 1, participant: "Faith Njeri", category: "Legal aid" },
-      ]}
       catalog={{
         internalPillarIds: [1, 2],
         partnerInstitutions: [{ id: 6, name: "Nairobi Women's Shelter" }],
       }}
-      grants={[{ permissionCode: "REFERRAL_CREATE", pillarId: 1 }]}
+      grants={[
+        { permissionCode: "REFERRAL_CREATE", pillarId: 1 },
+        { permissionCode: "PARTICIPANT_VIEW", pillarId: 1 },
+      ]}
     />
   );
   fireEvent.click(screen.getByRole("button", { name: "New referral" }));
   const dialog = screen.getByRole("dialog");
+  await within(dialog).findByRole("option", { name: /Faith Njeri/ });
   fireEvent.change(within(dialog).getByRole("combobox", { name: "Destination type" }), {
     target: { value: "external" },
   });
@@ -139,7 +144,6 @@ it("shows the external destination name in both the queue and decision dialog", 
     <ReferralsContent
       initial={{ items: [referral], page: 1, pageSize: 25, totalItems: 1, totalPages: 1 }}
       pillars={[{ id: 1, name: "VAWG" }]}
-      origins={[]}
       grants={[{ permissionCode: "REFERRAL_VIEW", pillarId: 1 }]}
     />
   );
@@ -189,11 +193,9 @@ it("lays out the queue like the design", () => {
         { id: 1, name: "VAWG" },
         { id: 2, name: "WEE" },
       ]}
-      origins={[
-        { enrollmentId: 1, pillarId: 1, participant: "Faith Njeri", category: "Legal aid" },
-      ]}
       grants={[
         { permissionCode: "REFERRAL_CREATE", pillarId: 1 },
+        { permissionCode: "PARTICIPANT_VIEW", pillarId: 1 },
         { permissionCode: "REPORT_EXPORT_CSV", pillarId: null },
       ]}
     />

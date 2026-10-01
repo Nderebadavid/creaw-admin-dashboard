@@ -68,6 +68,8 @@ const faith = {
   registered: "2026-08-01",
   status: "ACTIVE",
   remarks: null,
+  statusDescription: null,
+  updated: null,
 };
 
 function renderRegistry() {

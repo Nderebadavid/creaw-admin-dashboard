@@ -12,13 +12,10 @@ import type { ApiClient } from "@/lib/api/client";
 import { createEnvelopeSchema } from "@/lib/api/contracts";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
-import { createReportingApi, type ReportView } from "@/features/reporting/api";
+import { listParams } from "@/lib/api/list";
 import {
   applicationListSchema,
   applicationDetailSchema,
-  awardListSchema,
-  disbursementListSchema,
-  documentListSchema,
   documentDetailSchema,
   projectListSchema,
   pillarListSchema,
@@ -30,7 +27,7 @@ import {
 } from "./schemas";
 
 export interface GrantQuery {
-  /** A displayed column to sort by; applied by the list action, not the API. */
+  /** A displayed column to sort by, mapped to an API field by the list. */
   sort?: SortState;
   page?: number;
   pageSize?: number;
@@ -38,6 +35,16 @@ export interface GrantQuery {
   status?: string;
   search?: string;
 }
+/** The queue's column ids and the API fields they sort by. */
+export const GRANT_SORT_KEYS: Record<string, string> = {
+  applicant: "participant_name,organisation_name",
+  project: "project_name",
+  requested: "requested_amount",
+  type: "grant_type",
+  date: "created_at",
+  stage: "stage_index",
+};
+
 export interface GrantRow {
   id: number;
   applicant: string;
@@ -47,6 +54,9 @@ export interface GrantRow {
   requestedAmount: string;
   grantType: string;
   createdAt: string;
+  /** Why the application has its status, e.g. why it was declined. */
+  statusDescription?: string | null;
+  updatedAt?: string | null;
 }
 /** A Skilling graduate WEE accepted for a grant and has not yet filed an application for. */
 export interface GrantRecommendation {
@@ -165,23 +175,23 @@ export function createGrantsApi(client: ApiClient, token: string) {
       projectListSchema
     );
   }
-  async function enrich(rows: ApplicationDto[]) {
-    const projectRows = await projects();
-    return rows.map((row) => {
-      const project = projectRows.find((item) => item.id === row.project_id);
-      return {
-        id: row.id,
-        applicant: row.participant_id
-          ? `Participant #${row.participant_id}`
-          : `Organisation #${row.organisation_id}`,
-        project: project?.name ?? `Project #${row.project_id}`,
-        pillarId: project?.pillar_id ?? 0,
-        status: row.status,
-        requestedAmount: `KES ${row.requested_amount.toLocaleString("en-KE")}`,
-        grantType: row.grant_type,
-        createdAt: row.created_at,
-      };
-    });
+  /** Rows as the queue shows them; the API names the applicant, project and its pillar. */
+  function enrich(rows: ApplicationDto[]): GrantRow[] {
+    return rows.map((row) => ({
+      id: row.id,
+      applicant:
+        row.participant_name ??
+        row.organisation_name ??
+        (row.participant_id ? "Participant record" : "Organisation record"),
+      project: row.project_name ?? "Programme",
+      pillarId: row.project_pillar_id ?? 0,
+      status: row.status,
+      requestedAmount: `KES ${row.requested_amount.toLocaleString("en-KE")}`,
+      grantType: row.grant_type,
+      createdAt: row.created_at,
+      statusDescription: row.status_description,
+      updatedAt: row.updated_at,
+    }));
   }
   return {
     /** Skilling graduates recommended to WEE and accepted, with no application yet. */
@@ -279,6 +289,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
       ]);
       return all - approved - declined;
     },
+    /** One page of applications; the API filters, searches and sorts. */
     async list(query: GrantQuery = {}): Promise<GrantPage> {
       const result = await request<import("zod").infer<typeof applicationListSchema>>(
         {
@@ -287,26 +298,39 @@ export function createGrantsApi(client: ApiClient, token: string) {
           routeTemplate: "/grants",
           token,
           query: {
-            page: query.page ?? 1,
-            pageSize: query.pageSize ?? 25,
-            pillarId: query.pillarId,
-            status: query.status,
-            search: query.search,
+            ...listParams(
+              {
+                page: query.page ?? 1,
+                pageSize: query.pageSize ?? 25,
+                search: query.search,
+                sort: query.sort,
+                filters: { status: query.status },
+              },
+              GRANT_SORT_KEYS
+            ),
+            ...(query.pillarId ? { pillarId: query.pillarId } : {}),
           },
         },
         applicationListSchema
       );
       const data = required(result);
-      return { ...data, items: await enrich(data.items) };
+      return { ...data, items: enrich(data.items) };
     },
+    /** An application with its sign-offs, award, payments, reporting periods and files: two calls. */
     async get(id: number): Promise<GrantDetail | null> {
       const result = await request<import("zod").infer<typeof applicationDetailSchema>>(
-        { method: "GET", path: `/grants/${id}`, routeTemplate: "/grants/:id", token },
+        {
+          method: "GET",
+          path: `/grants/${id}`,
+          routeTemplate: "/grants/:id",
+          token,
+          query: { include: "awards,disbursements,reports,documents" },
+        },
         applicationDetailSchema
       );
       if (!result.success || !result.data) return null;
       const row = result.data;
-      const [summary] = await enrich([row]);
+      const [summary] = enrich([row]);
       const signoffs = required(
         await request<import("zod").infer<typeof signoffSchema>>(
           {
@@ -319,30 +343,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
           signoffSchema
         )
       );
-      const awards = await all<import("zod").infer<typeof import("./schemas").awardSchema>>(
-        "grant_award",
-        awardListSchema
-      ).catch(() => []);
-      const award = awards.find((item) => item.application_id === id);
-      const disbursements = award
-        ? await all<import("zod").infer<typeof import("./schemas").disbursementSchema>>(
-            "grant_disbursement",
-            disbursementListSchema
-          ).catch(() => [])
-        : [];
-      const reporting = createReportingApi(client, token);
-      const [catalog, reports] = await Promise.all([
-        reporting.catalog().catch(() => null),
-        collectPages<ReportView>((page, pageSize) => reporting.list({ page, pageSize })).catch(
-          () => []
-        ),
-      ]);
-      const reportingAwardId =
-        catalog?.awards.find((item) => item.applicationId === id)?.id ?? null;
-      const documents = await all<import("zod").infer<typeof import("./schemas").documentSchema>>(
-        "document",
-        documentListSchema
-      ).catch(() => []);
+      const award = row.awards[0];
       const declined = row.status === "DECLINED";
       // A declined application keeps the steps that were signed before it closed.
       const stage = declined
@@ -375,27 +376,24 @@ export function createGrantsApi(client: ApiClient, token: string) {
               lifecycle: award.grant_lifecycle_status,
             }
           : null,
-        reportingAwardId,
-        disbursements: disbursements
-          .filter((item) => item.grant_id === award?.id)
-          .map((item) => ({
-            id: item.id,
-            amount: item.amount,
-            date: item.disbursement_date,
-            notes: item.notes,
-          })),
-        reports: reports
-          .filter((item) => item.type === "grant" && item.applicationId === id)
-          .map((item) => ({
-            id: item.id,
-            periodStart: item.periodStart,
-            periodEnd: item.periodEnd,
-            dueDate: item.dueDate,
-            submittedDate: item.submittedDate,
-          })),
-        documents: documents
-          .filter((item) => item.owner_type === "grant_application" && item.owner_id === id)
-          .map((item) => ({ id: item.id, name: item.document_type.replaceAll("_", " ") })),
+        reportingAwardId: row.reporting_award_id,
+        disbursements: row.disbursements.map((item) => ({
+          id: item.id,
+          amount: item.amount,
+          date: item.disbursement_date,
+          notes: item.notes,
+        })),
+        reports: row.reports.map((item) => ({
+          id: item.id,
+          periodStart: item.reporting_period_start,
+          periodEnd: item.reporting_period_end,
+          dueDate: item.due_date,
+          submittedDate: item.submitted_date,
+        })),
+        documents: row.documents.map((item) => ({
+          id: item.id,
+          name: item.document_type.replaceAll("_", " "),
+        })),
       };
     },
     /** Closes an application that is still in its sign-off chain. This cannot be undone. */

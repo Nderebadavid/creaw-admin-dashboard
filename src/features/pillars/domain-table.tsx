@@ -1,12 +1,15 @@
 "use client";
 
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
 import { textSortValue } from "@/components/data-table/sorting";
-import { useMemo, useState } from "react";
+import { usePagedList } from "@/components/data-table/use-paged-list";
+import { useState } from "react";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
+import { FormBanner } from "@/components/ui/form-banner";
+import type { ListQuery } from "@/lib/api/list";
+import { listPillarDomainAction } from "./actions";
+import type { PillarCode } from "./schemas";
 import { useRouter } from "next/navigation";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { FieldGrid } from "@/components/ui/record-parts";
@@ -24,8 +27,9 @@ export function statusTone(status: string): StatusTone {
   return "neutral";
 }
 
-/** A pillar's own register (cases, applications, sessions…) in the design's list card. */
+/** A pillar's own register (grant applications…) in the design's list card, paged by the API. */
 export function PillarDomainTable({
+  code,
   domain,
   actions,
   recordKind = "Record",
@@ -34,6 +38,7 @@ export function PillarDomainTable({
   tint,
   recordPath,
 }: {
+  code: PillarCode;
   domain: PillarDomainView;
   actions?: React.ReactNode;
   /** What one row is, e.g. "Legal case", for the record panel's caption. */
@@ -49,25 +54,14 @@ export function PillarDomainTable({
   recordPath?: string;
 }) {
   const router = useRouter();
+  const list = usePagedList<PillarDomainRecord, ListQuery>(
+    { items: domain.rows, page: 1, pageSize: 25, totalItems: domain.totalItems, totalPages: 1 },
+    { page: 1, pageSize: 25 },
+    (query) => listPillarDomainAction(code, query)
+  );
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All");
   const [selected, setSelected] = useState<PillarDomainRecord | null>(null);
-  const statuses = useMemo(
-    () => ["All", ...new Set(domain.rows.map((row) => row.status))],
-    [domain.rows]
-  );
-  const filtered = useMemo(
-    () =>
-      domain.rows.filter(
-        (row) =>
-          (status === "All" || row.status === status) &&
-          (!search.trim() ||
-            `${row.title} ${row.values.join(" ")}`
-              .toLocaleLowerCase()
-              .includes(search.trim().toLocaleLowerCase()))
-      ),
-    [domain.rows, search, status]
-  );
+  const status = list.query.filters?.status ? String(list.query.filters.status) : "All";
   const columns: DataColumn<PillarDomainRecord>[] = domain.columns.map((header, index) => ({
     id: String(index),
     header,
@@ -84,45 +78,47 @@ export function PillarDomainTable({
     sortValue: (row) => row.status,
     cell: (row) => <StatusBadge tone={statusTone(row.status)}>{titleCase(row.status)}</StatusBadge>,
   });
-  const { rows: sorted, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(sorted);
   return (
     <>
+      {!selected && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title={domain.title}
         subtitle={domain.subtitle}
         chipsLabel={`${domain.title} status`}
-        chips={statuses.map((value) => ({
+        chips={["All", ...domain.statuses].map((value) => ({
           label: value === "All" ? value : titleCase(value),
           active: status === value,
-          onSelect: () => {
-            setStatus(value);
-            resetPage();
-          },
+          onSelect: () => list.filter({ filters: value === "All" ? undefined : { status: value } }),
         }))}
         search={{
           value: search,
           label: `Search ${domain.title.toLowerCase()}`,
           onChange: (value) => {
             setSearch(value);
-            resetPage();
+            list.filter({ search: value || undefined });
           },
         }}
         actions={actions}
-        footer={<Pagination {...pager} hint="Click a row to open the record" />}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click a row to open the record"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
         <DataTable
           framed={false}
           columns={columns}
-          rows={pageRows}
+          rows={list.data.items}
           getRowId={(row) => row.id}
           label={domain.title}
-          sort={sorting.sort}
-          onSortChange={(sort) => {
-            sorting.onSortChange(sort);
-            resetPage();
-          }}
-          filtered={filtered.length === 0 && (status !== "All" || search.length > 0)}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
+          filtered={list.data.items.length === 0 && (status !== "All" || search.length > 0)}
           onRowOpen={(row) =>
             recordPath ? router.push(`${recordPath}${row.id}`) : setSelected(row)
           }

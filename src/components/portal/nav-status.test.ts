@@ -21,9 +21,10 @@ describe("loadNavigationStatus", () => {
   it("counts work waiting in each module the user can open", async () => {
     const status = await loadNavigationStatus(getEffectiveGrants(1));
 
-    const submissions = await submissionsApi.listAll();
+    const submissions = await submissionsApi.list({ pageSize: 1 });
+    const counts = submissions.facets?.review_status ?? {};
     expect(status.pendingSubmissions).toBe(
-      submissions.filter((row) => row.status !== "Approved").length
+      (counts["Pending review"] ?? 0) + (counts["Flagged"] ?? 0)
     );
     expect(status.newReferrals).toBe(
       (await referralsApi.list({ status: "NEW", pageSize: 1 })).totalItems

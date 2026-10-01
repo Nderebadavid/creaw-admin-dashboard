@@ -1,6 +1,31 @@
 import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 const id = z.number().int().positive();
+const optionalText = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
+export const scoreSchema = z.object({
+  id,
+  assessment_id: id,
+  criterion_id: id,
+  score: z.number().nullable(),
+  notes: z.string().nullable(),
+  /** Named by the API, so a score needs no criteria lookup. */
+  criterion_label: optionalText,
+  criterion_max: z
+    .number()
+    .nullish()
+    .transform((value) => value ?? null),
+});
+export const checkSchema = z.object({
+  id,
+  assessment_id: id,
+  document_name: z.string(),
+  document_check_status: z.string(),
+  document_id: id.nullable(),
+  notes: z.string().nullable(),
+});
 export const assessmentSchema = z.object({
   id,
   organisation_id: id,
@@ -11,6 +36,19 @@ export const assessmentSchema = z.object({
   status: z.string(),
   recorded_by: id.nullable(),
   created_at: z.string(),
+  updated_at: optionalText,
+  /** Named by the API, with the organisation's due-diligence status. */
+  organisation_name: optionalText,
+  organisation_due_diligence: optionalText,
+  /** Domain scores and document checks (`include=scores,checks`). */
+  scores: z
+    .array(scoreSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  checks: z
+    .array(checkSchema)
+    .nullish()
+    .transform((value) => value ?? []),
   /** Assessor notes and whether a follow-up visit is needed, as recorded in the field. */
   section_comments: z
     .object({
@@ -20,21 +58,6 @@ export const assessmentSchema = z.object({
     .nullable()
     .optional()
     .catch(null),
-});
-export const scoreSchema = z.object({
-  id,
-  assessment_id: id,
-  criterion_id: id,
-  score: z.number().nullable(),
-  notes: z.string().nullable(),
-});
-export const checkSchema = z.object({
-  id,
-  assessment_id: id,
-  document_name: z.string(),
-  document_check_status: z.string(),
-  document_id: id.nullable(),
-  notes: z.string().nullable(),
 });
 export const criterionSchema = z.object({
   id,

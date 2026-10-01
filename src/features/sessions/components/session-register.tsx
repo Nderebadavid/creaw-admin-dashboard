@@ -1,19 +1,20 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { dateSortValue } from "@/components/data-table/sorting";
 import { TableCard } from "@/components/data-table/table-card";
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
+import { usePagedList } from "@/components/data-table/use-paged-list";
+import { useRecordDetail } from "@/components/ui/use-record-detail";
+import type { ListQuery } from "@/lib/api/list";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
-import { viewSessionFileAction } from "../actions";
+import { listSessionsAction, loadSessionDetailAction, viewSessionFileAction } from "../actions";
 import type { AttendeeView, SessionPermissions, SessionView, SessionWorkspace } from "../model";
 import { CoveragePanel, type TopicFilter } from "./coverage-panel";
 import {
@@ -65,12 +66,21 @@ const columns: DataColumn<SessionView>[] = [
   {
     id: "attendees",
     header: "Attendees",
-    sortValue: (row) => row.attendees.length,
-    cell: (row) => <span className={text}>{row.attendees.length}</span>,
+    sortValue: (row) => row.attendeeCount,
+    cell: (row) => <span className={text}>{row.attendeeCount}</span>,
   },
 ];
 
-/** The session register. Opening a row selects it for the record panel. */
+/** The API filters that a chip and a picked topic ask for; a topic wins over the chip. */
+function sessionFilters(typeId: number | null, topic?: TopicFilter | null): ListQuery["filters"] {
+  if (topic)
+    return topic.topicId !== null
+      ? { activity_type_id: topic.activityTypeId, activity_topic_id: topic.topicId }
+      : { activity_type_id: topic.activityTypeId, topic: topic.topic };
+  return typeId === null ? undefined : { activity_type_id: typeId };
+}
+
+/** The session register, paged by the API. Opening a row selects it for the record panel. */
 export function SessionRegister({
   workspace,
   can,
@@ -82,9 +92,15 @@ export function SessionRegister({
   topic?: TopicFilter | null;
   onClearTopic?: () => void;
 }) {
-  const [type, setType] = useState("All");
-  const [search, setSearch] = useState("");
   const router = useRouter();
+  const pillar = workspace.pillar;
+  const list = usePagedList<SessionView, ListQuery>(
+    workspace.sessions,
+    { page: 1, pageSize: workspace.sessions.pageSize },
+    (query) => listSessionsAction(pillar, query)
+  );
+  const [typeId, setTypeId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<
     | { kind: "edit" }
@@ -96,39 +112,24 @@ export function SessionRegister({
   const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
-  const selected = workspace.sessions.find((row) => row.id === selectedId) ?? null;
-  const types = useMemo(
-    () => ["All", ...new Set(workspace.sessions.map((row) => row.activityType))],
-    [workspace.sessions]
-  );
-  const needle = search.trim().toLocaleLowerCase();
-  const filtered = useMemo(
-    () =>
-      workspace.sessions.filter(
-        (row) =>
-          (type === "All" || row.activityType === type) &&
-          (!topic || (row.activityTypeId === topic.activityTypeId && row.topic === topic.topic)) &&
-          (!needle ||
-            [row.activityType, row.topic, row.venue, row.facilitator.name]
-              .join(" ")
-              .toLocaleLowerCase()
-              .includes(needle))
-      ),
-    [workspace.sessions, type, topic, needle]
-  );
-  const { rows, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(rows);
-  // Back to page 1 whenever the topic filter changes (set or cleared).
-  const topicKey = topic ? `${topic.activityTypeId}:${topic.topic}` : "";
-  const [seenTopicKey, setSeenTopicKey] = useState(topicKey);
-  if (seenTopicKey !== topicKey) {
-    setSeenTopicKey(topicKey);
-    resetPage();
-  }
+  const detail = useRecordDetail(selectedId, (id) => loadSessionDetailAction(pillar, id));
+  const selected = list.data.items.find((row) => row.id === selectedId) ?? null;
+
+  // A chip or a topic picked in the coverage panel changes what the API is asked for.
+  const filtersKey = JSON.stringify(sessionFilters(typeId, topic) ?? null);
+  const seenFilters = useRef(filtersKey);
+  const filter = list.filter;
+  useEffect(() => {
+    if (seenFilters.current === filtersKey) return;
+    seenFilters.current = filtersKey;
+    filter({ filters: sessionFilters(typeId, topic) });
+  }, [filtersKey, typeId, topic, filter]);
 
   const done = (message: string) => {
     setModal(null);
     setFeedback(message);
+    void list.refresh();
+    detail.reload();
     router.refresh();
   };
   async function view(documentId: number) {
@@ -143,24 +144,25 @@ export function SessionRegister({
     <>
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{error}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Session register"
         subtitle="Attendance arrives from the mobile app — open a session to review or correct it"
         chipsLabel="Activity type"
-        chips={types.map((label) => ({
+        chips={[
+          { label: "All", id: null },
+          ...workspace.coverage.map((type) => ({ label: type.name, id: type.activityTypeId })),
+        ].map(({ label, id }) => ({
           label,
-          active: type === label,
-          onSelect: () => {
-            setType(label);
-            resetPage();
-          },
+          active: typeId === id,
+          onSelect: () => setTypeId(id),
         }))}
         search={{
           value: search,
           label: "Search sessions",
           onChange: (value) => {
             setSearch(value);
-            resetPage();
+            list.filter({ search: value || undefined });
           },
         }}
         filters={
@@ -190,26 +192,36 @@ export function SessionRegister({
             />
           )
         }
-        footer={<Pagination {...pager} hint="Click a row to open the session" />}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click a row to open the session"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
         <DataTable
           framed={false}
           label="Session register"
           columns={columns}
-          rows={pageRows}
+          rows={list.data.items}
           getRowId={(row) => row.id}
-          filtered={filtered.length === 0 && (type !== "All" || needle.length > 0 || !!topic)}
+          filtered={
+            list.data.items.length === 0 && (typeId !== null || search.length > 0 || !!topic)
+          }
           onRowOpen={(row) => setSelectedId(row.id)}
           rowOpenLabel={(row) => `Open ${row.topic}, ${formatDate(row.date)}`}
-          sort={sorting.sort}
-          onSortChange={(sort) => {
-            sorting.onSortChange(sort);
-            resetPage();
-          }}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
         />
       </TableCard>
       <SessionDrawer
         session={modal === null ? selected : null}
+        detail={detail.data}
+        detailLoading={detail.loading}
         pillar={workspace.pillar}
         can={can}
         onClose={() => setSelectedId(null)}
@@ -222,7 +234,8 @@ export function SessionRegister({
       <SessionFormDialog
         key={modal?.kind === "edit" ? `edit-${selectedId}` : "edit-closed"}
         open={modal?.kind === "edit"}
-        workspace={workspace}
+        pillar={workspace.pillar}
+        currentUser={workspace.currentUser}
         session={selected}
         onClose={() => setModal(null)}
         onDone={done}
@@ -230,7 +243,8 @@ export function SessionRegister({
       <AddAttendeeDialog
         key={modal?.kind === "add" ? `add-${selectedId}` : "add-closed"}
         session={modal?.kind === "add" ? selected : null}
-        workspace={workspace}
+        attendees={detail.data?.attendees ?? []}
+        pillar={workspace.pillar}
         onClose={() => setModal(null)}
         onDone={done}
       />

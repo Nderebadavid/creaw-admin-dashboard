@@ -4,7 +4,8 @@ import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
-import { registerOrganisationAction } from "../actions";
+import { useLoadedOptions } from "@/components/ui/use-loaded-options";
+import { loadOrganisationOptionsAction, registerOrganisationAction } from "../actions";
 import { legalForms, type OrganisationRegistration } from "../schemas";
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim() || undefined;
@@ -15,16 +16,16 @@ const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim
  */
 export function RegisterOrganisationDialog({
   open,
-  wards,
   onClose,
   onDone,
 }: {
   open: boolean;
-  wards: readonly { id: number; name: string }[];
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
   const submit = useActionSubmit(onDone);
+  const options = useLoadedOptions(open, loadOrganisationOptionsAction);
+  const wards = options.data?.wards ?? [];
   function close() {
     submit.clearError();
     onClose();
@@ -53,7 +54,7 @@ export function RegisterOrganisationDialog({
       onClose={close}
       title="Register organisation"
       description="A WRO partner joins at Onboarding and moves through due diligence to a sub-grant."
-      error={submit.error}
+      error={submit.error || options.error}
       className="sm:max-w-[640px]"
     >
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>

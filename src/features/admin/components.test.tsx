@@ -65,6 +65,19 @@ describe("administration screens", () => {
               phone_number: "••••5678",
               status: "ACTIVE",
               is_deleted: false,
+              status_description: null,
+              created_at: null,
+              updated_at: null,
+              roles: [
+                {
+                  id: 2,
+                  user_id: 2,
+                  role_id: 2,
+                  pillar_id: null,
+                  status: "ACTIVE",
+                  is_deleted: false,
+                },
+              ],
             },
           ],
         }}
@@ -78,9 +91,6 @@ describe("administration screens", () => {
             is_deleted: false,
             is_system_role: true,
           },
-        ]}
-        assignments={[
-          { id: 2, user_id: 2, role_id: 2, pillar_id: null, status: "ACTIVE", is_deleted: false },
         ]}
         pillars={[]}
         canManageUsers
@@ -116,6 +126,27 @@ describe("administration screens", () => {
               phone_number: "••••5678",
               status: "ACTIVE",
               is_deleted: false,
+              status_description: null,
+              created_at: null,
+              updated_at: null,
+              roles: [
+                {
+                  id: 2,
+                  user_id: 2,
+                  role_id: 2,
+                  pillar_id: null,
+                  status: "ACTIVE",
+                  is_deleted: false,
+                },
+                {
+                  id: 3,
+                  user_id: 2,
+                  role_id: 3,
+                  pillar_id: 1,
+                  status: "ACTIVE",
+                  is_deleted: false,
+                },
+              ],
             },
           ],
         }}
@@ -139,12 +170,9 @@ describe("administration screens", () => {
             is_system_role: false,
           },
         ]}
-        assignments={[
-          { id: 2, user_id: 2, role_id: 2, pillar_id: null, status: "ACTIVE", is_deleted: false },
-          { id: 3, user_id: 2, role_id: 3, pillar_id: 1, status: "ACTIVE", is_deleted: false },
-        ]}
         pillars={[{ id: 1, name: "VAWG" }]}
         permissionCount={42}
+        multiRoleUsers={1}
         canManageUsers
         canManageRoles
       />

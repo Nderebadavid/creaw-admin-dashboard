@@ -15,6 +15,8 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { titleCase } from "@/lib/format";
+import { cleanListQuery, type ListQuery } from "@/lib/api/list";
+import { createParticipantsApi } from "@/features/participants/api";
 import { createSessionsApi } from "./api";
 import { SESSION_PILLAR_IDS, type SessionPillar } from "./model";
 
@@ -70,7 +72,12 @@ async function sessionValues(input: unknown) {
   if (!hasPermission(session.grants, "ACTIVITY_SESSION_LOG", scope(value.pillar)))
     return { error: actionResult(403, "You cannot log sessions in this pillar") };
   const client = await api();
-  const { types, topics } = await client.curriculum(value.pillar);
+  // One call returns the pillar's types and topics and the people a session can be assigned to.
+  const options = await client
+    .formOptions(value.pillar)
+    .catch(() => ({ activityTypes: [], topics: [], facilitators: [] }));
+  const types = options.activityTypes;
+  const topics = options.topics;
   const type = types.find((item) => item.id === value.activityTypeId);
   if (!type) return { error: actionResult(422, "That activity type is not part of this pillar") };
   const topic =
@@ -87,14 +94,16 @@ async function sessionValues(input: unknown) {
   if (topic && !topic.active && current?.activity_topic_id !== topic.id)
     return { error: actionResult(422, "That topic is no longer offered") };
   const { facilitator } = value;
-  const options = await client.facilitators(value.pillar);
   const keeps =
     current?.facilitator_user_id === (facilitator.kind === "staff" ? facilitator.id : null) &&
     current?.facilitator_provider_id === (facilitator.kind === "provider" ? facilitator.id : null);
   // The signed-in user may always log as themselves, even when the picker could not load.
   const isMe = facilitator.kind === "staff" && facilitator.id === session.user.id;
   const offered =
-    isMe || options.some((item) => item.kind === facilitator.kind && item.id === facilitator.id);
+    isMe ||
+    options.facilitators.some(
+      (item) => item.kind === facilitator.kind && item.id === facilitator.id
+    );
   if (!offered && !(current && keeps))
     return { error: actionResult(422, "Choose a facilitator from the list") };
   return {
@@ -231,5 +240,85 @@ export async function viewSessionFileAction(
     };
   } catch {
     return fail("Could not open the document");
+  }
+}
+
+const sessionPillar = z.enum(["srhr", "skilling"]);
+
+/** One page of the pillar's sessions for the register; the API filters, searches and sorts. */
+export async function listSessionsAction(pillarCode: SessionPillar, query: ListQuery) {
+  const session = await requireSession();
+  if (!sessionPillar.safeParse(pillarCode).success)
+    return { success: false, message: "Unknown pillar.", data: null };
+  if (!hasPermission(session.grants, "ACTIVITY_SESSION_VIEW", scope(pillarCode)))
+    return { success: false, message: "You cannot view sessions.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (
+        await api()
+      ).listSessions(
+        pillarCode,
+        cleanListQuery(query, {
+          sort: ["type", "topic", "date", "venue", "facilitator", "attendees"],
+          filters: ["activity_type_id", "activity_topic_id", "topic"],
+        })
+      ),
+    };
+  } catch {
+    return { success: false, message: "Could not load the sessions.", data: null };
+  }
+}
+
+/** A session's attendance and files, for its drawer. */
+export async function loadSessionDetailAction(pillarCode: SessionPillar, sessionId: number) {
+  const session = await requireSession();
+  if (
+    !sessionPillar.safeParse(pillarCode).success ||
+    !Number.isSafeInteger(sessionId) ||
+    sessionId < 1
+  )
+    return { success: false, message: "Invalid session.", data: null };
+  if (!hasPermission(session.grants, "ACTIVITY_SESSION_VIEW", scope(pillarCode)))
+    return { success: false, message: "You cannot view sessions.", data: null };
+  try {
+    const detail = await (await api()).sessionDetail(pillarCode, sessionId);
+    return detail
+      ? { success: true, message: "OK", data: detail }
+      : { success: false, message: "Session not found.", data: null };
+  } catch {
+    return { success: false, message: "Could not load the session.", data: null };
+  }
+}
+
+/** The types, topics and people the session form offers, loaded when it opens. */
+export async function loadSessionOptionsAction(pillarCode: SessionPillar) {
+  const session = await requireSession();
+  if (!sessionPillar.safeParse(pillarCode).success)
+    return { success: false, message: "Unknown pillar.", data: null };
+  if (!hasPermission(session.grants, "ACTIVITY_SESSION_LOG", scope(pillarCode)))
+    return { success: false, message: "You cannot log sessions in this pillar.", data: null };
+  try {
+    return { success: true, message: "OK", data: await (await api()).formOptions(pillarCode) };
+  } catch {
+    return { success: false, message: "Could not load the options.", data: null };
+  }
+}
+
+/** People matching a name search, for the add-attendee picker. */
+export async function searchParticipantsAction(pillarCode: SessionPillar, text: string) {
+  const session = await requireSession();
+  if (!sessionPillar.safeParse(pillarCode).success)
+    return { success: false, message: "Unknown pillar.", data: null };
+  if (!hasPermission(session.grants, "ACTIVITY_SESSION_LOG", scope(pillarCode)))
+    return { success: false, message: "You cannot change attendance in this pillar.", data: null };
+  try {
+    const people = await (
+      await withSessionApi(createParticipantsApi)
+    ).search(typeof text === "string" ? text.slice(0, 120) : "");
+    return { success: true, message: "OK", data: people };
+  } catch {
+    return { success: false, message: "Could not search participants.", data: null };
   }
 }

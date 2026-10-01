@@ -14,13 +14,7 @@ export default async function PipelinesPage() {
   const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   if (!token) notFound();
   const api = createAdminApi(createPortalApiClient(), token);
-  const [pillars, pipelineRows] = await Promise.all([api.pipelinePillars(), api.allPipelines()]);
-  const pipelines = await Promise.all(
-    pipelineRows.map(async (pipeline) => ({
-      ...pipeline,
-      stages: await api.allStages(pipeline.id),
-    }))
-  );
+  const [pillars, pipelines] = await Promise.all([api.pipelinePillars(), api.allPipelines()]);
   return (
     <>
       <PageHeading

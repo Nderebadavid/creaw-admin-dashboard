@@ -1,59 +1,84 @@
-import { vi, afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { vi, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PillarDomainTable } from "./domain-table";
+import { listPillarDomainAction } from "./actions";
+import type { PillarDomainView } from "./domain-api";
 // Grant rows navigate to their sign-off page with the app router.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("./actions", () => ({ listPillarDomainAction: vi.fn() }));
 
-afterEach(cleanup);
+const row = (id: number, status = "PREPARED") => ({
+  id,
+  title: `Application #${id}`,
+  values: [`Applicant ${id}`, "Posho mill", "KES 1,000"],
+  status,
+});
+const domain: PillarDomainView = {
+  title: "Grant applications",
+  subtitle: "Prepared → Reviewed → Approved",
+  columns: ["Applicant", "Business", "Requested"],
+  rows: [row(1), row(2)],
+  totalItems: 40,
+  statuses: ["PREPARED", "APPROVED"],
+};
+const page = (rows: ReturnType<typeof row>[], pageNo = 1) => ({
+  success: true,
+  message: "OK",
+  data: { items: rows, page: pageNo, pageSize: 25, totalItems: 40, totalPages: 2 },
+});
+
+beforeEach(() => vi.mocked(listPillarDomainAction).mockResolvedValue(page([row(3, "APPROVED")])));
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 describe("pillar domain register", () => {
-  it("filters by status and opens a read-only record detail", () => {
-    render(
-      <PillarDomainTable
-        domain={{
-          title: "Legal case register",
-          subtitle: "Masked names",
-          columns: ["Case", "Court"],
-          rows: [
-            { id: 1, title: "Case #1", values: ["Case #1", "in hearing"], status: "in hearing" },
-            { id: 2, title: "Case #2", values: ["Case #2", "concluded"], status: "concluded" },
-          ],
-        }}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Concluded" }));
-    expect(screen.queryByText("Case #1")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "View Case #2" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("Case #2");
-    expect(screen.getByRole("dialog")).toHaveTextContent("concluded");
+  it("shows the first page the server rendered and opens a read-only record detail", () => {
+    render(<PillarDomainTable code="wee" domain={domain} />);
+    expect(screen.getByText("Applicant 1")).toBeInTheDocument();
+    expect(listPillarDomainAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "View Application #2" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Applicant 2");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Prepared");
   });
 
-  it("sorts every column across pages and returns to the first page", () => {
-    const rows = Array.from({ length: 12 }, (_, index) => ({
-      id: index + 1,
-      title: `Case #${index + 1}`,
-      values: [`Case #${index + 1}`, index % 2 ? "Milimani" : "Kibera"],
-      status: index < 6 ? "in hearing" : "concluded",
-    }));
-    render(
-      <PillarDomainTable
-        domain={{ title: "Legal case register", subtitle: "", columns: ["Case", "Court"], rows }}
-      />
+  it("asks the API for the chosen status, search, sort and page", async () => {
+    render(<PillarDomainTable code="wee" domain={domain} />);
+    fireEvent.click(screen.getByRole("button", { name: "Approved" }));
+    await waitFor(() =>
+      expect(listPillarDomainAction).toHaveBeenLastCalledWith("wee", {
+        page: 1,
+        pageSize: 25,
+        filters: { status: "APPROVED" },
+      })
     );
-    const firstCell = () => screen.getAllByRole("row")[1].querySelector("td")!.textContent;
-    for (const name of ["Case", "Court", "Status"])
-      expect(screen.getByRole("columnheader", { name })).toHaveAttribute("aria-sort", "none");
+    expect(await screen.findByText("Applicant 3")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Applicant" }));
+    await waitFor(() =>
+      expect(listPillarDomainAction).toHaveBeenLastCalledWith(
+        "wee",
+        expect.objectContaining({ page: 1, sort: { by: "0", order: "asc" } })
+      )
+    );
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(firstCell()).toBe("Case #11");
-    fireEvent.click(screen.getByRole("button", { name: "Case" }));
-    fireEvent.click(screen.getByRole("button", { name: "Case" }));
-    // Descending puts the last case first, numerically (#12, not #9), on page one.
-    expect(firstCell()).toBe("Case #12");
-    expect(screen.getByRole("columnheader", { name: "Case" })).toHaveAttribute(
-      "aria-sort",
-      "descending"
+    await waitFor(() =>
+      expect(listPillarDomainAction).toHaveBeenLastCalledWith(
+        "wee",
+        expect.objectContaining({ page: 2 })
+      )
     );
-    fireEvent.click(screen.getByRole("button", { name: "Status" }));
-    expect(firstCell()).toBe("Case #7");
+  });
+
+  it("shows why a page could not load", async () => {
+    vi.mocked(listPillarDomainAction).mockResolvedValueOnce({
+      success: false,
+      message: "Could not load the register.",
+      data: null,
+    });
+    render(<PillarDomainTable code="wee" domain={domain} />);
+    fireEvent.click(screen.getByRole("button", { name: "Approved" }));
+    expect(await screen.findByText("Could not load the register.")).toBeInTheDocument();
   });
 });

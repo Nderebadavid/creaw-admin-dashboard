@@ -6,24 +6,21 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
-import { z } from "zod";
 import type { ApiClient } from "@/lib/api/client";
-import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
+import { listParams, type ListQuery } from "@/lib/api/list";
 import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
-import { collectPages } from "@/lib/api/pagination";
 import {
   pillarCodeSchema,
-  pillarDashboardSchema,
   pillarDomainMutationSchema,
   pillarEnrollmentListSchema,
   pillarMutationSchema,
-  pillarPipelineSchema,
-  pillarStageSchema,
-  pillarStageEventSchema,
+  pillarSummarySchema,
   type PillarCode,
+  type PillarSummaryDto,
 } from "./schemas";
 import { loadPillarDomain, type PillarDomainView } from "./domain-api";
+import type { PaginatedData } from "@/types/api";
 
 export class PillarApiError extends Error {
   constructor(
@@ -39,6 +36,9 @@ export interface PillarRecord {
   title: string;
   category: string;
   status: string;
+  /** Why the record has its status, e.g. a deactivation reason. */
+  statusDescription: string | null;
+  createdAt: string | null;
   updatedAt: string;
 }
 export interface PillarView {
@@ -50,8 +50,16 @@ export interface PillarView {
   color: string;
   tint: string;
   target: number;
+  /** The first page of programme records; further pages come from `listRecords`. */
   records: PillarRecord[];
+  /** Every record in the pillar, and how many are active. */
+  recordCount: number;
+  activeCount: number;
+  /** The pillar's headline cards, computed by the API for the caller's scope. */
+  cards: PillarSummaryDto["cards"];
   stages: string[];
+  /** The pipeline's stages in order, with their ids. */
+  pipelineStages: { id: number; name: string }[];
   stageCounts?: { name: string; count: number }[] | null;
   /** The pillar lead's name, when the user may read it. */
   leadName?: string | null;
@@ -60,6 +68,14 @@ export interface PillarView {
   hasPipeline: boolean;
   domain?: PillarDomainView | null;
 }
+
+/** The record table column ids and the API fields they sort by. */
+export const RECORD_SORT_KEYS: Record<string, string> = {
+  record: "record_name",
+  category: "entry_category",
+  status: "status",
+  updated: "updated_at",
+};
 const presentation: Record<
   PillarCode,
   { dbCode: string; color: string; tint: string; target: number; fullName: string }
@@ -108,207 +124,129 @@ const presentation: Record<
   },
 };
 
-/** Pages of a lookup-style list; none when the user may not read it. */
-async function readAll<T>(
-  client: ApiClient,
-  token: string,
-  path: string,
-  routeTemplate: "/lookups/:table" | "/participants",
-  schema: z.ZodType<T>
-): Promise<T[]> {
-  const envelope = createEnvelopeSchema(z.union([createPaginatedSchema(schema), z.null()]));
-  return collectPages(async (page, pageSize) => {
-    const result = await client.request(
-      { method: "GET", path, routeTemplate, token, query: { page, pageSize } },
-      envelope
-    );
-    if (!result.success || !result.data) throw new Error(result.message);
-    return result.data;
-  }).catch(() => []);
-}
-
-/** The lead's name from the reporting catalogue, which lists pillar leads as report owners. */
-async function leadNameOf(client: ApiClient, token: string, leadId: number | null) {
-  if (!leadId) return null;
-  const result = await client
-    .request(
-      {
-        method: "GET",
-        path: "/reports",
-        routeTemplate: "/reports",
-        token,
-        query: { catalog: true },
-      },
-      createEnvelopeSchema(
-        z.union([
-          z.object({ owners: z.array(z.object({ id: z.number(), name: z.string() })) }),
-          z.null(),
-        ])
-      )
-    )
-    .catch(() => null);
-  return result?.data?.owners.find((owner) => owner.id === leadId)?.name ?? null;
-}
-
-/** Counties the given participants live in, most common first. */
-async function countiesOf(client: ApiClient, token: string, participantIds: number[]) {
-  if (!participantIds.length) return [];
-  const place = z.object({
-    id: z.number(),
-    name: z.string(),
-    sub_county_id: z.number().optional(),
-    county_id: z.number().optional(),
-  });
-  const [participants, wards, subCounties, counties] = await Promise.all([
-    readAll(
-      client,
-      token,
-      "/participants",
-      "/participants",
-      z.object({ id: z.number(), ward_id: z.number().nullable() })
-    ),
-    readAll(client, token, "/lookups/ward", "/lookups/:table", place),
-    readAll(client, token, "/lookups/sub_county", "/lookups/:table", place),
-    readAll(client, token, "/lookups/county", "/lookups/:table", place),
-  ]);
-  const tally = new Map<string, number>();
-  for (const participant of participants.filter((row) => participantIds.includes(row.id))) {
-    const ward = wards.find((row) => row.id === participant.ward_id);
-    const subCounty = subCounties.find((row) => row.id === ward?.sub_county_id);
-    const county = counties.find((row) => row.id === subCounty?.county_id);
-    if (county) tally.set(county.name, (tally.get(county.name) ?? 0) + 1);
-  }
-  return [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+function recordOf(row: {
+  id: number;
+  pillar_id: number;
+  organisation_id: number | null;
+  entry_category: string;
+  status: string;
+  status_description: string | null;
+  created_at: string | null;
+  updated_at: string;
+  record_name: string | null;
+}): PillarRecord {
+  return {
+    id: row.id,
+    pillarId: row.pillar_id,
+    title: row.record_name ?? (row.organisation_id ? "Organisation record" : "Participant record"),
+    category: row.entry_category,
+    status: row.status,
+    statusDescription: row.status_description,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 export function createPillarsApi(client: ApiClient, token: string) {
+  const pathOf = (code: PillarCode) => `/pillars/${presentation[code].dbCode.toLowerCase()}`;
+  /** The pillar summary, or a PillarApiError for an unknown, hidden or forbidden pillar. */
+  async function summary(code: PillarCode, period?: string) {
+    const result = await client.request(
+      {
+        method: "GET",
+        path: `${pathOf(code)}/summary`,
+        routeTemplate: "/pillars/:pillar/summary",
+        token,
+        query: period ? { period } : {},
+      },
+      pillarSummarySchema
+    );
+    if (!result.success || !result.data)
+      throw new PillarApiError(result.message, result.resultCode);
+    return result.data;
+  }
+  /** One page of the pillar's enrollment records, newest change first unless sorted. */
+  async function listRecords(
+    code: PillarCode,
+    query: ListQuery = {}
+  ): Promise<PaginatedData<PillarRecord>> {
+    const result = await client.request(
+      {
+        method: "GET",
+        path: pathOf(code),
+        routeTemplate: "/pillars/:pillar",
+        token,
+        query: {
+          table: "enrollment",
+          ...listParams(query, RECORD_SORT_KEYS, { sort: "updated_at:desc" }),
+        },
+      },
+      pillarEnrollmentListSchema
+    );
+    if (!result.success || !result.data)
+      throw new PillarApiError(result.message, result.resultCode);
+    return { ...result.data, items: result.data.items.map(recordOf) };
+  }
   return {
-    async get(code: string): Promise<PillarView> {
+    summary,
+    listRecords,
+    listDomain(code: PillarCode, query: ListQuery = {}) {
+      return loadPillarDomain(client, token, code, query);
+    },
+    /** Whether an enrollment, or a participant's enrollment, exists in the pillar. */
+    async hasEnrollment(code: PillarCode, match: { id?: number; participantId?: number }) {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: pathOf(code),
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: {
+            table: "enrollment",
+            page: 1,
+            pageSize: 1,
+            ...(match.id ? { ids: String(match.id) } : {}),
+            ...(match.participantId ? { participant_id: String(match.participantId) } : {}),
+          },
+        },
+        pillarEnrollmentListSchema
+      );
+      return !!result.data && result.data.items.length > 0;
+    },
+    async get(code: string, options: { period?: string } = {}): Promise<PillarView> {
       const parsed = pillarCodeSchema.safeParse(code);
       if (!parsed.success) throw new PillarApiError("Pillar not found", 404);
       const selected = parsed.data;
       const config = presentation[selected];
-      const dashboard = await client.request(
-        { method: "GET", path: "/dashboard", routeTemplate: "/dashboard", token },
-        pillarDashboardSchema
-      );
-      if (!dashboard.success || !dashboard.data)
-        throw new PillarApiError(dashboard.message, dashboard.resultCode);
-      const pillar = dashboard.data.pillars.find((row) => row.code.toUpperCase() === config.dbCode);
-      if (!pillar) throw new PillarApiError("Pillar outside your scope", 403);
-      const path = `/pillars/${config.dbCode.toLowerCase()}`;
-      const [enrollments, pipelines] = await Promise.all([
-        collectPages(async (page, pageSize) => {
-          const result = await client.request(
-            {
-              method: "GET",
-              path,
-              routeTemplate: "/pillars/:pillar",
-              token,
-              query: { table: "enrollment", page, pageSize },
-            },
-            pillarEnrollmentListSchema
-          );
-          if (!result.success || !result.data)
-            throw new PillarApiError(result.message, result.resultCode);
-          return result.data;
-        }),
-        collectPages(async (page, pageSize) => {
-          const result = await client.request(
-            {
-              method: "GET",
-              path,
-              routeTemplate: "/pillars/:pillar",
-              token,
-              query: { table: "pipeline_definition", page, pageSize },
-            },
-            pillarPipelineSchema
-          );
-          if (!result.success || !result.data)
-            throw new PillarApiError(result.message, result.resultCode);
-          return result.data;
-        }).catch(() => null),
+      const [head, records, domain] = await Promise.all([
+        summary(selected, options.period),
+        listRecords(selected, { page: 1, pageSize: 25 }),
+        this.listDomain(selected, { page: 1, pageSize: 25 }).catch(() => null),
       ]);
-      const pipeline = pipelines?.[0];
-      const [stages, events] = pipeline
-        ? await Promise.all([
-            collectPages(async (page, pageSize) => {
-              const result = await client.request(
-                {
-                  method: "GET",
-                  path,
-                  routeTemplate: "/pillars/:pillar",
-                  token,
-                  query: { table: "stage_definition", page, pageSize },
-                },
-                pillarStageSchema
-              );
-              if (!result.success || !result.data) throw new Error(result.message);
-              return result.data;
-            }).catch(() => []),
-            collectPages(async (page, pageSize) => {
-              const result = await client.request(
-                {
-                  method: "GET",
-                  path,
-                  routeTemplate: "/pillars/:pillar",
-                  token,
-                  query: { table: "participant_stage_event", page, pageSize },
-                },
-                pillarStageEventSchema
-              );
-              if (!result.success || !result.data) throw new Error(result.message);
-              return result.data;
-            }).catch(() => null),
-          ])
-        : [[], null];
-      const configuredStages = stages
-        .filter((row) => row.pipeline_id === pipeline?.id)
-        .sort((a, b) => a.step_no - b.step_no);
-      const records = enrollments.map((row) => ({
-        id: row.id,
-        pillarId: row.pillar_id,
-        title: row.organisation_id
-          ? `Organisation #${row.organisation_id}`
-          : `Participant #${row.participant_id}`,
-        category: row.entry_category,
-        status: row.status,
-        updatedAt: row.updated_at,
-      }));
-      const [domain, leadName, counties] = await Promise.all([
-        loadPillarDomain(client, token, selected, enrollments).catch(() => null),
-        leadNameOf(client, token, pillar.lead_user_id),
-        countiesOf(
-          client,
-          token,
-          enrollments.map((row) => row.participant_id).filter((id): id is number => id !== null)
-        ),
-      ]);
+      const stages = head.pipeline?.stages ?? [];
       return {
-        id: pillar.id,
+        id: head.pillar.id,
         code: selected,
-        name: selected === "wros" ? "WROs" : selected === "skilling" ? "Skilling" : pillar.code,
+        name: selected === "wros" ? "WROs" : selected === "skilling" ? "Skilling" : config.dbCode,
         fullName: config.fullName,
-        leadUserId: pillar.lead_user_id,
+        leadUserId: head.pillar.lead_user_id,
         color: config.color,
         tint: config.tint,
         target: config.target,
-        records,
-        hasPipeline: Boolean(pipeline),
-        stages: configuredStages.map((row) => row.name),
-        stageCounts: events
-          ? configuredStages.map((stage) => ({
-              name: stage.name,
-              count: new Set(
-                events
-                  .filter((event) => event.stage_definition_id === stage.id)
-                  .map((event) => event.enrollment_id)
-              ).size,
-            }))
+        records: records.items,
+        recordCount: head.enrollments?.total ?? records.totalItems,
+        activeCount:
+          head.enrollments?.active ?? records.items.filter((row) => row.status === "ACTIVE").length,
+        cards: head.cards,
+        hasPipeline: Boolean(head.pipeline),
+        stages: stages.map((row) => row.name),
+        pipelineStages: stages.map((row) => ({ id: row.id, name: row.name })),
+        stageCounts: stages.some((row) => row.count !== null)
+          ? stages.map((row) => ({ name: row.name, count: row.count ?? 0 }))
           : null,
         domain,
-        leadName,
-        counties,
+        leadName: head.pillar.lead_name,
+        counties: head.enrollments?.counties,
       };
     },
     async createEnrollment(
@@ -371,9 +309,9 @@ export function createPillarsApi(client: ApiClient, token: string) {
 }
 
 export const pillarsApi = {
-  async get(code: string) {
+  async get(code: string, options?: { period?: string }) {
     const token = await readSessionToken();
     if (!token) throw new PillarApiError("Sign in required", 403);
-    return createPillarsApi(createPortalApiClient(), token).get(code);
+    return createPillarsApi(createPortalApiClient(), token).get(code, options);
   },
 };

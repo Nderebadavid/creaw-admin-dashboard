@@ -1,21 +1,30 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { dateSortValue } from "@/components/data-table/sorting";
 import { TableCard } from "@/components/data-table/table-card";
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
+import { usePagedList } from "@/components/data-table/use-paged-list";
+import { useLoadedOptions } from "@/components/ui/use-loaded-options";
+import { useRecordDetail } from "@/components/ui/use-record-detail";
+import type { ListQuery } from "@/lib/api/list";
+import type { PaginatedData } from "@/types/api";
+import { loadAssessmentOptionsAction } from "@/features/assessments/actions";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { FormBanner } from "@/components/ui/form-banner";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { formatDate, initials, titleCase } from "@/lib/format";
-import type { AssessmentOptions } from "@/features/assessments/api";
 import { NewAssessmentDialog } from "@/features/assessments/cards/assessment-dialogs";
-import { WRO_PILLAR_ID, type OrganisationStage, type OrganisationView } from "../model";
+import { listOrganisationsAction, loadOrganisationDetailAction } from "../actions";
+import {
+  WRO_PILLAR_ID,
+  type OrganisationStage,
+  type OrganisationView,
+  type PipelineStageDef,
+} from "../model";
 import { OrganisationDrawer } from "./organisation-drawer";
 import { RegisterOrganisationDialog } from "./register-organisation-dialog";
 import { StageDialog } from "./stage-dialog";
@@ -29,22 +38,18 @@ export const dueDiligenceTone = (status: string): StatusTone =>
         ? "warning"
         : "neutral";
 
-/** Index of the "Contract" stage; an organisation at or past it is contracted. */
-const contractIndex = (row: OrganisationView) =>
-  row.stages.findIndex((stage) => /contract/i.test(stage.name));
-const isContracted = (row: OrganisationView) =>
-  contractIndex(row) >= 0 && row.currentStage >= contractIndex(row);
-
+/** The register's chips and the API filters they ask for. */
 const filters = {
-  All: () => true,
-  "Due diligence": (row: OrganisationView) => !isContracted(row) && row.dueDiligence !== "passed",
-  Contracted: isContracted,
+  All: undefined,
+  "Due diligence": { in_due_diligence: "true" },
+  Contracted: { is_contracted: "true" },
 } as const;
 type Filter = keyof typeof filters;
 
-const stageOf = (row: OrganisationView) => row.stages[row.currentStage]?.name ?? "Not started";
+const stageName = (row: OrganisationView, stages: readonly PipelineStageDef[]) =>
+  stages[row.currentStage]?.name ?? "Not started";
 
-const columns: DataColumn<OrganisationView>[] = [
+const columnsFor = (stages: readonly PipelineStageDef[]): DataColumn<OrganisationView>[] => [
   {
     id: "organisation",
     header: "Organisation",
@@ -93,11 +98,9 @@ const columns: DataColumn<OrganisationView>[] = [
     sortValue: (row) => row.currentStage,
     cell: (row) => (
       <div className="font-medium text-creaw-ink-soft">
-        {stageOf(row)}
+        {stageName(row, stages)}
         <p className="text-[12.5px] font-normal text-creaw-faint">
-          {row.stages.length
-            ? `Step ${row.currentStage + 1} of ${row.stages.length}`
-            : "No pipeline"}
+          {row.stageCount ? `Step ${row.currentStage + 1} of ${row.stageCount}` : "No pipeline"}
         </p>
       </div>
     ),
@@ -127,75 +130,80 @@ const columns: DataColumn<OrganisationView>[] = [
 /**
  * The WRO pillar's partner register, carrying over the field app's
  * organisation list: filters, a profile for each organisation, registration,
- * pipeline moves and scored assessments.
+ * pipeline moves and scored assessments. Paged by the API.
  */
 export function OrganisationRegister({
-  organisations,
-  wards,
-  assessmentOptions,
+  initial,
+  stages,
+  canAssess,
   canRegister,
   canMove,
   canReveal,
 }: {
-  organisations: readonly OrganisationView[];
-  wards: readonly { id: number; name: string }[];
-  /** Present when the user may record assessments. */
-  assessmentOptions?: AssessmentOptions;
+  /** The first page, rendered by the server. */
+  initial: PaginatedData<OrganisationView>;
+  /** The WRO pipeline's stages, in order. */
+  stages: readonly PipelineStageDef[];
+  /** Whether the user may record assessments. */
+  canAssess: boolean;
   canRegister: boolean;
   canMove: boolean;
   canReveal: boolean;
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("All");
+  const list = usePagedList<OrganisationView, ListQuery>(
+    initial,
+    { page: 1, pageSize: initial.pageSize },
+    listOrganisationsAction
+  );
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<
     { kind: "register" } | { kind: "stage"; stage: OrganisationStage } | { kind: "assess" } | null
   >(null);
   const [feedback, setFeedback] = useState("");
-  const selected = organisations.find((row) => row.id === selectedId) ?? null;
-  const needle = search.trim().toLocaleLowerCase();
-  const filtered = useMemo(
-    () =>
-      organisations.filter(
-        (row) =>
-          filters[filter](row) &&
-          (!needle ||
-            `${row.name} ${row.registrationNumber ?? ""} ${row.county} ${row.ward}`
-              .toLocaleLowerCase()
-              .includes(needle))
-      ),
-    [organisations, filter, needle]
-  );
-  const { rows, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(rows);
+  const detail = useRecordDetail(selectedId, loadOrganisationDetailAction);
+  const selected = list.data.items.find((row) => row.id === selectedId) ?? null;
+  const assessmentOptions = useLoadedOptions(modal?.kind === "assess", loadAssessmentOptionsAction);
+  const columns = columnsFor(stages);
+  const active =
+    (Object.keys(filters) as Filter[]).find(
+      (label) =>
+        JSON.stringify(filters[label] ?? null) === JSON.stringify(list.query.filters ?? null)
+    ) ?? "All";
+  // The pipeline with when this organisation reached each stage (known once its detail loads).
+  const withProgress: OrganisationStage[] = stages.map((stage) => ({
+    id: stage.id,
+    name: stage.name,
+    reachedAt: detail.data?.reachedAt[stage.id] ?? null,
+  }));
   const done = (message: string) => {
     setModal(null);
     setFeedback(message);
+    void list.refresh();
+    detail.reload();
     router.refresh();
   };
 
   return (
     <>
       <FormBanner tone="success">{feedback}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Partner organisations"
         subtitle="Women's rights organisations moving from onboarding to a sub-grant"
         chipsLabel="Organisation filter"
         chips={(Object.keys(filters) as Filter[]).map((label) => ({
           label,
-          active: filter === label,
-          onSelect: () => {
-            setFilter(label);
-            resetPage();
-          },
+          active: active === label,
+          onSelect: () => list.filter({ filters: filters[label] }),
         }))}
         search={{
           value: search,
           label: "Search organisations",
           onChange: (value) => {
             setSearch(value);
-            resetPage();
+            list.filter({ search: value || undefined });
           },
         }}
         actions={
@@ -206,36 +214,42 @@ export function OrganisationRegister({
             </Button>
           )
         }
-        footer={<Pagination {...pager} hint="Click a row to open the organisation" />}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click a row to open the organisation"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
         <DataTable
           framed={false}
           label="Partner organisations"
           columns={columns}
-          rows={pageRows}
+          rows={list.data.items}
           getRowId={(row) => row.id}
-          filtered={filtered.length === 0 && (filter !== "All" || needle.length > 0)}
+          filtered={list.data.items.length === 0 && (active !== "All" || search.length > 0)}
           onRowOpen={(row) => setSelectedId(row.id)}
           rowOpenLabel={(row) => `Open ${row.name}`}
-          sort={sorting.sort}
-          onSortChange={(sort) => {
-            sorting.onSortChange(sort);
-            resetPage();
-          }}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
         />
       </TableCard>
       <OrganisationDrawer
         organisation={modal === null ? selected : null}
+        stages={withProgress}
         canMove={canMove}
         canReveal={canReveal}
-        canAssess={Boolean(assessmentOptions)}
+        canAssess={canAssess}
         onClose={() => setSelectedId(null)}
         onMove={(stage) => setModal({ kind: "stage", stage })}
         onAssess={() => setModal({ kind: "assess" })}
       />
       <RegisterOrganisationDialog
         open={modal?.kind === "register"}
-        wards={wards}
         onClose={() => setModal(null)}
         onDone={done}
       />
@@ -245,11 +259,11 @@ export function OrganisationRegister({
         onClose={() => setModal(null)}
         onDone={done}
       />
-      {assessmentOptions && (
+      {canAssess && assessmentOptions.data && (
         <NewAssessmentDialog
           key={selected?.id ?? "none"}
           open={modal?.kind === "assess"}
-          options={assessmentOptions}
+          options={assessmentOptions.data}
           organisationId={selected?.id}
           onClose={() => setModal(null)}
           onDone={done}

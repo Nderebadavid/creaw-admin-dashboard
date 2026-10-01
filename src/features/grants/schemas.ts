@@ -14,6 +14,25 @@ export const applicationSchema = z.object({
   status: z.string(),
   status_description: z.string().nullable(),
   created_at: z.string(),
+  updated_at: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  /** Named by the API, so a row needs no participant, organisation or project lookup. */
+  participant_name: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  organisation_name: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  project_name: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  project_pillar_id: id.nullish().transform((value) => value ?? null),
+  reporting_award_id: id.nullish().transform((value) => value ?? null),
 });
 export const awardSchema = z.object({
   id,
@@ -60,7 +79,30 @@ export const pillarSchema = z.object({ id, code: z.string(), name: z.string() })
 export const applicationListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(applicationSchema), z.null()])
 );
-export const applicationDetailSchema = createEnvelopeSchema(z.union([applicationSchema, z.null()]));
+/** An application with its award, payments, reporting periods and files (`include=…`). */
+export const applicationDetailSchema = createEnvelopeSchema(
+  z.union([
+    applicationSchema.extend({
+      awards: z
+        .array(awardSchema)
+        .nullish()
+        .transform((value) => value ?? []),
+      disbursements: z
+        .array(disbursementSchema)
+        .nullish()
+        .transform((value) => value ?? []),
+      reports: z
+        .array(grantReportSchema)
+        .nullish()
+        .transform((value) => value ?? []),
+      documents: z
+        .array(documentSchema)
+        .nullish()
+        .transform((value) => value ?? []),
+    }),
+    z.null(),
+  ])
+);
 export const awardListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(awardSchema), z.null()])
 );

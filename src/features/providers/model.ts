@@ -41,6 +41,10 @@ export interface ProviderView {
   email: string | null;
   notes: string | null;
   active: boolean;
+  /** Why the record has its status, e.g. a deactivation reason. */
+  statusDescription: string | null;
+  created: string | null;
+  updated: string | null;
   /** Sum of the four workload counts. */
   linkedWork: number;
   workload: ProviderWorkload;

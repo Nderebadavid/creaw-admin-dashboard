@@ -20,6 +20,7 @@ import {
   type PillarCode,
 } from "./schemas";
 import { createPillarsApi } from "./api";
+import { cleanListQuery, type ListQuery } from "@/lib/api/list";
 
 export async function createPillarRecordAction(
   code: PillarCode,
@@ -34,7 +35,8 @@ export async function createPillarRecordAction(
   if (!token) return { success: false, message: "Sign in required." };
   const api = createPillarsApi(createPortalApiClient(), token);
   try {
-    const pillar = await api.get(input.data.code);
+    const head = await api.summary(input.data.code);
+    const pillar = { id: head.pillar.id, code: input.data.code, hasPipeline: !!head.pipeline };
     if (!hasPermission(session.grants, "PARTICIPANT_EDIT", { pillarId: pillar.id }))
       return { success: false, message: "You cannot add records in this pillar." };
     if (pillar.code === "leadership" && !pillar.hasPipeline)
@@ -65,10 +67,10 @@ export async function updatePillarRecordAction(
   if (!token) return { success: false, message: "Sign in required." };
   const api = createPillarsApi(createPortalApiClient(), token);
   try {
-    const pillar = await api.get(input.data.code);
+    const pillar = { id: (await api.summary(input.data.code)).pillar.id, code: input.data.code };
     if (!hasPermission(session.grants, "PARTICIPANT_EDIT", { pillarId: pillar.id }))
       return { success: false, message: "You cannot edit records in this pillar." };
-    if (!pillar.records.some((record) => record.id === input.data.id))
+    if (!(await api.hasEnrollment(pillar.code, { id: input.data.id })))
       return { success: false, message: "Record not found in this pillar." };
     const result = await api.updateEnrollment(pillar.code, input.data.id, input.data.entryCategory);
     if (!result.success) return { success: false, message: result.message };
@@ -91,7 +93,7 @@ export async function createPillarDomainAction(
   if (!token) return { success: false, message: "Sign in required." };
   const api = createPillarsApi(createPortalApiClient(), token);
   try {
-    const pillar = await api.get(code);
+    const pillar = { id: (await api.summary(code)).pillar.id };
     const permission = (
       {
         vawg: "CASE_EDIT",
@@ -107,7 +109,7 @@ export async function createPillarDomainAction(
     switch (input.data.code) {
       case "vawg": {
         const enrollmentId = input.data.enrollmentId;
-        if (!pillar.records.some((row) => row.id === enrollmentId))
+        if (!(await api.hasEnrollment(code, { id: enrollmentId })))
           return { success: false, message: "Enrollment not found in this pillar." };
         result = await api.createDomainRecord(code, "legal_case", {
           enrollment_id: input.data.enrollmentId,
@@ -120,7 +122,7 @@ export async function createPillarDomainAction(
         if (!hasPermission(session.grants, "GRANT_APPLICATION_PREPARE", { pillarId: pillar.id }))
           return { success: false, message: "Grant application prepare permission required." };
         const participantId = input.data.participantId;
-        if (!pillar.records.some((row) => row.title === `Participant #${participantId}`))
+        if (!(await api.hasEnrollment(code, { participantId })))
           return { success: false, message: "Participant not enrolled in this pillar." };
         result = await api.createDomainRecord(code, "grant_application", {
           project_id: input.data.projectId,
@@ -143,7 +145,7 @@ export async function createPillarDomainAction(
         break;
       case "skilling": {
         const enrollmentId = input.data.enrollmentId;
-        if (!pillar.records.some((row) => row.id === enrollmentId))
+        if (!(await api.hasEnrollment(code, { id: enrollmentId })))
           return { success: false, message: "Enrollment not found in this pillar." };
         result = await api.createDomainRecord(code, "training_enrollment", {
           enrollment_id: input.data.enrollmentId,
@@ -178,5 +180,61 @@ export async function createPillarDomainAction(
     return { success: true, message: "Pillar record created." };
   } catch {
     return { success: false, message: "Could not create the pillar record." };
+  }
+}
+
+/** One page of a pillar's programme records for the records table. */
+export async function listPillarRecordsAction(code: PillarCode, query: ListQuery) {
+  const session = await requireSession();
+  const parsed = createPillarRecordSchema.shape.code.safeParse(code);
+  if (!parsed.success) return { success: false, message: "Unknown pillar.", data: null };
+  const token = await readSessionToken();
+  if (!token) return { success: false, message: "Sign in required.", data: null };
+  try {
+    const api = createPillarsApi(createPortalApiClient(), token);
+    const head = await api.summary(parsed.data);
+    if (!hasPermission(session.grants, "DASHBOARD_VIEW", { pillarId: head.pillar.id }))
+      return { success: false, message: "You cannot view this pillar.", data: null };
+    return {
+      success: true,
+      message: "OK",
+      data: await api.listRecords(
+        parsed.data,
+        cleanListQuery(query, { sort: ["record", "category", "status", "updated"] })
+      ),
+    };
+  } catch {
+    return { success: false, message: "Could not load the records.", data: null };
+  }
+}
+
+/** One page of a pillar's generic register (WEE's grant applications). */
+export async function listPillarDomainAction(code: PillarCode, query: ListQuery) {
+  const session = await requireSession();
+  const parsed = createPillarRecordSchema.shape.code.safeParse(code);
+  if (!parsed.success) return { success: false, message: "Unknown pillar.", data: null };
+  const token = await readSessionToken();
+  if (!token) return { success: false, message: "Sign in required.", data: null };
+  try {
+    const api = createPillarsApi(createPortalApiClient(), token);
+    const head = await api.summary(parsed.data);
+    if (!hasPermission(session.grants, "GRANT_APPLICATION_VIEW", { pillarId: head.pillar.id }))
+      return { success: false, message: "You cannot view these applications.", data: null };
+    const clean = cleanListQuery(query, { sort: ["0", "1", "2", "status"], filters: ["status"] });
+    const domain = await api.listDomain(parsed.data, clean);
+    if (!domain) return { success: false, message: "Could not load the register.", data: null };
+    return {
+      success: true,
+      message: "OK",
+      data: {
+        items: domain.rows,
+        page: clean.page ?? 1,
+        pageSize: clean.pageSize ?? 25,
+        totalItems: domain.totalItems,
+        totalPages: Math.max(1, Math.ceil(domain.totalItems / (clean.pageSize ?? 25))),
+      },
+    };
+  } catch {
+    return { success: false, message: "Could not load the register.", data: null };
   }
 }

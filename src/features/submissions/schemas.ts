@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 
+const text = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
 export const submissionDtoSchema = z.object({
   id: z.number().int(),
   enrollment_id: z.number().int(),
@@ -10,6 +14,22 @@ export const submissionDtoSchema = z.object({
   event_date: z.string(),
   source_channel: z.string(),
   local_ref: z.string().nullable(),
+  /** Named by the API, so a card needs no other table. */
+  pillar_id: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
+  pillar_name: text,
+  entry_category: text,
+  stage_name: text,
+  place: text,
+  review_status: text,
+  /** Photos captured with the submission (`include=documents`). */
+  documents: z
+    .array(z.object({ id: z.number().int(), document_type: z.string() }))
+    .nullish()
+    .transform((value) => value ?? []),
 });
 export const submissionListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(submissionDtoSchema), z.null()])

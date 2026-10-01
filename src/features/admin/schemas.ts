@@ -2,6 +2,12 @@ import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 const id = z.number().int().positive();
 const standard = { id, status: z.string(), is_deleted: z.boolean() };
+export const userRoleSchema = z.object({
+  ...standard,
+  user_id: id,
+  role_id: id,
+  pillar_id: id.nullable(),
+});
 export const userSchema = z.object({
   ...standard,
   first_name: z.string(),
@@ -10,6 +16,23 @@ export const userSchema = z.object({
   username: z.string(),
   email: z.string().nullable(),
   phone_number: z.string().nullable(),
+  status_description: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  created_at: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  updated_at: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  /** The user's role grants (`include=roles`); empty for users without role access. */
+  roles: z
+    .array(userRoleSchema)
+    .nullish()
+    .transform((value) => value ?? []),
 });
 export const roleSchema = z.object({
   ...standard,
@@ -25,15 +48,30 @@ export const permissionSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
 });
-export const userRoleSchema = z.object({
-  ...standard,
-  user_id: id,
-  role_id: id,
-  pillar_id: id.nullable(),
-});
 export const rolePermissionSchema = z.object({ ...standard, role_id: id, permission_id: id });
 export const pillarSchema = z.object({ id, name: z.string(), code: z.string() });
 export const pillarCatalogSchema = createEnvelopeSchema(z.array(pillarSchema).nullable());
+/** `GET /admin/permissions?catalog=matrix`: the roles, permissions and grants of the access grid. */
+export const accessMatrixSchema = createEnvelopeSchema(
+  z
+    .object({
+      roles: z.array(roleSchema),
+      permissions: z.array(permissionSchema),
+      grants: z.array(rolePermissionSchema),
+    })
+    .nullable()
+);
+/** `GET /admin/users?catalog=access`: what the Users screen needs besides its page of users. */
+export const accessCatalogSchema = createEnvelopeSchema(
+  z
+    .object({
+      pillars: z.array(pillarSchema),
+      roles: z.array(roleSchema),
+      permission_count: z.number().int().nullable(),
+      multi_role_users: z.number().int(),
+    })
+    .nullable()
+);
 export const userListSchema = createEnvelopeSchema(createPaginatedSchema(userSchema).nullable());
 export const roleListSchema = createEnvelopeSchema(createPaginatedSchema(roleSchema).nullable());
 export const permissionListSchema = createEnvelopeSchema(
@@ -125,8 +163,15 @@ export const stageSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
 });
+/** A pipeline with its stages in step order (`include=stages`); empty for writes' responses. */
+export const pipelineWithStagesSchema = pipelineSchema.extend({
+  stages: z
+    .array(stageSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+});
 export const pipelineListSchema = createEnvelopeSchema(
-  createPaginatedSchema(pipelineSchema).nullable()
+  createPaginatedSchema(pipelineWithStagesSchema).nullable()
 );
 export const stageListSchema = createEnvelopeSchema(createPaginatedSchema(stageSchema).nullable());
 export const pipelineMutationSchema = createEnvelopeSchema(pipelineSchema.nullable());

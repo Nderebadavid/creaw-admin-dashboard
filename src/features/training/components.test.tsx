@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { recordOutcomeAction, setRecommendationAction } from "./actions";
+import { listTraineesAction, recordOutcomeAction, setRecommendationAction } from "./actions";
 import { TraineeRegister } from "./components/trainee-register";
-import { buildTrainingSummary, type TraineeView, type TrainingWorkspace } from "./model";
+import type { TraineeView, TrainingWorkspace } from "./model";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -12,6 +12,8 @@ vi.mock("./actions", () => ({
   recordOutcomeAction: vi.fn(async () => ({ success: true, resultCode: 200, message: "OK" })),
   setRecommendationAction: vi.fn(async () => ({ success: true, resultCode: 200, message: "OK" })),
   revealSalaryAction: vi.fn(),
+  listTraineesAction: vi.fn(),
+  loadTraineeOptionsAction: vi.fn(),
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 
@@ -102,12 +104,26 @@ const trainees: TraineeView[] = [
     handoff: none,
   },
 ];
+type ListQueryLike = import("@/lib/api/list").ListQuery;
+const page = (items: TraineeView[], totalItems = items.length) => ({
+  items,
+  page: 1,
+  pageSize: 25,
+  totalItems,
+  totalPages: 1,
+});
 const workspace: TrainingWorkspace = {
-  trainees,
-  summary: buildTrainingSummary(trainees),
-  enrollments: [],
-  institutions: [{ id: 7, label: "Mathare Skills Centre" }],
-  trainers: [{ id: 3, label: "James Otieno · Trainer" }],
+  trainees: page(trainees),
+  summary: {
+    enrolled: 4,
+    completed: 3,
+    droppedOut: 0,
+    completionRate: 100,
+    inWork: 2,
+    inWorkRate: 67,
+    recommended: 2,
+    acceptedByWee: 1,
+  },
 };
 const allowed = { edit: true, recommend: true, reveal: true, export: true };
 const denied = { edit: false, recommend: false, reveal: false, export: false };
@@ -119,22 +135,6 @@ function open(name: string, can = allowed) {
   fireEvent.click(screen.getByRole("button", { name: new RegExp(`^Open ${name}`) }));
   return screen.getByRole("dialog");
 }
-
-describe("training summary", () => {
-  it("rates completion over finished trainees and work over completers", () => {
-    expect(workspace.summary).toMatchObject({
-      enrolled: 4,
-      completed: 3,
-      droppedOut: 0,
-      completionRate: 100,
-      inWork: 2,
-      inWorkRate: 67,
-      recommended: 2,
-      acceptedByWee: 1,
-    });
-    expect(buildTrainingSummary([])).toMatchObject({ completionRate: null, inWorkRate: null });
-  });
-});
 
 describe("trainee register", () => {
   it("shows the columns in order with names, never ids", () => {
@@ -156,17 +156,38 @@ describe("trainee register", () => {
     expect(screen.queryByText(/#\d/)).toBeNull();
   });
 
-  it("filters by pathway chip, status and search", () => {
+  it("asks the API for the pathway, status and search the user picks", async () => {
+    vi.mocked(listTraineesAction).mockImplementation((async (query: ListQueryLike) => {
+      const filters = (query.filters ?? {}) as Record<string, string>;
+      const rows = trainees.filter(
+        (row) =>
+          (!filters.pathway || row.pathway === filters.pathway) &&
+          (!filters.training_status || row.status === filters.training_status) &&
+          (!query.search || `${row.name} ${row.course}`.toLowerCase().includes(query.search))
+      );
+      return { success: true, message: "OK", data: page(rows) };
+    }) as never);
     render(<TraineeRegister workspace={workspace} can={allowed} />);
+    expect(listTraineesAction).not.toHaveBeenCalled();
     const chips = screen.getByRole("group", { name: "Pathway" });
     fireEvent.click(within(chips).getByRole("button", { name: "TVET" }));
-    expect(table().queryByText("Wanjiru Achieng")).toBeNull();
+    await waitFor(() =>
+      expect(listTraineesAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, filters: { pathway: "tvet" } })
+      )
+    );
+    await waitFor(() => expect(table().queryByText("Wanjiru Achieng")).toBeNull());
     expect(table().getByText("Mercy Akinyi")).toBeInTheDocument();
     fireEvent.click(within(chips).getByRole("button", { name: "All" }));
     fireEvent.change(screen.getByRole("combobox", { name: "Status" }), {
       target: { value: "ongoing" },
     });
-    expect(table().getByText("Grace Wambui")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(listTraineesAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ filters: { training_status: "ongoing" } })
+      )
+    );
+    expect(await table().findByText("Grace Wambui")).toBeInTheDocument();
     expect(table().queryByText("Mercy Akinyi")).toBeNull();
     fireEvent.change(screen.getByRole("combobox", { name: "Status" }), {
       target: { value: "All" },
@@ -174,8 +195,30 @@ describe("trainee register", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Search trainees" }), {
       target: { value: "tailoring" },
     });
-    expect(table().getByText("Wanjiru Achieng")).toBeInTheDocument();
-    expect(table().queryByText("Halima Noor")).toBeNull();
+    await waitFor(
+      () =>
+        expect(listTraineesAction).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "tailoring" })
+        ),
+      { timeout: 2000 }
+    );
+    expect(await table().findByText("Wanjiru Achieng")).toBeInTheDocument();
+    await waitFor(() => expect(table().queryByText("Halima Noor")).toBeNull());
+  });
+
+  it("sorts on the server by the clicked column", async () => {
+    vi.mocked(listTraineesAction).mockResolvedValue({
+      success: true,
+      message: "OK",
+      data: page(trainees),
+    } as never);
+    render(<TraineeRegister workspace={workspace} can={allowed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Trainee" }));
+    await waitFor(() =>
+      expect(listTraineesAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: { by: "trainee", order: "asc" } })
+      )
+    );
   });
 });
 

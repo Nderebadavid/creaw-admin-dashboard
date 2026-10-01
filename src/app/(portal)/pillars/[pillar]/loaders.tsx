@@ -1,7 +1,7 @@
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/permissions";
 import { type PillarCode } from "@/features/pillars/schemas";
-import { assessmentsApi } from "@/features/assessments/api";
-import { wrosApi } from "@/features/wros/api";
+import type { PillarView } from "@/features/pillars/api";
+import { wrosApi, type PipelineStageDef } from "@/features/wros/api";
 import { vawgApi } from "@/features/vawg/api";
 import { sessionsApi } from "@/features/sessions/api";
 import { trainingApi } from "@/features/training/api";
@@ -26,18 +26,19 @@ export const ids: Record<PillarCode, number> = {
 export async function loadVawgWorkspace(
   grants: readonly EffectiveGrant[],
   code: PillarCode,
-  currentUserId?: number
+  currentUserId: number | undefined,
+  cards: PillarView["cards"]["vawg"]
 ) {
   const pillarId = ids.vawg;
   const allowed =
     code === "vawg" &&
+    cards !== null &&
     hasPermission(grants, "CASE_VIEW", { pillarId }) &&
     hasPermission(grants, "PARTICIPANT_VIEW", { pillarId });
   if (!allowed) return undefined;
   return vawgApi
     .workspace({
       canViewCounselling: hasPermission(grants, "COUNSELLING_VIEW", { pillarId }),
-      canLogCounselling: hasPermission(grants, "COUNSELLING_LOG", { pillarId }),
       currentUserId,
     })
     .catch(() => "failed" as const);
@@ -51,45 +52,49 @@ export async function loadSessionsWorkspace(
   grants: readonly EffectiveGrant[],
   code: PillarCode,
   period: SessionPeriod,
-  user: { id: number; name: string }
+  user: { id: number; name: string },
+  cards: PillarView["cards"]["sessions"]
 ) {
-  if (!isSessionPillar(code)) return undefined;
+  if (!isSessionPillar(code) || cards === null) return undefined;
   if (!hasPermission(grants, "ACTIVITY_SESSION_VIEW", { pillarId: SESSION_PILLAR_IDS[code] }))
     return undefined;
-  const canLog = hasPermission(grants, "ACTIVITY_SESSION_LOG", {
-    pillarId: SESSION_PILLAR_IDS[code],
-  });
-  return sessionsApi
-    .workspace(code, period, { canLog, currentUser: user })
-    .catch(() => "failed" as const);
+  return sessionsApi.workspace(code, period, cards, user).catch(() => "failed" as const);
 }
 
 /**
  * The Skilling trainee workspace, none for other pillars and users without trainee
  * access there, or "failed" when it can't load (the page then degrades).
  */
-export async function loadTrainingWorkspace(grants: readonly EffectiveGrant[], code: PillarCode) {
+export async function loadTrainingWorkspace(
+  grants: readonly EffectiveGrant[],
+  code: PillarCode,
+  cards: PillarView["cards"]["trainees"]
+) {
   const scope = { pillarId: TRAINING_PILLAR_ID };
-  if (code !== "skilling" || !hasPermission(grants, "TRAINING_ENROLLMENT_VIEW", scope))
+  if (
+    code !== "skilling" ||
+    cards === null ||
+    !hasPermission(grants, "TRAINING_ENROLLMENT_VIEW", scope)
+  )
     return undefined;
-  const canEdit = hasPermission(grants, "TRAINING_ENROLLMENT_EDIT", scope);
-  return trainingApi.workspace({ canEdit }).catch(() => "failed" as const);
+  return trainingApi.workspace(cards).catch(() => "failed" as const);
 }
 
-/** The WRO partner register with the options its dialogs need, trimmed to the user's grants. */
-export async function loadWroRegister(grants: readonly EffectiveGrant[], pillarId: number) {
+/** The WRO partner register, page 1 of it, with the pipeline its stage column uses. */
+export async function loadWroRegister(
+  grants: readonly EffectiveGrant[],
+  pillarId: number,
+  stages: readonly PipelineStageDef[]
+) {
   const can = (code: string) => hasPermission(grants, code, { pillarId });
   const canRegister = can("ORGANISATION_EDIT") && can("PARTICIPANT_EDIT");
-  const [organisations, wards, assessmentOptions] = await Promise.all([
-    wrosApi.list(),
-    canRegister ? wrosApi.wardOptions().catch(() => []) : [],
-    can("ORG_ASSESSMENT_EDIT") ? assessmentsApi.options().catch(() => undefined) : undefined,
-  ]);
+  const initial = await wrosApi.list({ page: 1, pageSize: 25 }).catch(() => null);
+  if (!initial) return undefined;
   return (
     <OrganisationRegister
-      organisations={organisations}
-      wards={wards}
-      assessmentOptions={assessmentOptions}
+      initial={initial}
+      stages={stages}
+      canAssess={can("ORG_ASSESSMENT_EDIT")}
       canRegister={canRegister}
       canMove={can("ORGANISATION_EDIT") && can("FIELD_SUBMISSION_REVIEW")}
       canReveal={can("SENSITIVE_REVEAL")}

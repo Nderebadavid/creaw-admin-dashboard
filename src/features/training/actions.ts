@@ -15,6 +15,7 @@ import { actionResult } from "@/lib/api/action-result";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
+import { cleanListQuery, type ListQuery } from "@/lib/api/list";
 import { createTrainingApi } from "./api";
 import {
   earningStatuses,
@@ -81,7 +82,7 @@ async function placementValues(input: unknown) {
   if (value.traineeId && !current) return { error: actionResult(404, "Trainee not found") };
   // A trainer must be an active trainer, unless an edit keeps the one already set.
   if (value.trainerId !== null && current?.trainer_provider_id !== value.trainerId) {
-    const trainers = await client.trainers();
+    const trainers = await client.trainers().catch(() => []);
     if (!trainers.some((item) => item.id === value.trainerId))
       return { error: actionResult(422, "Choose a trainer from the list") };
   }
@@ -103,8 +104,7 @@ export async function enrolTraineeAction(input: unknown) {
     if (checked.error) return checked.error;
     if (!checked.value.enrollmentId) return actionResult(422, "Choose a Skilling participant");
     const client = await api();
-    const enrollments = await client.enrollmentOptions();
-    if (!enrollments.some((item) => item.id === checked.value.enrollmentId))
+    if (!(await client.isSkillingEnrollment(checked.value.enrollmentId)))
       return actionResult(422, "Choose a participant enrolled in Skilling");
     return done(
       await client.create({ ...checked.body, enrollment_id: checked.value.enrollmentId })
@@ -199,5 +199,48 @@ export async function revealSalaryAction(traineeId: number): Promise<RevealResul
     return { success: true, value: `KES ${Number(result.value).toLocaleString("en-KE")}` };
   } catch {
     return { success: false, error: "Could not reveal the salary" };
+  }
+}
+
+/** One page of trainees for the register; the API filters, searches and sorts. */
+export async function listTraineesAction(query: ListQuery) {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "TRAINING_ENROLLMENT_VIEW", scope))
+    return { success: false, message: "You cannot view trainees.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (
+        await api()
+      ).listTrainees(
+        cleanListQuery(query, {
+          sort: [
+            "trainee",
+            "pathway",
+            "course",
+            "institution",
+            "sessions",
+            "status",
+            "outcome",
+            "grant",
+          ],
+          filters: ["pathway", "training_status"],
+        })
+      ),
+    };
+  } catch {
+    return { success: false, message: "Could not load the trainees.", data: null };
+  }
+}
+
+/** The participants, institutions and trainers the placement form offers, loaded when it opens. */
+export async function loadTraineeOptionsAction() {
+  if (!(await canEdit()))
+    return { success: false, message: "You cannot manage trainees in Skilling", data: null };
+  try {
+    return { success: true, message: "OK", data: await (await api()).formOptions() };
+  } catch {
+    return { success: false, message: "Could not load the options.", data: null };
   }
 }

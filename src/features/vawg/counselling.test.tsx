@@ -1,9 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { logCounsellingAction, updateCounsellingAction } from "./actions";
+import {
+  listSurvivorsAction,
+  loadCaseDetailAction,
+  loadCounsellingOptionsAction,
+  loadSurvivorSessionsAction,
+  logCounsellingAction,
+  updateCounsellingAction,
+} from "./actions";
 import { CaseRegister } from "./components/case-register";
 import { CounsellingRegister } from "./components/counselling-register";
-import type { CounsellingSessionView, LegalCaseView, VawgWorkspace } from "./model";
+import type {
+  CounsellingFormOptions,
+  CounsellingSessionView,
+  LegalCaseView,
+  SurvivorCounselling,
+  VawgWorkspace,
+} from "./model";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -13,15 +26,26 @@ vi.mock("./actions", () => ({
   updateLegalCaseAction: vi.fn(),
   setCourtStatusAction: vi.fn(),
   attachCaseFileAction: vi.fn(),
+  listCasesAction: vi.fn(),
+  loadCaseDetailAction: vi.fn(),
+  loadCaseOptionsAction: vi.fn(),
+  listSurvivorsAction: vi.fn(),
+  loadSurvivorSessionsAction: vi.fn(),
+  loadCounsellingOptionsAction: vi.fn(),
   logCounsellingAction: vi.fn(async () => ({ success: true, resultCode: 201, message: "OK" })),
   updateCounsellingAction: vi.fn(async () => ({ success: true, resultCode: 200, message: "OK" })),
   revealCounsellingNotesAction: vi.fn(),
 }));
 vi.mock("@/components/portal/data-actions", () => ({ auditedExportAction: vi.fn() }));
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
+type ListQueryLike = import("@/lib/api/list").ListQuery;
+const ok = <T,>(data: T) => ({ success: true, message: "OK", data });
+const page = <T,>(items: T[], totalItems = items.length) => ({
+  items,
+  page: 1,
+  pageSize: 25,
+  totalItems,
+  totalPages: Math.max(1, Math.ceil(totalItems / 25)),
 });
 
 const session = (
@@ -40,7 +64,35 @@ const session = (
   notes: "••••••••••••ion.",
   ...change,
 });
-const legalCase = {
+const provider = {
+  counsellor: { name: "Faith Kimani", kind: "provider" as const },
+  counsellorRef: { kind: "provider" as const, id: 1 },
+};
+const aisha: SurvivorCounselling = {
+  enrollmentId: 7,
+  participantId: 6,
+  name: "Aisha Mohamed",
+  sessionCount: 2,
+  lastDate: "2026-03-10",
+  lastType: "follow_up",
+  lastCounsellor: { name: "Cynthia Chelimo", kind: "staff" },
+  caseNumber: "CRW-VAWG-0002",
+};
+const halima: SurvivorCounselling = {
+  enrollmentId: 13,
+  participantId: 2,
+  name: "Halima Noor",
+  sessionCount: 1,
+  lastDate: "2026-02-10",
+  lastType: "psychological_first_aid",
+  lastCounsellor: { name: "Faith Kimani", kind: "provider" },
+  caseNumber: null,
+};
+const sessionsOf: Record<number, CounsellingSessionView[]> = {
+  7: [session(1, 7, 1), session(2, 7, 2)],
+  13: [session(3, 13, 1, provider)],
+};
+const legalCase: LegalCaseView = {
   id: 2,
   number: "CRW-VAWG-0002",
   survivor: "Aisha Mohamed",
@@ -62,52 +114,54 @@ const legalCase = {
   opened: "2026-05-02",
   ruling: null,
   closed: null,
+  requiresForms: false,
+  status: "ACTIVE",
+  statusDescription: null,
+  outcomeNotes: null,
+  created: null,
+  updated: null,
   counselling: [],
   documents: [],
   missing: [],
-} satisfies LegalCaseView;
-const workspace: VawgWorkspace = {
-  cases: [legalCase],
-  summary: { survivors: 2, openCases: 1, sessions: 3, sessionsThisQuarter: 1, concluded: 0 },
-  caseTypes: [{ id: 2, name: "IPV — physical" }],
+};
+const options: CounsellingFormOptions = {
   survivors: [
-    { enrollmentId: 7, label: "Aisha Mohamed" },
-    { enrollmentId: 13, label: "Halima Noor" },
-  ],
-  counselling: [
-    {
-      enrollmentId: 7,
-      participantId: 6,
-      name: "Aisha Mohamed",
-      sessions: [session(1, 7, 1), session(2, 7, 2)],
-      caseNumber: "CRW-VAWG-0002",
-    },
-    {
-      enrollmentId: 13,
-      participantId: 2,
-      name: "Halima Noor",
-      sessions: [
-        session(3, 13, 1, {
-          counsellor: { name: "Faith Kimani", kind: "provider" },
-          counsellorRef: { kind: "provider", id: 1 },
-        }),
-      ],
-      caseNumber: null,
-    },
+    { enrollmentId: 7, label: "Aisha Mohamed", sessionCount: 2 },
+    { enrollmentId: 13, label: "Halima Noor", sessionCount: 1 },
   ],
   counsellors: [
     { kind: "staff", id: 6, name: "Cynthia Chelimo", detail: "CREAW staff" },
     { kind: "provider", id: 1, name: "Faith Kimani", detail: "Counsellor" },
   ],
+};
+const workspace: Pick<VawgWorkspace, "cases" | "counselling" | "currentUserId"> = {
+  cases: page([legalCase]),
+  counselling: page([aisha, halima]),
   currentUserId: 6,
 };
 const allowed = { log: true, reveal: true };
 const table = () => within(screen.getByRole("table", { name: "Counselling register" }));
 
-function openSurvivor(name: string, can = allowed) {
+beforeEach(() => {
+  vi.mocked(listSurvivorsAction).mockResolvedValue(ok(page([aisha, halima])) as never);
+  vi.mocked(loadSurvivorSessionsAction).mockImplementation((async (id: number) =>
+    ok(sessionsOf[id] ?? [])) as never);
+  vi.mocked(loadCounsellingOptionsAction).mockResolvedValue(ok(options) as never);
+  vi.mocked(loadCaseDetailAction).mockResolvedValue(
+    ok({ counselling: [], documents: [], missing: [] }) as never
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+async function openSurvivor(name: string, can = allowed) {
   render(<CounsellingRegister workspace={workspace} can={can} />);
   fireEvent.click(screen.getByRole("button", { name: `Open counselling for ${name}` }));
-  return screen.getByRole("dialog");
+  const drawer = screen.getByRole("dialog");
+  await within(drawer).findAllByRole("article");
+  return drawer;
 }
 
 describe("counselling register", () => {
@@ -121,25 +175,56 @@ describe("counselling register", () => {
     expect(table().getByText("None")).toBeInTheDocument();
     expect(table().getByText("Faith Kimani")).toBeInTheDocument();
     expect(table().getByText("Provider")).toBeInTheDocument();
+    expect(listSurvivorsAction).not.toHaveBeenCalled();
   });
 
-  it("filters to survivors with or without a legal case and searches counsellors", () => {
+  it("asks the API for survivors with or without a legal case, and for searches and sorts", async () => {
+    vi.mocked(listSurvivorsAction).mockImplementation((async (query: ListQueryLike) => {
+      const filters = (query.filters ?? {}) as Record<string, string>;
+      const rows = [aisha, halima].filter(
+        (row) => !filters.has_legal_case || (filters.has_legal_case === "true") === !!row.caseNumber
+      );
+      return ok(page(rows));
+    }) as never);
     render(<CounsellingRegister workspace={workspace} can={allowed} />);
     const chips = screen.getByRole("group", { name: "Legal case" });
     fireEvent.click(within(chips).getByRole("button", { name: "Counselling only" }));
-    expect(table().queryByText("Aisha Mohamed")).toBeNull();
+    await waitFor(() =>
+      expect(listSurvivorsAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1, filters: { has_legal_case: "false" } })
+      )
+    );
+    await waitFor(() => expect(table().queryByText("Aisha Mohamed")).toBeNull());
     expect(table().getByText("Halima Noor")).toBeInTheDocument();
-    fireEvent.click(within(chips).getByRole("button", { name: "All" }));
+    fireEvent.click(within(chips).getByRole("button", { name: "With a legal case" }));
+    await waitFor(() =>
+      expect(listSurvivorsAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ filters: { has_legal_case: "true" } })
+      )
+    );
     fireEvent.change(screen.getByRole("searchbox", { name: "Search counselling register" }), {
       target: { value: "kimani" },
     });
-    expect(table().queryByText("Aisha Mohamed")).toBeNull();
+    await waitFor(
+      () =>
+        expect(listSurvivorsAction).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "kimani" })
+        ),
+      { timeout: 2000 }
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Sessions" }));
+    await waitFor(() =>
+      expect(listSurvivorsAction).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: { by: "sessions", order: "asc" } })
+      )
+    );
   });
 });
 
 describe("survivor drawer", () => {
-  it("lists sessions in order with masked notes and the linked case", () => {
-    const drawer = openSurvivor("Aisha Mohamed");
+  it("loads sessions in order with masked notes and shows the linked case", async () => {
+    const drawer = await openSurvivor("Aisha Mohamed");
+    expect(loadSurvivorSessionsAction).toHaveBeenCalledWith(7);
     expect(drawer).toHaveTextContent("Counselling · VAWG");
     expect(drawer).toHaveTextContent("Legal case CRW-VAWG-0002");
     const sessions = within(drawer).getAllByRole("article");
@@ -156,8 +241,14 @@ describe("survivor drawer", () => {
     expect(drawer).toHaveTextContent("CRW-VAWG-0002");
   });
 
-  it("hides reveal and disables logging without permission", () => {
-    const drawer = openSurvivor("Halima Noor", { log: false, reveal: false });
+  it("says the sessions are loading before they arrive", () => {
+    render(<CounsellingRegister workspace={workspace} can={allowed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open counselling for Aisha Mohamed" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Loading sessions…");
+  });
+
+  it("hides reveal and disables logging without permission", async () => {
+    const drawer = await openSurvivor("Halima Noor", { log: false, reveal: false });
     expect(within(drawer).getByRole("button", { name: /Log session/ })).toBeDisabled();
     expect(within(drawer).getByRole("button", { name: "Edit session 1" })).toBeDisabled();
     expect(within(drawer).queryByRole("button", { name: /Reveal/ })).toBeNull();
@@ -166,9 +257,12 @@ describe("survivor drawer", () => {
 
 describe("counselling dialog", () => {
   it("logs the next session for the open survivor, defaulting to the signed-in counsellor", async () => {
-    const drawer = openSurvivor("Aisha Mohamed");
+    const drawer = await openSurvivor("Aisha Mohamed");
     fireEvent.click(within(drawer).getByRole("button", { name: /Log session/ }));
     const dialog = screen.getByRole("dialog");
+    // The options load when the dialog opens.
+    await within(dialog).findByRole("option", { name: "Cynthia Chelimo" });
+    expect(loadCounsellingOptionsAction).toHaveBeenCalled();
     expect(dialog).toHaveTextContent("This will be session 3 for Aisha Mohamed.");
     expect(within(dialog).getByLabelText("Counsellor")).toHaveValue("staff:6");
     expect(within(dialog).getByLabelText("Session type")).toHaveValue("follow_up");
@@ -187,14 +281,16 @@ describe("counselling dialog", () => {
   });
 
   it("edits a session without pre-filling its masked notes and keeps a departed counsellor", async () => {
-    const departed = {
-      ...workspace,
-      counsellors: workspace.counsellors.filter((row) => row.kind === "staff"),
-    };
-    render(<CounsellingRegister workspace={departed} can={allowed} />);
-    fireEvent.click(screen.getByRole("button", { name: "Open counselling for Halima Noor" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit session 1" }));
+    vi.mocked(loadCounsellingOptionsAction).mockResolvedValue(
+      ok({
+        ...options,
+        counsellors: options.counsellors.filter((row) => row.kind === "staff"),
+      }) as never
+    );
+    const drawer = await openSurvivor("Halima Noor");
+    fireEvent.click(within(drawer).getByRole("button", { name: "Edit session 1" }));
     const dialog = screen.getByRole("dialog");
+    await within(dialog).findByRole("option", { name: "Cynthia Chelimo" });
     expect(within(dialog).getByLabelText("Notes")).toHaveValue("");
     expect(within(dialog).getByLabelText("Notes")).toHaveAttribute(
       "placeholder",
@@ -213,7 +309,7 @@ describe("counselling dialog", () => {
     );
   });
 
-  it("opens from a legal case for that case's survivor", () => {
+  it("opens from a legal case for that case's survivor", async () => {
     render(
       <CaseRegister
         workspace={workspace}
@@ -229,8 +325,8 @@ describe("counselling dialog", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Open CRW-VAWG-0002" }));
     fireEvent.click(screen.getByRole("button", { name: /Log counselling/ }));
-    expect(screen.getByRole("dialog")).toHaveTextContent(
-      "This will be session 3 for Aisha Mohamed."
-    );
+    const dialog = screen.getByRole("dialog");
+    await within(dialog).findByRole("option", { name: "Cynthia Chelimo" });
+    expect(dialog).toHaveTextContent("This will be session 3 for Aisha Mohamed.");
   });
 });

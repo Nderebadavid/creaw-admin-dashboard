@@ -19,7 +19,9 @@ import { makeRow } from "../rows";
 import { tableDefinitions } from "../schema";
 import { TRAINING_DERIVED_COLUMNS, trainingRead } from "../training";
 import { parseIncludes, withIncludes, type IncludeRequest } from "../includes";
-import { referenceNameColumns, withReferenceNames } from "../references";
+import { DERIVED_COLUMNS, derivedFields } from "../derived";
+import type { EffectiveGrant } from "../../auth/permissions";
+import { displayName, referenceNameColumns, withReferenceNames } from "../references";
 import { filterSubmissionRows } from "@/features/submissions/filter";
 import { type ApiEnvelope, type PaginatedData } from "@/types/api";
 import type { MockStore, TableName } from "@/types/db";
@@ -42,6 +44,7 @@ const RESERVED_KEYS = new Set([
   "ids",
   "sort",
   "include",
+  "facet",
 ]);
 
 const fullName = (row: Row | undefined) =>
@@ -108,6 +111,7 @@ export function presentedColumns(table: TableName): string[] {
       ...referenceNameColumns(table),
       ...(DERIVED_NAME_COLUMNS[table] ?? []),
       ...(EXTRA_DERIVED_COLUMNS[table] ?? []),
+      ...(DERIVED_COLUMNS[table] ?? []),
     ]),
   ];
 }
@@ -116,7 +120,12 @@ export function presentedColumns(table: TableName): string[] {
  * Rows as the API returns them: sensitive fields masked, every linked record named,
  * plus each table's own derived fields (stages, hand-offs, people).
  */
-export function presentRow(store: MockStore, table: TableName, row: Row): Row {
+export function presentRow(
+  store: MockStore,
+  table: TableName,
+  row: Row,
+  grants?: EffectiveGrant[]
+): Row {
   const base =
     table === "referral"
       ? referralRead(store, row)
@@ -125,7 +134,7 @@ export function presentRow(store: MockStore, table: TableName, row: Row): Row {
         : table === "training_enrollment"
           ? trainingRead(store, withNames(store, table, masked(table, row)))
           : withNames(store, table, masked(table, row));
-  return withReferenceNames(store, table, base);
+  return withReferenceNames(store, table, { ...base, ...derivedFields(store, table, row, grants) });
 }
 
 /** Named views that bypass the generic row/list handling; undefined when none applies. */
@@ -150,6 +159,34 @@ function readSpecialView(ctx: ResourceContext): Envelope | undefined {
       { application_id: existing.id, simulated: true },
       "Mock application pack metadata only"
     );
+  }
+  if (table === "referral" && id === undefined && query.get("catalog") === "origins") {
+    if ([...query.keys()].some((key) => !["catalog", "search"].includes(key))) return envelope(422);
+    if (!hasModulePermission(grants, "REFERRAL_CREATE")) return envelope(403);
+    // Enrollments the caller may refer from: a pillar they can refer in and view participants of.
+    const needle = (query.get("search") ?? "").trim().toLowerCase();
+    const items = store.enrollment
+      .filter(
+        (item) =>
+          !item.is_deleted &&
+          item.participant_id !== null &&
+          hasPermission(grants, "REFERRAL_CREATE", { pillarId: item.pillar_id }) &&
+          hasPermission(grants, "PARTICIPANT_VIEW", { pillarId: item.pillar_id })
+      )
+      .map((item) => ({
+        enrollment_id: item.id,
+        pillar_id: item.pillar_id,
+        participant: displayName(store, "enrollment", item.id) ?? "Participant record",
+        category: item.entry_category,
+      }))
+      .filter(
+        (item) => !needle || `${item.participant} ${item.category}`.toLowerCase().includes(needle)
+      )
+      .sort(
+        (a, b) => a.participant.localeCompare(b.participant) || a.enrollment_id - b.enrollment_id
+      )
+      .slice(0, 100);
+    return envelope(200, { items });
   }
   if (table === "referral" && id === undefined && query.has("catalog")) {
     if (query.get("catalog") !== "destinations") return envelope(422);
@@ -241,9 +278,9 @@ function readSingle(ctx: ResourceContext, existing: Row): Envelope {
         store,
         grants,
         table,
-        presentRow(store, table, existing),
+        presentRow(store, table, existing, grants),
         includes,
-        (child, row) => presentRow(store, child, row)
+        (child, row) => presentRow(store, child, row, grants)
       );
   if (query.has("reveal")) {
     const field = query.get("reveal")!;
@@ -281,6 +318,8 @@ interface ListParams {
   exportIds: number[] | null;
   sort: { key: string; direction: 1 | -1 }[];
   includes: IncludeRequest[];
+  /** Fields to count values of (`facet=a,b`), at most three. */
+  facets: string[];
 }
 
 /** Validates paging, filters and export options; a 422 envelope for anything malformed. */
@@ -346,9 +385,11 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   }
   const includes = parseIncludes(table, query.get("include"));
   if (!includes) return envelope(422, null, "Unknown include");
+  const facets = (query.get("facet") ?? "").split(",").filter(Boolean);
+  if (facets.length > 3 || facets.some((key) => !usable(key))) return envelope(422);
 
   const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
-  return { page, pageSize, pillarFilter, search, countyId, exportIds, sort, includes };
+  return { page, pageSize, pillarFilter, search, countyId, exportIds, sort, includes, facets };
 }
 
 /**
@@ -356,12 +397,20 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
  * each paired with its presented form (masked and named), which filters, search and
  * sort read so they work on derived names too.
  */
-function filterRows(ctx: ResourceContext, params: ListParams): Presented[] {
-  const { store, query, grants, table, rows, permission } = ctx;
+function filterRows(
+  ctx: ResourceContext,
+  params: ListParams,
+  /** Column filters to leave out, when counting a facet's own values. */
+  skip: readonly string[] = []
+): Presented[] {
+  const { store, query, grants, family, table, rows, permission } = ctx;
   const includeDeleted = query.get("includeDeleted") === "true";
+  // Field submissions come from the mobile app; stage moves made on the portal are not.
+  const fieldOnly = family === "field-submissions" && table === "participant_stage_event";
   let result = rows.filter(
     (row) =>
       (visible(row) || includeDeleted) &&
+      (!fieldOnly || row.source_channel !== "portal") &&
       allowed(store, grants, permission, table, row) &&
       (params.pillarFilter === undefined || scopes(store, table, row).includes(params.pillarFilter))
   );
@@ -376,9 +425,9 @@ function filterRows(ctx: ResourceContext, params: ListParams): Presented[] {
     const selected = new Set(params.exportIds);
     result = result.filter((row) => selected.has(row.id));
   }
-  let presented = result.map((row) => ({ row, view: presentRow(store, table, row) }));
+  let presented = result.map((row) => ({ row, view: presentRow(store, table, row, grants) }));
   for (const [key, value] of query)
-    if (!RESERVED_KEYS.has(key))
+    if (!RESERVED_KEYS.has(key) && !skip.includes(key))
       presented = presented.filter((item) => String(item.view[key]) === value);
   // Search uses the visible representation (masked, with names) so it cannot become
   // an oracle for masked identity numbers or other hidden data.
@@ -452,7 +501,7 @@ function exportCsv(ctx: ResourceContext, rows: Row[]): Envelope {
         ),
       ];
   const safeRow = (row: Row): Record<string, unknown> => {
-    if (!submissions) return presentRow(store, table, row);
+    if (!submissions) return presentRow(store, table, row, grants);
     const { id, pillar: pillarName, captured, status, source } = submissionSummary(store, row);
     return { id, pillar: pillarName, captured, status, source };
   };
@@ -500,12 +549,24 @@ export function readResource(ctx: ResourceContext): Envelope {
 
   const { page, pageSize, includes } = params;
   const { store, grants, table } = ctx;
+  // Counts of each value of a field over the rows that match every filter but that field's own.
+  const facets = params.facets.length
+    ? Object.fromEntries(
+        params.facets.map((key) => {
+          const counts: Record<string, number> = {};
+          for (const { view } of filterRows(ctx, params, [key]))
+            counts[String(view[key] ?? "")] = (counts[String(view[key] ?? "")] ?? 0) + 1;
+          return [key, counts];
+        })
+      )
+    : undefined;
   const data: PaginatedData<Row> = {
+    ...(facets ? { facets } : {}),
     items: rows
       .slice((page - 1) * pageSize, page * pageSize)
       .map(({ view }) =>
         withIncludes(store, grants, table, view, includes, (child, row) =>
-          presentRow(store, child, row)
+          presentRow(store, child, row, grants)
         )
       ),
     page,

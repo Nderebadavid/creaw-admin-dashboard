@@ -278,6 +278,8 @@ const FORMS: Record<string, { pillars: string[]; permission: string }> = {
   trainee: { pillars: ["skilling"], permission: "TRAINING_ENROLLMENT_EDIT" },
   counselling: { pillars: ["vawg"], permission: "COUNSELLING_LOG" },
   case: { pillars: ["vawg"], permission: "CASE_EDIT" },
+  organisation: { pillars: ["wros"], permission: "ORGANISATION_EDIT" },
+  assessment: { pillars: ["wros"], permission: "ORG_ASSESSMENT_EDIT" },
 };
 
 /** Enrollments of a pillar as `{id, label}`: the person's name, plus the entry category. */
@@ -291,6 +293,16 @@ function enrollmentOptions(store: MockStore, pillarId: number, withCategory: boo
         label: withCategory && row.entry_category ? `${name} · ${row.entry_category}` : name,
       };
     });
+}
+
+/** Survivors with the number of counselling sessions logged, so the form can say which is next. */
+function survivorOptions(store: MockStore, pillarId: number) {
+  return enrollmentOptions(store, pillarId, false).map((row) => ({
+    ...row,
+    sessions: store.counselling_session.filter(
+      (item) => !item.is_deleted && item.enrollment_id === row.id
+    ).length,
+  }));
 }
 
 /**
@@ -342,8 +354,36 @@ export function handleFormOptions(ctx: MockContext) {
     });
   if (name === "counselling")
     return envelope(200, {
-      survivors: enrollmentOptions(store, pillar.id, false),
+      survivors: survivorOptions(store, pillar.id),
       counsellors: peopleOptions(store, "counsellor_option"),
+    });
+  if (name === "organisation") {
+    const wardLabel = (ward: MockStore["ward"][number]) => {
+      const subCounty = store.sub_county.find((item) => item.id === ward.sub_county_id);
+      const county = displayName(store, "county", subCounty?.county_id);
+      return county ? `${ward.name} · ${county}` : ward.name;
+    };
+    return envelope(200, {
+      wards: store.ward
+        .filter((row) => !row.is_deleted)
+        .map((ward) => ({ id: ward.id, name: wardLabel(ward) })),
+    });
+  }
+  if (name === "assessment")
+    return envelope(200, {
+      organisations: store.organisation
+        .filter((row) => !row.is_deleted)
+        .map((row) => ({ id: row.id, name: row.name })),
+      instruments: store.assessment_instrument
+        .filter((row) => !row.is_deleted)
+        .map((instrument) => ({
+          id: instrument.id,
+          name: instrument.name,
+          criteria: store.assessment_criterion
+            .filter((item) => !item.is_deleted && item.instrument_id === instrument.id)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((item) => ({ id: item.id, label: item.label, max: item.max_score })),
+        })),
     });
   return envelope(200, {
     survivors: enrollmentOptions(store, pillar.id, false),

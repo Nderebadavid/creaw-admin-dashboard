@@ -6,15 +6,17 @@
 import { z } from "zod";
 import type { ApiClient } from "@/lib/api/client";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
-import { collectPages } from "@/lib/api/pagination";
+import { listParams, type ListQuery } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
+import type { PaginatedData } from "@/types/api";
 import {
-  buildTrainingSummary,
   handoffStages,
+  summaryFromCards,
   pathways,
   trainingStatuses,
   workStatuses,
   type TraineeView,
+  type TrainingFormOptions,
   type TrainingOption,
   type TrainingWorkspace,
 } from "./model";
@@ -61,18 +63,6 @@ const enrollmentSchema = z.object({
   participant_id: id.nullable(),
   entry_category: z.string().nullable(),
 });
-const participantSchema = z.object({
-  id,
-  first_name: z.string(),
-  middle_name: z.string().nullish(),
-  last_name: z.string(),
-});
-const institutionSchema = z.object({
-  id,
-  name: z.string(),
-  status: z.string(),
-  is_deleted: z.boolean(),
-});
 const trainerSchema = z.object({ id, name: z.string(), detail: z.string() });
 export const traineeMutationSchema = createEnvelopeSchema(
   z.union([z.object({ id }).passthrough(), z.null()])
@@ -80,17 +70,7 @@ export const traineeMutationSchema = createEnvelopeSchema(
 const traineeReadSchema = createEnvelopeSchema(z.union([traineeSchema, z.null()]));
 
 type Values = Record<string, string | number | boolean | null>;
-type Page<T> = {
-  success: boolean;
-  message: string;
-  data: {
-    items: T[];
-    page: number;
-    pageSize: number;
-    totalItems: number;
-    totalPages: number;
-  } | null;
-};
+type Envelope<T> = { success: boolean; message: string; data: T | null };
 
 /** The view of one trainee row; names fall back to generic labels, never ids. */
 export function traineeView(row: TraineeRow): TraineeView {
@@ -126,28 +106,39 @@ export function traineeView(row: TraineeRow): TraineeView {
   };
 }
 
-export interface TrainingWorkspaceOptions {
-  /** Whether to load the placement form's options (needs TRAINING_ENROLLMENT_EDIT). */
-  canEdit?: boolean;
-}
+/** The register's column ids and the API fields they sort by. */
+export const TRAINEE_SORT_KEYS: Record<string, string> = {
+  trainee: "participant_name",
+  pathway: "pathway",
+  course: "course_name",
+  institution: "institution_name",
+  sessions: "life_skills_sessions",
+  status: "training_status",
+  outcome: "current_work_status",
+  grant: "grant_handoff",
+};
+
+const optionsSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      enrollments: z.array(z.object({ id, label: z.string() })),
+      institutions: z.array(z.object({ id, label: z.string() })),
+      trainers: z.array(z.object({ id, label: z.string() })),
+    }),
+    z.null(),
+  ])
+);
 
 export function createTrainingApi(client: ApiClient, token: string) {
-  const all = <T>(
-    path: string,
-    routeTemplate: "/pillars/:pillar" | "/lookups/:table" | "/participants",
-    query: Record<string, string | number>,
-    schema: z.ZodType<T>
-  ) =>
-    collectPages(async (pageNo, pageSize) => {
-      const result = (await client.request(
-        { method: "GET", path, routeTemplate, token, query: { ...query, page: pageNo, pageSize } },
-        page(schema) as never
-      )) as Page<T>;
-      if (!result.success || !result.data) throw new Error(result.message);
-      return result.data;
-    });
-  const table = <T>(name: string, schema: z.ZodType<T>) =>
-    all<T>(PATH, "/pillars/:pillar", { table: name }, schema);
+  const read = <T>(query: Record<string, string | number>, schema: z.ZodType<Envelope<T>>) =>
+    client.request(
+      { method: "GET", path: PATH, routeTemplate: "/pillars/:pillar", token, query },
+      schema as never
+    ) as Promise<Envelope<T>>;
+  const required = <T>(result: Envelope<T>): T => {
+    if (!result.success || !result.data) throw new Error(result.message);
+    return result.data;
+  };
   const write = (method: "POST" | "PATCH", body: Values, traineeId?: number) =>
     client.request(
       {
@@ -165,50 +156,57 @@ export function createTrainingApi(client: ApiClient, token: string) {
     );
 
   return {
-    async workspace(options: TrainingWorkspaceOptions = {}): Promise<TrainingWorkspace> {
-      const [rows, enrollments, institutions, trainers] = await Promise.all([
-        table("training_enrollment", traineeSchema),
-        options.canEdit ? this.enrollmentOptions().catch(() => []) : Promise.resolve([]),
-        all("/lookups/partner_institution", "/lookups/:table", {}, institutionSchema).catch(
-          () => [] as z.infer<typeof institutionSchema>[]
-        ),
-        options.canEdit ? this.trainers() : Promise.resolve([]),
-      ]);
-      const trainees = rows
-        .map(traineeView)
-        .sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? "") || b.id - a.id);
+    /** One page of trainees; names, life-skills counts and the grant hand-off arrive with each row. */
+    async listTrainees(query: ListQuery = {}): Promise<PaginatedData<TraineeView>> {
+      const data = required(
+        await read(
+          {
+            table: "training_enrollment",
+            ...listParams(query, TRAINEE_SORT_KEYS, { sort: "start_date:desc" }),
+          },
+          page(traineeSchema) as never
+        )
+      ) as PaginatedData<TraineeRow>;
+      return { ...data, items: data.items.map(traineeView) };
+    },
+    /** Page 1 of the register with the headline counts the pillar summary already holds. */
+    async workspace(cards: Parameters<typeof summaryFromCards>[0]): Promise<TrainingWorkspace> {
       return {
-        trainees,
-        summary: buildTrainingSummary(trainees),
-        enrollments,
-        institutions: institutions
-          .filter((row) => row.status === "ACTIVE" && !row.is_deleted)
-          .map((row) => ({ id: row.id, label: row.name })),
-        trainers,
+        trainees: await this.listTrainees({ page: 1, pageSize: 25 }),
+        summary: summaryFromCards(cards),
       };
     },
-    /** Skilling enrollments a placement can be made for, labelled "<name> · <entry category>". */
-    async enrollmentOptions(): Promise<TrainingOption[]> {
-      const [enrollments, people] = await Promise.all([
-        table("enrollment", enrollmentSchema),
-        all("/participants", "/participants", { pillarId: 6 }, participantSchema),
-      ]);
-      return enrollments.flatMap((row) => {
-        const person = people.find((item) => item.id === row.participant_id);
-        if (!person) return [];
-        const name = [person.first_name, person.middle_name, person.last_name]
-          .filter(Boolean)
-          .join(" ");
-        return [
-          { id: row.id, label: row.entry_category ? `${name} · ${row.entry_category}` : name },
-        ];
-      });
+    /** What the enrol and edit forms offer: enrollments, institutions and trainers. */
+    async formOptions(): Promise<TrainingFormOptions> {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: `${PATH}/form-options`,
+          routeTemplate: "/pillars/:pillar/form-options",
+          token,
+          query: { form: "trainee" },
+        },
+        optionsSchema
+      );
+      return required(result);
     },
-    /** Active trainer providers, labelled "<name> · <detail>"; [] when the read fails. */
+    /** Whether an enrollment belongs to Skilling. */
+    async isSkillingEnrollment(enrollmentId: number) {
+      const result = await read(
+        { table: "enrollment", ids: String(enrollmentId), page: 1, pageSize: 1 },
+        page(enrollmentSchema) as never
+      );
+      return !!result.data && (result.data as PaginatedData<unknown>).items.length > 0;
+    },
+    /** Active trainer providers, labelled "<name> · <detail>". */
     async trainers(): Promise<TrainingOption[]> {
-      return table("trainer_option", trainerSchema)
-        .then((rows) => rows.map((row) => ({ id: row.id, label: `${row.name} · ${row.detail}` })))
-        .catch(() => []);
+      const data = required(
+        await read(
+          { table: "trainer_option", page: 1, pageSize: 100 },
+          page(trainerSchema) as never
+        )
+      ) as PaginatedData<z.infer<typeof trainerSchema>>;
+      return data.items.map((row) => ({ id: row.id, label: `${row.name} · ${row.detail}` }));
     },
     /** One trainee as the API returns it, or null when it is not there. */
     async trainee(traineeId: number) {
@@ -248,7 +246,7 @@ export function createTrainingApi(client: ApiClient, token: string) {
 }
 
 export const trainingApi = {
-  async workspace(options?: TrainingWorkspaceOptions) {
-    return (await withSessionApi(createTrainingApi)).workspace(options);
+  async workspace(cards: Parameters<typeof summaryFromCards>[0]) {
+    return (await withSessionApi(createTrainingApi)).workspace(cards);
   },
 };

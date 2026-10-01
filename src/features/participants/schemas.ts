@@ -2,6 +2,23 @@ import { z } from "zod";
 import { createEnvelopeSchema, createPaginatedSchema } from "@/lib/api/contracts";
 
 const positive = z.number().int().positive();
+const optionalText = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
+export const enrollmentDtoSchema = z.object({
+  id: positive,
+  participant_id: positive.nullable(),
+  pillar_id: positive,
+  entry_category: z.string(),
+  status: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export const enrollmentReadDtoSchema = enrollmentDtoSchema.extend({
+  current_stage: z.string().nullable(),
+  current_stage_date: z.string().nullable(),
+});
 export const participantDtoSchema = z.object({
   id: positive,
   first_name: z.string(),
@@ -15,21 +32,19 @@ export const participantDtoSchema = z.object({
   is_consent_given: z.boolean(),
   remarks: z.string().nullable(),
   status: z.string(),
+  status_description: optionalText,
   created_at: z.string(),
   updated_at: z.string(),
-});
-export const enrollmentDtoSchema = z.object({
-  id: positive,
-  participant_id: positive.nullable(),
-  pillar_id: positive,
-  entry_category: z.string(),
-  status: z.string(),
-  created_at: z.string(),
-  updated_at: z.string(),
-});
-export const enrollmentReadDtoSchema = enrollmentDtoSchema.extend({
-  current_stage: z.string().nullable(),
-  current_stage_date: z.string().nullable(),
+  /** Placed and summarised by the API, so a registry row needs no other table. */
+  ward_name: optionalText,
+  county_id: positive.nullish().transform((value) => value ?? null),
+  county_name: optionalText,
+  current_stage_name: optionalText,
+  /** The enrollments in pillars the caller may view (`include=enrollments`). */
+  enrollments: z
+    .array(enrollmentReadDtoSchema)
+    .nullish()
+    .transform((value) => value ?? []),
 });
 export const lookupDtoSchema = z.object({
   id: positive,
@@ -52,6 +67,23 @@ export const enrollmentDetailSchema = createEnvelopeSchema(
 );
 export const lookupListSchema = createEnvelopeSchema(
   z.union([createPaginatedSchema(lookupDtoSchema), z.null()])
+);
+/** `GET /lookups?tables=pillar,county,ward`: several lookup tables in one call. */
+export const catalogSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      tables: z.object({
+        pillar: z.array(lookupDtoSchema),
+        county: z.array(lookupDtoSchema),
+        ward: z.array(
+          lookupDtoSchema.extend({ county_id: positive.nullish().transform((v) => v ?? undefined) })
+        ),
+      }),
+      denied: z.array(z.string()),
+      version: z.string(),
+    }),
+    z.null(),
+  ])
 );
 export const participantMutationSchema = participantDetailSchema;
 export const enrollmentMutationSchema = createEnvelopeSchema(
@@ -83,3 +115,18 @@ export type ParticipantRegistration = z.infer<typeof participantRegistrationSche
 export type ParticipantUpdate = z.infer<typeof participantUpdateSchema>;
 export type ParticipantDto = z.infer<typeof participantDtoSchema>;
 export type EnrollmentDto = z.infer<typeof enrollmentReadDtoSchema>;
+
+/** A participant as a picker lists them: a name and the ward the API names. */
+export const participantPickerSchema = createEnvelopeSchema(
+  z.union([
+    createPaginatedSchema(
+      z.object({
+        id: z.number().int(),
+        first_name: z.string(),
+        last_name: z.string(),
+        ward_name: z.string().nullish(),
+      })
+    ),
+    z.null(),
+  ])
+);

@@ -5,6 +5,14 @@ const id = z.number().int().positive();
 const page = <T extends z.ZodType>(item: T) =>
   createEnvelopeSchema(z.union([createPaginatedSchema(item), z.null()]));
 
+const optionalText = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
+const optionalNumber = z
+  .number()
+  .nullish()
+  .transform((value) => value ?? null);
 export const organisationDtoSchema = z.object({
   id,
   name: z.string(),
@@ -17,35 +25,42 @@ export const organisationDtoSchema = z.object({
   due_diligence_status: z.string(),
   due_diligence_date: z.string().nullable(),
   status: z.string(),
+  status_description: optionalText,
   created_at: z.string(),
+  updated_at: optionalText,
+  /** Named and summarised by the API, so a register row needs no other table. */
+  ward_name: optionalText,
+  county_name: optionalText,
+  enrollment_id: optionalNumber,
+  entry_category: optionalText,
+  current_stage_index: optionalNumber,
+  stage_count: optionalNumber,
+  is_contracted: z
+    .boolean()
+    .nullish()
+    .transform((value) => value ?? null),
 });
 export type OrganisationDto = z.infer<typeof organisationDtoSchema>;
 export const organisationListSchema = page(organisationDtoSchema);
-export const enrollmentListSchema = page(
-  z.object({
-    id,
-    organisation_id: id.nullable(),
-    entry_category: z.string(),
-    status: z.string(),
-  })
+export const organisationDetailSchema = createEnvelopeSchema(
+  z.union([
+    organisationDtoSchema.extend({
+      stage_events: z
+        .array(
+          z.object({
+            id,
+            stage_definition_id: id,
+            stage_event_status: z.string(),
+            event_date: z.string(),
+          })
+        )
+        .default([]),
+    }),
+    z.null(),
+  ])
 );
-export const pipelineListSchema = page(z.object({ id, pillar_id: id }));
-export const stageListSchema = page(
-  z.object({ id, pipeline_id: id, step_no: z.number().int(), name: z.string() })
-);
-export const stageEventListSchema = page(
-  z.object({
-    id,
-    enrollment_id: id,
-    stage_definition_id: id,
-    stage_event_status: z.string(),
-    event_date: z.string(),
-    source_channel: z.string(),
-    notes: z.string().nullable(),
-  })
-);
-export const lookupListSchema = page(
-  z.object({ id, name: z.string(), sub_county_id: id.optional(), county_id: id.optional() })
+export const organisationOptionsSchema = createEnvelopeSchema(
+  z.union([z.object({ wards: z.array(z.object({ id, name: z.string() })) }), z.null()])
 );
 export const mutationSchema = createEnvelopeSchema(
   z.union([z.object({ id }).passthrough(), z.null()])

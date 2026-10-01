@@ -1,20 +1,21 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
-import { Pagination } from "@/components/data-table/pagination";
+import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { dateSortValue } from "@/components/data-table/sorting";
 import { TableCard } from "@/components/data-table/table-card";
-import { useClientPaging } from "@/components/data-table/use-client-paging";
-import { useClientSort } from "@/components/data-table/use-client-sort";
+import { usePagedList } from "@/components/data-table/use-paged-list";
+import { useRecordDetail } from "@/components/ui/use-record-detail";
+import type { ListQuery } from "@/lib/api/list";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
-import { viewCaseFileAction } from "../actions";
-import type { LegalCaseView, VawgWorkspace } from "../model";
+import { listCasesAction, loadCaseDetailAction, viewCaseFileAction } from "../actions";
+import { courtStatuses, type LegalCaseView, type VawgWorkspace } from "../model";
 import { AttachCaseFileDialog, CourtStatusDialog, EditCaseDialog } from "./case-dialogs";
 import { CaseDrawer } from "./case-drawer";
 import { CounsellingFormDialog } from "./counselling-dialogs";
@@ -82,12 +83,12 @@ const columns: DataColumn<LegalCaseView>[] = [
   },
 ];
 
-/** The design's VAWG legal case register, with each case's record panel and actions. */
+/** The design's VAWG legal case register, paged by the API, with each case's record panel and actions. */
 export function CaseRegister({
   workspace,
   can,
 }: {
-  workspace: VawgWorkspace;
+  workspace: Pick<VawgWorkspace, "cases" | "counselling" | "currentUserId">;
   can: {
     edit: boolean;
     attach: boolean;
@@ -99,7 +100,11 @@ export function CaseRegister({
   };
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState("All");
+  const list = usePagedList<LegalCaseView, ListQuery>(
+    workspace.cases,
+    { page: 1, pageSize: workspace.cases.pageSize },
+    listCasesAction
+  );
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [modal, setModal] = useState<
@@ -112,38 +117,15 @@ export function CaseRegister({
   const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
-  const selected = workspace.cases.find((row) => row.id === selectedId) ?? null;
-  const statuses = useMemo(
-    () => ["All", ...new Set(workspace.cases.map((row) => courtStatusLabel(row.courtStatus)))],
-    [workspace.cases]
-  );
-  const needle = search.trim().toLocaleLowerCase();
-  const filtered = useMemo(
-    () =>
-      workspace.cases.filter(
-        (row) =>
-          (status === "All" || courtStatusLabel(row.courtStatus) === status) &&
-          (!needle ||
-            [
-              row.number,
-              row.survivor,
-              row.caseType,
-              row.court,
-              row.assignedOfficer,
-              row.nextCourtDate ? formatDate(row.nextCourtDate) : "Pending",
-              courtStatusLabel(row.courtStatus),
-            ]
-              .join(" ")
-              .toLocaleLowerCase()
-              .includes(needle))
-      ),
-    [workspace.cases, status, needle]
-  );
-  const { rows, sorting } = useClientSort(filtered, columns);
-  const { pageRows, pager, resetPage } = useClientPaging(rows);
+  const detail = useRecordDetail(selectedId, loadCaseDetailAction);
+  const row = list.data.items.find((item) => item.id === selectedId) ?? null;
+  const selected = row ? { ...row, ...detail.data } : null;
+  const status = list.query.filters?.court_status ? String(list.query.filters.court_status) : "All";
   const done = (message: string) => {
     setModal(null);
     setFeedback(message);
+    void list.refresh();
+    detail.reload();
     router.refresh();
   };
   async function view(documentId: number) {
@@ -158,47 +140,53 @@ export function CaseRegister({
     <>
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{error}</FormBanner>
+      {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
         title="Legal case register"
         subtitle="Open a case for the full record"
         chipsLabel="Court status"
-        chips={statuses.map((label) => ({
-          label,
-          active: status === label,
-          onSelect: () => {
-            setStatus(label);
-            resetPage();
-          },
+        chips={["All", ...courtStatuses].map((value) => ({
+          label: value === "All" ? value : courtStatusLabel(value),
+          active: status === value,
+          onSelect: () =>
+            list.filter({ filters: value === "All" ? undefined : { court_status: value } }),
         }))}
         search={{
           value: search,
           label: "Search legal case register",
           onChange: (value) => {
             setSearch(value);
-            resetPage();
+            list.filter({ search: value || undefined });
           },
         }}
         actions={can.export && <ExportButton label="CSV" exportAction={exportCases} />}
-        footer={<Pagination {...pager} hint="Click a row to open the record" />}
+        footer={
+          <Pagination
+            page={list.data.page}
+            pageSize={list.data.pageSize as PageSize}
+            totalItems={list.data.totalItems}
+            hint="Click a row to open the record"
+            onPageChange={(page) => list.filter({ page }, false)}
+            onPageSizeChange={(pageSize) => list.filter({ pageSize })}
+          />
+        }
       >
         <DataTable
           framed={false}
           label="Legal case register"
           columns={columns}
-          rows={pageRows}
-          getRowId={(row) => row.id}
-          filtered={filtered.length === 0 && (status !== "All" || needle.length > 0)}
-          onRowOpen={(row) => setSelectedId(row.id)}
-          rowOpenLabel={(row) => `Open ${row.number}`}
-          sort={sorting.sort}
-          onSortChange={(sort) => {
-            sorting.onSortChange(sort);
-            resetPage();
-          }}
+          rows={list.data.items}
+          getRowId={(item) => item.id}
+          filtered={list.data.items.length === 0 && (status !== "All" || search.length > 0)}
+          onRowOpen={(item) => setSelectedId(item.id)}
+          rowOpenLabel={(item) => `Open ${item.number}`}
+          sort={list.query.sort}
+          onSortChange={(sort) => list.filter({ sort })}
         />
       </TableCard>
       <CaseDrawer
         legalCase={modal === null ? selected : null}
+        detailLoading={detail.loading}
         can={can}
         onClose={() => setSelectedId(null)}
         onEdit={() => setModal({ kind: "edit" })}
@@ -212,7 +200,7 @@ export function CaseRegister({
       <CounsellingFormDialog
         key={modal?.kind === "counselling" ? `counsel-${selectedId}` : "counsel-closed"}
         open={modal?.kind === "counselling"}
-        workspace={workspace}
+        currentUserId={workspace.currentUserId}
         enrollmentId={selected?.enrollmentId}
         session={null}
         onClose={() => setModal(null)}
@@ -221,7 +209,6 @@ export function CaseRegister({
       <EditCaseDialog
         key={modal?.kind === "edit" ? `edit-${selectedId}` : "edit-closed"}
         legalCase={modal?.kind === "edit" ? selected : null}
-        caseTypes={workspace.caseTypes}
         onClose={() => setModal(null)}
         onDone={done}
       />

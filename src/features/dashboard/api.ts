@@ -6,22 +6,12 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
-import type { ApiClient, ApiClientRequest } from "@/lib/api/client";
+import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
-import { collectPages } from "@/lib/api/pagination";
-import type { ApiEnvelope, PaginatedData } from "@/types/api";
 import { MONTHS_SHORT } from "@/lib/format";
 import { pillarLookBySlug } from "@/components/portal/pillars";
-import { catalogSchema, reportPageSchema } from "@/features/reporting/schemas";
 import { daysUntil } from "@/features/reporting/status";
-import type { z } from "zod";
-import {
-  dashboardAuditSchema,
-  dashboardDtoSchema,
-  dashboardEnrollmentSchema,
-  dashboardParticipantSchema,
-  dashboardSubmissionSchema,
-} from "./schemas";
+import { dashboardOverviewSchema } from "./schemas";
 
 export interface DashboardPillar {
   id: number;
@@ -85,12 +75,6 @@ export interface DashboardOverview {
   }[];
 }
 
-type Sources = Awaited<ReturnType<typeof fetchSources>>;
-type Participants = Sources["participants"];
-type Submissions = Sources["submissions"];
-type Reports = Sources["reports"];
-type PillarDto = Sources["dto"]["pillars"][number];
-
 /** Presentation for each pillar code; the schema has no targets, so they live here. */
 const pillarPresentation: Record<
   string,
@@ -104,208 +88,71 @@ const pillarPresentation: Record<
   SKILLING: { slug: "skilling", label: "Skilling", target: 200, color: "#7A3A1F" },
 };
 
-/** Resolves to null instead of throwing, so one failing panel doesn't blank the dashboard. */
-async function optional<T>(load: () => Promise<T>): Promise<T | null> {
-  try {
-    return await load();
-  } catch {
-    return null;
-  }
-}
+/** The overview's presentation for a pillar the API does not describe. */
+const unknownPillar = (code: string) => ({
+  slug: code.toLowerCase(),
+  label: code,
+  target: 1,
+  color: "#6E6459",
+});
 
-type Query = Record<string, string | number>;
-
-/** Every record the overview needs, fetched in parallel where the calls are independent. */
-async function fetchSources(client: ApiClient, token: string) {
-  const get = async <T>(
-    path: string,
-    routeTemplate: ApiClientRequest["routeTemplate"],
-    schema: z.ZodType<ApiEnvelope<T | null>>,
-    query: Query = {}
-  ): Promise<T> => {
-    const result = await client.request(
-      { method: "GET", path, routeTemplate, token, query },
-      schema
-    );
-    if (!result.success || !result.data) throw new Error(result.message);
-    return result.data;
-  };
-  const allPages = <T>(
-    path: string,
-    routeTemplate: ApiClientRequest["routeTemplate"],
-    schema: z.ZodType<ApiEnvelope<PaginatedData<T> | null>>,
-    query: Query = {}
-  ) =>
-    collectPages((page, pageSize) =>
-      get(path, routeTemplate, schema, { ...query, page, pageSize })
-    );
-
-  const [dto, participants, submissions, reports, reportCatalog, audit] = await Promise.all([
-    get("/dashboard", "/dashboard", dashboardDtoSchema),
-    optional(() => allPages("/participants", "/participants", dashboardParticipantSchema)),
-    optional(() => allPages("/field-submissions", "/field-submissions", dashboardSubmissionSchema)),
-    // The reporting calendar: narrative and grant reports with their donor programme and due date.
-    optional(() => allPages("/reports", "/reports", reportPageSchema, { calendar: "true" })),
-    // Names the pillar leads; only readable by users who can open the calendar.
-    optional(() => get("/reports", "/reports", catalogSchema, { catalog: "true" })),
-    // Only the newest five entries are shown; the API sorts, so one page is enough.
-    optional(async () => {
-      const query = { page: 1, pageSize: 5, sortBy: "performed_at", sortOrder: "desc" };
-      return (await get("/audit-logs", "/audit-logs", dashboardAuditSchema, query)).items;
-    }),
-  ]);
-  // Per-pillar enrollments need the pillar list from /dashboard.
-  const enrollments = await Promise.all(
-    dto.pillars.map((pillar) =>
-      optional(() =>
-        allPages(
-          `/pillars/${pillar.code.toLowerCase()}`,
-          "/pillars/:pillar",
-          dashboardEnrollmentSchema,
-          {
-            table: "enrollment",
-          }
-        )
-      )
-    )
-  );
-  return { dto, participants, submissions, reports, reportCatalog, audit, enrollments };
-}
-
-/** Reach per pillar: current enrollments against the presentation target. */
-function buildPillarCards(
-  pillars: PillarDto[],
-  enrollments: Sources["enrollments"],
-  owners: { id: number; name: string }[] | undefined
-): DashboardPillar[] {
-  return pillars.map((pillar, index) => {
-    const key = pillar.code.toUpperCase();
-    const presentation = pillarPresentation[key] ?? {
-      slug: pillar.code.toLowerCase(),
-      label: pillar.code,
-      target: 1,
-      color: "#6E6459",
-    };
-    return {
-      id: pillar.id,
-      code: presentation.slug,
-      name: presentation.label,
-      reached: enrollments[index]?.length ?? 0,
-      target: presentation.target,
-      color: presentation.color,
-      href: `/pillars/${presentation.slug}`,
-      active: enrollments[index]?.filter((row) => row.status === "ACTIVE").length ?? 0,
-      lead: owners?.find((owner) => owner.id === pillar.lead_user_id)?.name ?? null,
-    };
-  });
-}
-
-/** New registrations and verified field updates per month of `year`, already narrowed to a pillar. */
-function buildMonthly(
-  year: string,
-  participants: Participants | null,
-  submissions: Submissions | null
-) {
-  const registered = participants?.map((row) => row.created_at) ?? [];
-  const verified =
-    submissions
-      ?.filter((row) => row.stage_event_status === "verified")
-      .map((row) => row.event_date) ?? [];
-  return MONTHS_SHORT.map((month, index) => {
-    const prefix = `${year}-${String(index + 1).padStart(2, "0")}`;
-    return {
-      month,
-      newCount: registered.filter((date) => date.startsWith(prefix)).length,
-      completedCount: verified.filter((date) => date.startsWith(prefix)).length,
-    };
-  });
-}
-
-/** Participants registered from `from` up to (not including) `to`, both `YYYY-MM-DD`. */
-function countBetween(from: string, to: string, participants: Participants | null) {
-  const start = new Date(from).getTime();
-  const end = new Date(to).getTime();
-  return (participants ?? []).filter((row) => {
-    const time = Date.parse(row.created_at);
-    return time >= start && time < end;
-  }).length;
-}
-
-/** e.g. "SRHR narrative report (Hewlett Foundation) is 12 days overdue", most overdue first. */
-function buildReportingAlerts(reports: Reports | null): string[] {
-  return (reports ?? [])
-    .filter((row) => row.status === "overdue")
-    .map((row) => {
-      const days = Math.max(0, -daysUntil(row.dueDate));
-      return `${row.title} (${row.project}) is ${days} day${days === 1 ? "" : "s"} overdue`;
-    });
-}
-
-/** The four newest unverified submissions, labelled with their pillar and what was captured. */
-function buildRecentSubmissions(
-  submissions: Submissions | null,
-  enrollmentById: Map<number, { pillar: DashboardPillar; category: string | null }>
-) {
-  return (submissions ?? [])
-    .filter((row) => row.stage_event_status !== "verified")
-    .slice(0, 4)
-    .map((row) => {
-      const enrollment = enrollmentById.get(row.enrollment_id);
-      return {
-        id: row.id,
-        title: row.notes?.split(" — ")[0] ?? `Submission #${row.id}`,
-        pillar: enrollment?.pillar.name ?? "Programme",
-        type: enrollment?.category ?? undefined,
-        pillarColor: enrollment?.pillar.color,
-        status: row.stage_event_status === "disputed" ? "Flagged" : "Pending review",
-        captured: row.event_date,
-      };
-    });
-}
+/** e.g. "SRHR narrative report (Hewlett Foundation) is 12 days overdue". */
+const overdueAlert = (row: { title: string; project: string; due_date: string }) => {
+  const days = Math.max(0, -daysUntil(row.due_date));
+  return `${row.title} (${row.project}) is ${days} day${days === 1 ? "" : "s"} overdue`;
+};
 
 export function createDashboardApi(client: ApiClient, token: string) {
   return {
     /**
+     * Every panel of the overview from one call: the API counts, groups and scopes them.
      * @param period The year charted in "Monthly enrollments".
      * @param chartPillar A pillar slug narrowing that chart; every pillar when omitted.
      */
     async getOverview(period: string, chartPillar?: string): Promise<DashboardOverview> {
       const year = /^20\d{2}$/.test(period) ? period : "2026";
-      const { dto, participants, submissions, reports, reportCatalog, audit, enrollments } =
-        await fetchSources(client, token);
-      const pillars = buildPillarCards(dto.pillars, enrollments, reportCatalog?.owners);
-      const enrollmentById = new Map(
-        enrollments.flatMap(
-          (rows, index) =>
-            rows?.map(
-              (row) => [row.id, { pillar: pillars[index], category: row.entry_category }] as const
-            ) ?? []
-        )
+      const result = await client.request(
+        {
+          method: "GET",
+          path: "/dashboard",
+          routeTemplate: "/dashboard",
+          token,
+          query: { view: "overview", year, ...(chartPillar ? { pillar: chartPillar } : {}) },
+        },
+        dashboardOverviewSchema
       );
-      const reportingAlerts = buildReportingAlerts(reports);
-      // The chart's pillar filter keeps only that pillar's participants and field updates.
-      const charted = enrollments[pillars.findIndex((pillar) => pillar.code === chartPillar)];
-      const chartedIds = charted && new Set(charted.map((row) => row.id));
-      const chartedParticipants = charted && new Set(charted.map((row) => row.participant_id));
+      if (!result.success || !result.data) throw new Error(result.message);
+      const dto = result.data;
+      const pillars: DashboardPillar[] = dto.pillars.map((pillar) => {
+        const key = pillar.code.toUpperCase();
+        const presentation = pillarPresentation[key] ?? unknownPillar(pillar.code);
+        return {
+          id: pillar.id,
+          code: presentation.slug,
+          name: presentation.label,
+          reached: pillar.reached,
+          target: presentation.target,
+          color: presentation.color,
+          href: `/pillars/${presentation.slug}`,
+          active: pillar.active,
+          lead: pillar.lead_name,
+        };
+      });
+      const reportingAlerts = (dto.reports?.overdue ?? []).map(overdueAlert);
       return {
-        activeParticipants: dto.participantCount,
-        newThisQuarter: countBetween(`${year}-07-01`, `${year}-10-01`, participants),
-        previousQuarter: countBetween(`${year}-04-01`, `${year}-07-01`, participants),
-        enrollmentCount: dto.enrollmentCount,
-        pendingSubmissions:
-          submissions?.filter((row) => row.stage_event_status !== "verified").length ?? 0,
+        activeParticipants: dto.participant_count,
+        newThisQuarter: dto.new_this_quarter,
+        previousQuarter: dto.previous_quarter,
+        enrollmentCount: dto.enrollment_count,
+        pendingSubmissions: dto.pending_submissions ?? 0,
         overdueReports: reportingAlerts.length,
-        totalReports: reports?.length ?? 0,
+        totalReports: dto.reports?.total ?? 0,
         pillars,
-        monthly: buildMonthly(
-          year,
-          chartedParticipants
-            ? (participants?.filter((row) => chartedParticipants.has(row.id)) ?? null)
-            : participants,
-          chartedIds
-            ? (submissions?.filter((row) => chartedIds.has(row.enrollment_id)) ?? null)
-            : submissions
-        ),
+        monthly: dto.monthly.map((row) => ({
+          month: MONTHS_SHORT[row.month - 1],
+          newCount: row.new_count,
+          completedCount: row.completed_count,
+        })),
         participantDistribution: pillars.map(({ name, reached, color, href }) => ({
           name: pillarLookBySlug(href.split("/").pop() ?? "")?.fullName ?? name,
           count: reached,
@@ -313,20 +160,28 @@ export function createDashboardApi(client: ApiClient, token: string) {
           href,
         })),
         reportingAlerts,
-        recentSubmissions: buildRecentSubmissions(submissions, enrollmentById),
-        upcomingReports: (reports ?? [])
-          .filter((row) => row.status !== "submitted")
-          .slice(0, 4)
-          .map((row) => ({
+        recentSubmissions: (dto.recent_submissions ?? []).map((row) => {
+          const pillar = pillars.find((item) => item.id === row.pillar_id);
+          return {
             id: row.id,
-            key: row.key,
-            title: row.title,
-            project: row.project,
-            status: row.status,
-            periodEnd: row.periodEnd,
-            dueDate: row.dueDate,
-          })),
-        recentActivity: (audit ?? []).slice(0, 5).map((row) => ({
+            title: row.title ?? `Submission #${row.id}`,
+            pillar: pillar?.name ?? "Programme",
+            type: row.category ?? undefined,
+            pillarColor: pillar?.color,
+            status: row.status === "disputed" ? "Flagged" : "Pending review",
+            captured: row.event_date,
+          };
+        }),
+        upcomingReports: (dto.reports?.upcoming ?? []).map((row) => ({
+          id: row.id,
+          key: row.key,
+          title: row.title,
+          project: row.project,
+          status: row.status,
+          periodEnd: row.period_end,
+          dueDate: row.due_date,
+        })),
+        recentActivity: (dto.recent_activity ?? []).map((row) => ({
           id: row.id,
           action: row.action,
           entity: row.entity_type,

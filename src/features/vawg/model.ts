@@ -1,4 +1,5 @@
 /** View models shared by the VAWG case server code and its client components. */
+import type { PaginatedData } from "@/types/api";
 
 /** The VAWG pillar's fixed id. */
 export const VAWG_PILLAR_ID = 1;
@@ -46,9 +47,26 @@ export interface LegalCaseView {
   opened: string;
   ruling: string | null;
   closed: string | null;
+  /** Whether the case type needs P3 and PRC forms in the court file. */
+  requiresForms: boolean;
+  status: string;
+  /** Why the record has its status, e.g. a deactivation reason. */
+  statusDescription: string | null;
+  /** As the API sends it: masked. */
+  outcomeNotes: string | null;
+  created: string | null;
+  updated: string | null;
+  /** Counselling, files and missing forms load with the case's detail; empty in the register. */
   counselling: { number: number; date: string; counsellor: string | null }[];
   documents: CaseDocument[];
   /** Forms this case type requires that are not on file, e.g. "P3 form". */
+  missing: string[];
+}
+
+/** What a case's drawer loads when it opens. */
+export interface CaseDetail {
+  counselling: LegalCaseView["counselling"];
+  documents: CaseDocument[];
   missing: string[];
 }
 
@@ -86,12 +104,16 @@ export interface CounsellingSessionView {
   notes: string | null;
 }
 
-/** One survivor's counselling: their sessions in order and any legal case they have. */
+/** One survivor's counselling; the sessions themselves load when their record opens. */
 export interface SurvivorCounselling {
   enrollmentId: number;
   participantId: number | null;
   name: string;
-  sessions: CounsellingSessionView[];
+  /** Sessions logged, and the latest one's date, type and counsellor. */
+  sessionCount: number;
+  lastDate: string | null;
+  lastType: CounsellingType | null;
+  lastCounsellor: CounsellorView | null;
   caseNumber: string | null;
 }
 
@@ -104,17 +126,24 @@ export interface VawgSummary {
   concluded: number;
 }
 
-/** Everything the VAWG register and its dialogs need. */
-export interface VawgWorkspace {
-  cases: LegalCaseView[];
-  summary: VawgSummary;
-  caseTypes: { id: number; name: string }[];
+/** The options VAWG's dialogs offer, loaded when a dialog opens. */
+export interface CaseFormOptions {
   /** VAWG enrollments a new case can be opened for, labelled with the survivor. */
   survivors: { enrollmentId: number; label: string }[];
-  /** Every VAWG survivor's counselling; null when the user cannot view counselling. */
-  counselling: SurvivorCounselling[] | null;
-  /** Active staff and external counsellors; [] when the user cannot log or the read fails. */
+  caseTypes: { id: number; name: string }[];
+}
+export interface CounsellingFormOptions {
+  /** Survivors, with the sessions already logged so the form can say which is next. */
+  survivors: { enrollmentId: number; label: string; sessionCount: number }[];
+  /** Active staff and external counsellors. */
   counsellors: CounsellorOption[];
+}
+
+/** What the VAWG page renders: page 1 of each register, ready for the server to hand over. */
+export interface VawgWorkspace {
+  cases: PaginatedData<LegalCaseView>;
+  /** Every survivor's counselling; null when the user cannot view counselling. */
+  counselling: PaginatedData<SurvivorCounselling> | null;
   /** The signed-in user, so a staff counsellor's own name can be the default. */
   currentUserId: number | null;
 }

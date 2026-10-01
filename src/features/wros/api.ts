@@ -5,28 +5,39 @@
  * `create*Api(client, token)` maps API DTOs into view models and is what tests
  * exercise directly; the exported singleton binds it to the signed-in session
  * for Server Components. Responses are envelope-validated with Zod; the API
- * applies permission and pillar-scope filtering and masks sensitive fields.
+ * applies permission and pillar-scope filtering, masks sensitive fields and names
+ * the ward, county and pipeline progress of each organisation.
  */
 import type { z } from "zod";
 import type { ApiClient } from "@/lib/api/client";
-import { collectPages } from "@/lib/api/pagination";
+import { listParams, type ListQuery } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
 import type { PaginatedData } from "@/types/api";
 import {
-  enrollmentListSchema,
   legalForms,
-  lookupListSchema,
   mutationSchema,
+  organisationDetailSchema,
   organisationListSchema,
-  pipelineListSchema,
-  stageEventListSchema,
-  stageListSchema,
+  organisationOptionsSchema,
+  type OrganisationDto,
   type OrganisationRegistration,
   type StageMove,
 } from "./schemas";
-import { WRO_PILLAR_ID, type OrganisationView } from "./model";
+import {
+  WRO_PILLAR_ID,
+  type OrganisationDetail,
+  type OrganisationFormOptions,
+  type OrganisationView,
+} from "./model";
 
-export { WRO_PILLAR_ID, type OrganisationStage, type OrganisationView } from "./model";
+export {
+  WRO_PILLAR_ID,
+  type OrganisationDetail,
+  type OrganisationFormOptions,
+  type OrganisationStage,
+  type OrganisationView,
+  type PipelineStageDef,
+} from "./model";
 
 const PATH = "/pillars/wros";
 
@@ -38,29 +49,43 @@ const required = <T>(result: Envelope<T>): T => {
 const bankAccountLabel = (value: boolean | string | null) =>
   value === null ? "Not recorded" : typeof value === "string" ? value : value ? "Yes" : "No";
 
+/** The register's column ids and the API fields they sort by. */
+export const ORGANISATION_SORT_KEYS: Record<string, string> = {
+  organisation: "name",
+  legalForm: "legal_form",
+  location: "county_name,ward_name",
+  stage: "current_stage_index",
+  registered: "created_at",
+  dueDiligence: "due_diligence_status",
+};
+
+/** An organisation as the register shows it; its place and pipeline progress arrive with the row. */
+export function organisationView(row: OrganisationDto): OrganisationView {
+  return {
+    id: row.id,
+    name: row.name,
+    legalForm: legalForms[row.legal_form as keyof typeof legalForms] ?? row.legal_form,
+    registrationNumber: row.registration_number,
+    ward: row.ward_name ?? "Not recorded",
+    county: row.county_name ?? "Not recorded",
+    address: row.address,
+    bankAccount: bankAccountLabel(row.has_bank_account),
+    dueDiligence: row.due_diligence_status,
+    registered: row.created_at,
+    status: row.status,
+    statusDescription: row.status_description,
+    updated: row.updated_at,
+    enrollmentId: row.enrollment_id,
+    entryCategory: row.entry_category ?? "Not enrolled",
+    currentStage: row.current_stage_index ?? -1,
+    stageCount: row.stage_count ?? 0,
+    contracted: row.is_contracted,
+  };
+}
+
 export function createWrosApi(client: ApiClient, token: string) {
   const request = <T>(input: Parameters<ApiClient["request"]>[0], schema: z.ZodType<T>) =>
     client.request(input, schema as never) as Promise<T>;
-  const all = <T>(
-    path: string,
-    routeTemplate: "/pillars/:pillar" | "/lookups/:table",
-    table: string | undefined,
-    schema: z.ZodType<Envelope<PaginatedData<T>>>
-  ) =>
-    collectPages(async (pageNo, pageSize) =>
-      required(
-        await request(
-          {
-            method: "GET",
-            path,
-            routeTemplate,
-            token,
-            query: { ...(table ? { table } : {}), page: pageNo, pageSize },
-          },
-          schema
-        )
-      )
-    );
   const post = (table: string, body: Record<string, unknown>, pillarId?: number) =>
     request(
       {
@@ -75,82 +100,58 @@ export function createWrosApi(client: ApiClient, token: string) {
     );
 
   return {
-    /** Every organisation in the WRO pillar, with its pipeline progress. */
-    async list(): Promise<OrganisationView[]> {
-      const [organisations, enrollments, pipelines, stages, events, wards, subCounties, counties] =
-        await Promise.all([
-          all(PATH, "/pillars/:pillar", "organisation", organisationListSchema),
-          all(PATH, "/pillars/:pillar", "enrollment", enrollmentListSchema),
-          all(PATH, "/pillars/:pillar", "pipeline_definition", pipelineListSchema),
-          all(PATH, "/pillars/:pillar", "stage_definition", stageListSchema),
-          // Stage events need the submissions grant; without it progress is unknown.
-          all(PATH, "/pillars/:pillar", "participant_stage_event", stageEventListSchema).catch(
-            () => []
-          ),
-          all("/lookups/ward", "/lookups/:table", undefined, lookupListSchema).catch(() => []),
-          all("/lookups/sub_county", "/lookups/:table", undefined, lookupListSchema).catch(
-            () => []
-          ),
-          all("/lookups/county", "/lookups/:table", undefined, lookupListSchema).catch(() => []),
-        ]);
-      const pipeline = pipelines.find((row) => row.pillar_id === WRO_PILLAR_ID);
-      const pipelineStages = stages
-        .filter((row) => row.pipeline_id === pipeline?.id)
-        .sort((a, b) => a.step_no - b.step_no);
-      return organisations.map((organisation) => {
-        const enrollment = enrollments.find((row) => row.organisation_id === organisation.id);
-        const reached = events.filter(
-          (row) => row.enrollment_id === enrollment?.id && row.stage_event_status !== "disputed"
-        );
-        const orgStages = pipelineStages.map((stage) => ({
-          id: stage.id,
-          name: stage.name,
-          reachedAt:
-            reached
-              .filter((row) => row.stage_definition_id === stage.id)
-              .map((row) => row.event_date)
-              .sort()
-              .at(-1) ?? null,
-        }));
-        const ward = wards.find((row) => row.id === organisation.ward_id);
-        const subCounty = subCounties.find((row) => row.id === ward?.sub_county_id);
-        const county = counties.find((row) => row.id === subCounty?.county_id);
-        return {
-          id: organisation.id,
-          name: organisation.name,
-          legalForm:
-            legalForms[organisation.legal_form as keyof typeof legalForms] ??
-            organisation.legal_form,
-          registrationNumber: organisation.registration_number,
-          ward: ward?.name ?? "Not recorded",
-          county: county?.name ?? "Not recorded",
-          address: organisation.address,
-          bankAccount: bankAccountLabel(organisation.has_bank_account),
-          dueDiligence: organisation.due_diligence_status,
-          registered: organisation.created_at,
-          status: organisation.status,
-          enrollmentId: enrollment?.id ?? null,
-          entryCategory: enrollment?.entry_category ?? "Not enrolled",
-          stages: orgStages,
-          currentStage: orgStages.reduce(
-            (furthest, stage, index) => (stage.reachedAt ? index : furthest),
-            -1
-          ),
-        };
-      });
+    /** One page of organisations; the API filters, searches and sorts. */
+    async list(query: ListQuery = {}): Promise<PaginatedData<OrganisationView>> {
+      const data = required(
+        await request(
+          {
+            method: "GET",
+            path: PATH,
+            routeTemplate: "/pillars/:pillar",
+            token,
+            query: { table: "organisation", ...listParams(query, ORGANISATION_SORT_KEYS) },
+          },
+          organisationListSchema
+        )
+      );
+      return { ...data, items: data.items.map(organisationView) };
+    },
+    /** When an organisation reached each pipeline stage, loaded when its drawer opens. */
+    async detail(organisationId: number): Promise<OrganisationDetail | null> {
+      const result = await request(
+        {
+          method: "GET",
+          path: PATH,
+          routeTemplate: "/pillars/:pillar",
+          token,
+          query: { table: "organisation", id: organisationId, include: "stage_events" },
+        },
+        organisationDetailSchema
+      );
+      if (!result.success || !result.data) return null;
+      const reachedAt: Record<number, string> = {};
+      for (const event of result.data.stage_events) {
+        if (event.stage_event_status === "disputed") continue;
+        const previous = reachedAt[event.stage_definition_id];
+        if (!previous || event.event_date > previous)
+          reachedAt[event.stage_definition_id] = event.event_date;
+      }
+      return { reachedAt };
     },
     /** Wards to register an organisation in, labelled with their county. */
-    async wardOptions(): Promise<{ id: number; name: string }[]> {
-      const [wards, subCounties, counties] = await Promise.all([
-        all("/lookups/ward", "/lookups/:table", undefined, lookupListSchema),
-        all("/lookups/sub_county", "/lookups/:table", undefined, lookupListSchema),
-        all("/lookups/county", "/lookups/:table", undefined, lookupListSchema),
-      ]);
-      return wards.map((ward) => {
-        const subCounty = subCounties.find((row) => row.id === ward.sub_county_id);
-        const county = counties.find((row) => row.id === subCounty?.county_id);
-        return { id: ward.id, name: county ? `${ward.name} · ${county.name}` : ward.name };
-      });
+    async formOptions(): Promise<OrganisationFormOptions> {
+      return required(
+        await request(
+          {
+            method: "GET",
+            path: `${PATH}/form-options`,
+            routeTemplate: "/pillars/:pillar/form-options",
+            token,
+            query: { form: "organisation" },
+          },
+          organisationOptionsSchema
+        )
+      );
     },
     /** Creates the organisation and its WRO enrollment, like "Register organisation" on mobile. */
     async register(input: OrganisationRegistration) {
@@ -188,10 +189,7 @@ export function createWrosApi(client: ApiClient, token: string) {
 }
 
 export const wrosApi = {
-  async list() {
-    return (await withSessionApi(createWrosApi)).list();
-  },
-  async wardOptions() {
-    return (await withSessionApi(createWrosApi)).wardOptions();
+  async list(query?: ListQuery) {
+    return (await withSessionApi(createWrosApi)).list(query);
   },
 };

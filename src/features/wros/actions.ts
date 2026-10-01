@@ -13,6 +13,7 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { auditedRevealAction } from "@/components/portal/data-actions";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
+import { cleanListQuery, type ListQuery } from "@/lib/api/list";
 import { createWrosApi, WRO_PILLAR_ID } from "./api";
 import { organisationRegistrationSchema, stageMoveSchema } from "./schemas";
 
@@ -77,4 +78,63 @@ export async function revealOrganisationBankAction(organisationId: number) {
     success: true as const,
     value: result.value === "true" ? "Yes" : result.value === "false" ? "No" : result.value,
   };
+}
+
+/** One page of partner organisations for the register; the API filters, searches and sorts. */
+export async function listOrganisationsAction(query: ListQuery) {
+  const session = await requireSession();
+  if (!hasPermission(session.grants, "ORGANISATION_VIEW", scope))
+    return { success: false, message: "You cannot view organisations.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (
+        await withSessionApi(createWrosApi)
+      ).list(
+        cleanListQuery(query, {
+          sort: ["organisation", "legalForm", "location", "stage", "registered", "dueDiligence"],
+          filters: ["is_contracted", "in_due_diligence"],
+        })
+      ),
+    };
+  } catch {
+    return { success: false, message: "Could not load the organisations.", data: null };
+  }
+}
+
+/** When an organisation reached each pipeline stage, for its drawer. */
+export async function loadOrganisationDetailAction(organisationId: number) {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(organisationId) || organisationId < 1)
+    return { success: false, message: "Invalid organisation.", data: null };
+  if (!hasPermission(session.grants, "ORGANISATION_VIEW", scope))
+    return { success: false, message: "You cannot view organisations.", data: null };
+  try {
+    const detail = await (await withSessionApi(createWrosApi)).detail(organisationId);
+    return detail
+      ? { success: true, message: "OK", data: detail }
+      : { success: false, message: "Organisation not found.", data: null };
+  } catch {
+    return { success: false, message: "Could not load the organisation.", data: null };
+  }
+}
+
+/** The wards the registration dialog offers, loaded when it opens. */
+export async function loadOrganisationOptionsAction() {
+  const session = await requireSession();
+  if (
+    !hasPermission(session.grants, "ORGANISATION_EDIT", scope) ||
+    !hasPermission(session.grants, "PARTICIPANT_EDIT", scope)
+  )
+    return { success: false, message: "You cannot register organisations.", data: null };
+  try {
+    return {
+      success: true,
+      message: "OK",
+      data: await (await withSessionApi(createWrosApi)).formOptions(),
+    };
+  } catch {
+    return { success: false, message: "Could not load the options.", data: null };
+  }
 }
