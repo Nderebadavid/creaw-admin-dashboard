@@ -91,7 +91,8 @@ export function createSeed(): MockStore {
         "COMMUNITY_VOLUNTEER",
         "PORTAL_VIEWER",
       ][i],
-      is_system_role: i < 2,
+      // As in the SQL seed: only System Administrator is built-in (and locked).
+      is_system_role: i === 0,
     })
   );
   story.permissions.forEach((permission) => add("permission", permission));
