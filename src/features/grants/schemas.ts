@@ -192,6 +192,13 @@ export const disburseInputSchema = z.object({
   date: z.iso.date(),
   notes: z.string().trim().max(255).optional(),
 });
+export const updateAwardInputSchema = z.object({
+  applicationId: id,
+  amount: z.number().positive(),
+});
+export const updateDisbursementInputSchema = disburseInputSchema.extend({
+  disbursementId: id,
+});
 export const grantPeriodInputSchema = z
   .object({
     applicationId: id,

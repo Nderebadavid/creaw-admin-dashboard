@@ -146,7 +146,10 @@ const invariants: Partial<Record<TableName, Invariant>> = {
     )
       return envelope(422, null, "A participant with this ID number is already registered");
   },
-  grant_disbursement(store, next) {
+  grant_disbursement(store, next, existing) {
+    // A payment stays on the award it was made against.
+    if (existing && next.grant_id !== existing.grant_id)
+      return envelope(422, null, "A payment cannot move to another award");
     const award = store.grant_award.find((row) => row.id === next.grant_id && live(row));
     const application =
       award && store.grant_application.find((row) => row.id === award.application_id && live(row));

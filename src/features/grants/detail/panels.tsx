@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarX, Check, Circle, FileText, History, Lock, Plus } from "lucide-react";
+import { CalendarX, Check, Circle, FileText, History, Lock, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
@@ -127,11 +127,19 @@ export function DisbursementPanel({
   canRecord,
   busy,
   onRecord,
+  canEditAward = false,
+  onEditAward,
+  onEditPayment,
 }: {
   detail: GrantDetail;
   canRecord: boolean;
   busy: boolean;
   onRecord: () => void;
+  /** The user may change the awarded amount. */
+  canEditAward?: boolean;
+  onEditAward?: () => void;
+  /** Opens the correction form for one recorded payment; omitted when they may not. */
+  onEditPayment?: (id: number) => void;
 }) {
   const award = detail.award;
   const paid = detail.disbursements.reduce((sum, item) => sum + item.amount, 0);
@@ -160,7 +168,21 @@ export function DisbursementPanel({
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-baseline justify-between gap-1.5">
               <span className="font-heading text-[32px] font-bold">{kes(paid)}</span>
-              <span className="text-sm text-creaw-faint">of {kes(awarded)} awarded</span>
+              <span className="flex items-center gap-2 text-sm text-creaw-faint">
+                of {kes(awarded)} awarded
+                {canEditAward && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy}
+                    aria-label="Edit awarded amount"
+                    onClick={onEditAward}
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                    Edit
+                  </Button>
+                )}
+              </span>
             </div>
             <div
               role="progressbar"
@@ -185,7 +207,21 @@ export function DisbursementPanel({
                     {item.date ? formatDate(item.date) : "Date pending"}
                   </p>
                 </div>
-                <span className="font-semibold tabular-nums">{kes(item.amount)}</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold tabular-nums">{kes(item.amount)}</span>
+                  {onEditPayment && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      aria-label={`Edit payment ${index + 1}`}
+                      onClick={() => onEditPayment(item.id)}
+                    >
+                      <Pencil size={14} aria-hidden="true" />
+                      Edit
+                    </Button>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

@@ -210,3 +210,67 @@ describe("sending a sign-off back", () => {
     expect((await apiFor(1).advance(3, "APPROVED")).resultCode).toBe(200);
   });
 });
+
+describe("correcting an award and its payments", () => {
+  const seeded = async () => {
+    const detail = (await apiFor(1).get(1))!;
+    return {
+      award: detail.award!,
+      payments: detail.disbursements,
+      paid: detail.disbursements.reduce((sum, row) => sum + row.amount, 0),
+      requested: getMockStore().grant_application[0].requested_amount,
+    };
+  };
+
+  it("changes the awarded amount within the request and above what was paid", async () => {
+    const { award, paid, requested } = await seeded();
+    expect(award.amountAwarded).toBeGreaterThan(0);
+    const target = Math.max(paid, 1) + 1;
+    expect((await apiFor(1).updateAward(award.id, target)).resultCode).toBe(200);
+    expect((await apiFor(1).get(1))?.award?.amountAwarded).toBe(target);
+    // Above the request, or below what has been paid, is refused and changes nothing.
+    expect((await apiFor(1).updateAward(award.id, requested + 1)).resultCode).toBe(422);
+    if (paid > 1) expect((await apiFor(1).updateAward(award.id, paid - 1)).resultCode).toBe(422);
+    expect((await apiFor(1).get(1))?.award?.amountAwarded).toBe(target);
+  });
+
+  it("corrects a payment's amount, date and note, but not beyond the award", async () => {
+    const { award, payments } = await seeded();
+    expect(payments.length).toBeGreaterThan(0);
+    const payment = payments[0];
+    const ok = await apiFor(1).updateDisbursement(payment.id, {
+      amount: payment.amount - 1,
+      date: "2026-05-21",
+      notes: "Corrected reference",
+    });
+    expect(ok.resultCode).toBe(200);
+    expect(
+      (await apiFor(1).get(1))?.disbursements.find((row) => row.id === payment.id)
+    ).toMatchObject({
+      amount: payment.amount - 1,
+      date: "2026-05-21",
+      notes: "Corrected reference",
+    });
+    const tooMuch = await apiFor(1).updateDisbursement(payment.id, {
+      amount: award.amountAwarded + 1,
+      date: "2026-05-21",
+    });
+    expect(tooMuch.resultCode).toBe(422);
+  });
+
+  it("does not let a payment be moved to another award", async () => {
+    const { payments } = await seeded();
+    const other = getMockStore().grant_award.find((row) => row.id !== 1);
+    if (!other) return;
+    const moved = await handleMockRequest({
+      method: "PATCH",
+      path: `/grants/${payments[0].id}`,
+      routeTemplate: "/grants/:id",
+      query: { table: "grant_disbursement" },
+      correlationId: crypto.randomUUID(),
+      token: issueMockToken(1),
+      body: { grant_id: other.id },
+    });
+    expect(moved.resultCode).toBe(422);
+  });
+});
