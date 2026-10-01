@@ -16,6 +16,7 @@ import {
   Workflow,
   SlidersHorizontal,
   Megaphone,
+  Contact,
   type LucideIcon,
 } from "lucide-react";
 import type { EffectiveGrant } from "@/lib/auth/permissions";
@@ -56,6 +57,7 @@ export const implementedPortalRoutes: readonly string[] = [
   "/reporting",
   "/audit",
   "/admin/users",
+  "/admin/providers",
   "/admin/permissions",
   "/admin/pipelines",
   "/admin/lookups/pillar",
@@ -181,6 +183,12 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     items: [
       { label: "Users & roles", href: "/admin/users", permissions: ["USER_MANAGE"], icon: UserCog },
       {
+        label: "Providers",
+        href: "/admin/providers",
+        permissions: ["PROVIDER_MANAGE"],
+        icon: Contact,
+      },
+      {
         label: "Roles & permissions",
         href: "/admin/permissions",
         permissions: ["PERMISSION_MANAGE", "ROLE_MANAGE"],
@@ -206,6 +214,7 @@ export const navigationGroups: { label: string; items: NavigationItem[] }[] = [
 const globalOnlyRoutes: ReadonlySet<string> = new Set([
   "/audit",
   "/admin/users",
+  "/admin/providers",
   "/admin/permissions",
   "/admin/lookups/pillar",
 ]);
