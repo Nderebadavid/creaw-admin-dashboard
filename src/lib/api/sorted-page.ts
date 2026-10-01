@@ -29,11 +29,20 @@ export async function sortedPage<T, Q extends Paging>(
   const pageSize = query.pageSize ?? 25;
   if (!isCount(page, Number.MAX_SAFE_INTEGER) || !isCount(pageSize, 100))
     throw new Error("Invalid pagination");
-  const rows = await collectPages((collectPage, collectSize) =>
-    list({ ...filters, page: collectPage, pageSize: collectSize } as unknown as Q)
-  );
+  // Facets count over every matching row, so the first page's hold for the sorted page too.
+  let facets: PaginatedData<T>["facets"];
+  const rows = await collectPages(async (collectPage, collectSize) => {
+    const result = await list({
+      ...filters,
+      page: collectPage,
+      pageSize: collectSize,
+    } as unknown as Q);
+    facets ??= result.facets;
+    return result;
+  });
   const sorted = sortRows(rows, sort, values[sort.by]);
   return {
+    ...(facets ? { facets } : {}),
     items: sorted.slice((page - 1) * pageSize, page * pageSize),
     page,
     pageSize,

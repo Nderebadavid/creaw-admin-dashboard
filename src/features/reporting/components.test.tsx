@@ -109,4 +109,25 @@ describe("reporting calendar", () => {
     fireEvent.click(screen.getByText("SRHR report"));
     expect(screen.getByRole("dialog", { name: "Upload report submission" })).toBeInTheDocument();
   });
+
+  it("counts every overdue report in scope, not only this page's", () => {
+    render(
+      <ReportingContent
+        initial={{
+          items: [],
+          page: 1,
+          pageSize: 25,
+          totalItems: 40,
+          totalPages: 2,
+          facets: { status: { overdue: 3, pending: 30, submitted: 7 } },
+        }}
+        catalog={{ projects: [], pillars: [] }}
+        canManage={false}
+        canExport={false}
+      />
+    );
+    expect(screen.getByText(/3 reports overdue/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reports" }).nextSibling).toHaveTextContent("40");
+    expect(screen.getByRole("heading", { name: "Submitted" }).nextSibling).toHaveTextContent("7");
+  });
 });

@@ -78,4 +78,18 @@ describe("sortedPage", () => {
       sortedPage(makeList(), { ...paging, sort: { by: "id", order: "asc" } }, values)
     ).rejects.toThrow("Invalid pagination");
   });
+
+  it("keeps the API's facets on a sorted page", async () => {
+    const list = makeList();
+    const faceted = vi.fn(async (query: { page?: number; pageSize?: number }) => ({
+      ...(await list(query)),
+      facets: { status: { open: 230 } },
+    }));
+    const result = await sortedPage(
+      faceted,
+      { page: 1, pageSize: 10, sort: { by: "name", order: "asc" } },
+      values
+    );
+    expect(result.facets).toEqual({ status: { open: 230 } });
+  });
 });

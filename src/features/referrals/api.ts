@@ -94,6 +94,8 @@ export interface ReferralPage {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+  /** `status` holds the referrals per status over every filter but the status itself. */
+  facets?: Record<string, Record<string, number>>;
 }
 
 export function createReferralsApi(client: ApiClient, token: string) {
@@ -227,6 +229,7 @@ export function createReferralsApi(client: ApiClient, token: string) {
               REFERRAL_SORT_KEYS
             ),
             ...(query.pillarId ? { pillarId: query.pillarId } : {}),
+            facet: "status",
           },
         },
         referralListSchema

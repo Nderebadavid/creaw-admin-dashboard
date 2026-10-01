@@ -18,6 +18,7 @@ import type { ReferralPage, ReferralQuery, ReferralView } from "./api";
 import type { ReferralDestinationCatalog } from "./schemas";
 import { exportReferralsAction, listReferralsAction } from "./actions";
 import { referralColumns } from "./queue/columns";
+import { ReferralSummaryCards } from "./queue/summary-cards";
 import {
   EditReferralDialog,
   NewReferralDialog,
@@ -86,6 +87,7 @@ export function ReferralsContent({
   return (
     <div className="space-y-5">
       {heading ? <PageHeading {...heading} actions={actions} /> : actions}
+      <ReferralSummaryCards counts={list.data.facets?.status} />
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard

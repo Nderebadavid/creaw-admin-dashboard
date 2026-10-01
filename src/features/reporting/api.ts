@@ -52,6 +52,8 @@ export interface ReportPage {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+  /** `status` holds the reports per status over every filter but the status itself. */
+  facets?: Record<string, Record<string, number>>;
 }
 export type ReportCatalog = NonNullable<z.infer<typeof catalogSchema>["data"]>;
 function required<T>(result: { success: boolean; data: T | null; message: string }): T {
@@ -80,6 +82,7 @@ export function createReportingApi(client: ApiClient, token: string) {
             ownerId: query.ownerId,
             status: query.status,
             search: query.search,
+            facet: "status",
           },
         },
         reportPageSchema
