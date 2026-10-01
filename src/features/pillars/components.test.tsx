@@ -211,7 +211,8 @@ describe("pillar screen", () => {
     expect(html).toContain("75%");
     // The title lives in the portal header; the page keeps it only as a screen-reader heading.
     expect(html).toContain('<h1 class="sr-only">Women&#x27;s Economic Empowerment</h1>');
-    expect(html).not.toContain("Pillars</span>");
+    expect(html).toContain("Home");
+    expect(html).toContain("Pillars");
     expect(html).not.toContain("WEE pillar");
     // Create sits with the records, not in the heading.
     expect(html.indexOf("New application")).toBeGreaterThan(html.indexOf("WEE pipeline"));

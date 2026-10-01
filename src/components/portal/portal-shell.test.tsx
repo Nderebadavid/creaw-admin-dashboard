@@ -79,7 +79,7 @@ it("shows the current page's title in the header, with no search box, and clears
   expect(header).not.toHaveTextContent("Participants");
 });
 
-it("keeps a page's own buttons as a slim row without repeating the title or breadcrumb", () => {
+it("keeps a page's own buttons as a slim row under the breadcrumb, without a big title or description", () => {
   render(
     <PortalShell session={session}>
       <PageHeading
@@ -93,5 +93,7 @@ it("keeps a page's own buttons as a slim row without repeating the title or brea
   expect(screen.getByRole("button", { name: "Register participant" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { level: 1, name: "Participants" })).toHaveClass("sr-only");
   expect(screen.queryByText("One registry")).not.toBeInTheDocument();
-  expect(screen.queryByText("Records")).not.toBeInTheDocument();
+  // The breadcrumb stays on the page, where it was.
+  const crumb = screen.getByText(/^Home/);
+  expect(crumb).toHaveTextContent("Home / Records / Participants");
 });
