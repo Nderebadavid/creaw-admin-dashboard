@@ -62,7 +62,7 @@ export function PillarContent({
   showDomainTable?: boolean;
   /** The pillar's own headline cards, in place of the generic record counts. */
   kpis?: React.ReactNode;
-  /** The heading's buttons, in place of the create actions. */
+  /** The page's own workspace buttons (log a session, open a case…), as a slim row. */
   headingActions?: React.ReactNode;
 }) {
   const reached = pillar.recordCount;
@@ -70,16 +70,9 @@ export function PillarContent({
   const Icon = look?.icon;
   const percent = pillar.target > 0 ? Math.round((reached / pillar.target) * 100) : 0;
   const active = pillar.activeCount;
-  // The register's own create action leads; enrolling a participant sits beside it.
-  const defaultActions = (
-    <>
-      {canCreate && actions}
-      {domainActions}
-    </>
-  );
   return (
     <div className="flex flex-col gap-[22px]">
-      {heading && <PageHeading {...heading} actions={headingActions ?? defaultActions} />}
+      {heading && <PageHeading {...heading} actions={headingActions} />}
       <div className="flex flex-wrap items-center gap-2" aria-label="Pillar navigation">
         {(
           availableCodes ?? (["vawg", "wee", "srhr", "leadership", "wros", "skilling"] as const)
@@ -262,7 +255,7 @@ export function PillarContent({
         <PillarDomainTable
           code={pillar.code}
           domain={pillar.domain}
-          actions={heading ? undefined : domainActions}
+          actions={domainActions}
           recordKind={recordKinds[pillar.code]}
           pillarName={pillar.name}
           accent={pillar.color}
@@ -281,7 +274,7 @@ export function PillarContent({
           totalPages: Math.max(1, Math.ceil(pillar.recordCount / 25)),
         }}
         label={`${pillar.name} programme records`}
-        headerActions={!heading && canCreate ? actions : undefined}
+        headerActions={canCreate ? actions : undefined}
         canEdit={canEditRecords}
       />
     </div>

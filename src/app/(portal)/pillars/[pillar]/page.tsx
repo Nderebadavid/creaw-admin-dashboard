@@ -227,9 +227,6 @@ export default async function PillarPage({
       headingActions={
         sessionWorkspace && sessionPermissions.log ? (
           <>
-            {canCreate ? (
-              <PillarCreateButton code={pillar.code} name={pillar.name} variant="outline" />
-            ) : null}
             {enrolTrainee}
             <LogSessionButton
               pillar={sessionWorkspace.pillar}
@@ -237,23 +234,14 @@ export default async function PillarPage({
             />
           </>
         ) : enrolTrainee ? (
-          <>
-            {canCreate ? (
-              <PillarCreateButton code={pillar.code} name={pillar.name} variant="outline" />
-            ) : null}
-            {enrolTrainee}
-          </>
+          <>{enrolTrainee}</>
         ) : vawg ? (
           <VawgHeadingActions
             currentUserId={session.user.id}
             canExport={vawgPermissions.export}
             canOpenCase={vawgPermissions.edit}
             canLogCounselling={counsellingPermissions.log}
-          >
-            {canCreate ? (
-              <PillarCreateButton code="vawg" name={pillar.name} variant="outline" />
-            ) : null}
-          </VawgHeadingActions>
+          ></VawgHeadingActions>
         ) : undefined
       }
       heading={{
