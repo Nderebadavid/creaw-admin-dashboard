@@ -40,6 +40,36 @@ describe("role and permission Server Actions", () => {
     ).toBe(403);
   });
 
+  it("treats only System Administrator as built-in, so every other seeded role is editable", async () => {
+    const store = getMockStore();
+    expect(store.role.filter((row) => row.is_system_role).map((row) => row.code)).toEqual([
+      "SYSTEM_ADMIN",
+    ]);
+    const pillarLead = store.role.find((row) => row.code === "PILLAR_LEAD")!;
+    const permission = store.permission.find((row) => row.code === "AUDIT_LOG_VIEW")!;
+    const grant = await setRolePermissionAction({
+      roleId: pillarLead.id,
+      permissionId: permission.id,
+      enabled: true,
+    });
+    expect(grant.resultCode).toBeLessThan(300);
+    expect(
+      store.role_permission.some(
+        (row) =>
+          row.role_id === pillarLead.id &&
+          row.permission_id === permission.id &&
+          !row.is_deleted &&
+          row.status === "ACTIVE"
+      )
+    ).toBe(true);
+    const revoke = await setRolePermissionAction({
+      roleId: pillarLead.id,
+      permissionId: permission.id,
+      enabled: false,
+    });
+    expect(revoke.resultCode).toBeLessThan(300);
+  });
+
   it("updates the matrix and immediately recomputes effective grants", async () => {
     const permission = getMockStore().permission.find((row) => row.code === "AUDIT_LOG_VIEW")!;
     expect(getEffectiveGrants(3).some((grant) => grant.permissionCode === permission.code)).toBe(
