@@ -23,6 +23,8 @@ import {
   applicationCreateSchema,
   declineInputSchema,
   sendBackInputSchema,
+  updateAwardInputSchema,
+  updateDisbursementInputSchema,
   disburseInputSchema,
   grantPeriodInputSchema,
 } from "./schemas";
@@ -242,6 +244,60 @@ export async function recordDisbursementAction(input: unknown) {
     return actionResult(500, "Could not record payment");
   }
 }
+/** Changes the awarded amount; needs the approval permission, as setting it did. */
+export async function updateAwardAction(input: unknown) {
+  const session = await requireSession();
+  const parsed = updateAwardInputSchema.safeParse(input);
+  if (!parsed.success) return actionResult(422, "Enter an amount above zero");
+  try {
+    const client = await api();
+    const grant = await client.get(parsed.data.applicationId);
+    if (!grant) return actionResult(404, "Application not found");
+    if (!hasPermission(session.grants, "GRANT_APPLICATION_APPROVE", { pillarId: grant.pillarId }))
+      return actionResult(403, "You cannot change the awarded amount");
+    if (grant.status !== "APPROVED" || !grant.award)
+      return actionResult(422, "The application has no award to change");
+    const response = await client.updateAward(grant.award.id, parsed.data.amount);
+    if (response.success) {
+      revalidatePath(`/grants/${grant.id}`);
+      revalidatePath("/projects");
+      revalidatePath("/dashboard");
+    }
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not change the award");
+  }
+}
+
+/** Corrects a recorded payment; needs the payment recording permission. */
+export async function updateDisbursementAction(input: unknown) {
+  const session = await requireSession();
+  const parsed = updateDisbursementInputSchema.safeParse(input);
+  if (!parsed.success) return actionResult(422, "Check the payment details");
+  try {
+    const client = await api();
+    const grant = await client.get(parsed.data.applicationId);
+    if (!grant) return actionResult(404, "Application not found");
+    if (!hasPermission(session.grants, "GRANT_DISBURSEMENT_RECORD", { pillarId: grant.pillarId }))
+      return actionResult(403, "You cannot change this payment");
+    // The payment must belong to this application's award.
+    if (!grant.disbursements.some((item) => item.id === parsed.data.disbursementId))
+      return actionResult(404, "Payment not found on this application");
+    const response = await client.updateDisbursement(parsed.data.disbursementId, {
+      amount: parsed.data.amount,
+      date: parsed.data.date,
+      notes: parsed.data.notes,
+    });
+    if (response.success) {
+      revalidatePath(`/grants/${grant.id}`);
+      revalidatePath("/projects");
+    }
+    return actionResult(response.resultCode, response.message);
+  } catch {
+    return actionResult(500, "Could not change the payment");
+  }
+}
+
 export async function logGrantReportAction(input: unknown) {
   const session = await requireSession();
   const parsed = grantPeriodInputSchema.safeParse(input);

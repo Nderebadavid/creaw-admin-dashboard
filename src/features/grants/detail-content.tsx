@@ -17,6 +17,8 @@ import {
   AdvanceDialog,
   DeclineDialog,
   SendBackDialog,
+  EditAwardDialog,
+  EditPaymentDialog,
   PaymentDialog,
   ReportPeriodDialog,
   advanceLabel,
@@ -32,6 +34,7 @@ export function GrantDetailContent({
   detail,
   canAdvance,
   canSendBack = false,
+  canEditAward = false,
   canDisburse,
   canDownload,
   canLogReport,
@@ -45,14 +48,17 @@ export function GrantDetailContent({
   canAdvance: boolean;
   /** The user holds the permission of the latest sign-off, so may undo it. */
   canSendBack?: boolean;
+  /** The user may change the awarded amount (the approval permission). */
+  canEditAward?: boolean;
   canDisburse: boolean;
   canDownload: boolean;
   canLogReport: boolean;
 }) {
   const router = useRouter();
   const [modal, setModal] = useState<
-    "advance" | "decline" | "sendback" | "payment" | "report" | null
+    "advance" | "decline" | "sendback" | "payment" | "editaward" | "editpayment" | "report" | null
   >(null);
+  const [editingPayment, setEditingPayment] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -220,6 +226,16 @@ export function GrantDetailContent({
           canRecord={canDisburse}
           busy={busy}
           onRecord={() => setModal("payment")}
+          canEditAward={canEditAward}
+          onEditAward={() => setModal("editaward")}
+          onEditPayment={
+            canDisburse
+              ? (id) => {
+                  setEditingPayment(id);
+                  setModal("editpayment");
+                }
+              : undefined
+          }
         />
       </div>
       <ComplianceReports
@@ -250,6 +266,19 @@ export function GrantDetailContent({
       <PaymentDialog
         open={modal === "payment"}
         detail={detail}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
+      <EditAwardDialog
+        open={modal === "editaward"}
+        detail={detail}
+        onClose={() => setModal(null)}
+        onDone={done}
+      />
+      <EditPaymentDialog
+        open={modal === "editpayment"}
+        detail={detail}
+        paymentId={editingPayment}
         onClose={() => setModal(null)}
         onDone={done}
       />

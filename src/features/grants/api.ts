@@ -465,6 +465,41 @@ export function createGrantsApi(client: ApiClient, token: string) {
         mutationSchema
       );
     },
+    /** Changes the awarded amount; the API keeps it within the request and above payments made. */
+    updateAward(awardId: number, amount: number) {
+      return request<import("zod").infer<typeof mutationSchema>>(
+        {
+          method: "PATCH",
+          path: `/grants/${awardId}`,
+          routeTemplate: "/grants/:id",
+          token,
+          query: { table: "grant_award" },
+          body: { amount_awarded: amount },
+        },
+        mutationSchema
+      );
+    },
+    /** Corrects a recorded payment's amount, date or note. */
+    updateDisbursement(
+      disbursementId: number,
+      values: { amount: number; date: string; notes?: string }
+    ) {
+      return request<import("zod").infer<typeof mutationSchema>>(
+        {
+          method: "PATCH",
+          path: `/grants/${disbursementId}`,
+          routeTemplate: "/grants/:id",
+          token,
+          query: { table: "grant_disbursement" },
+          body: {
+            amount: values.amount,
+            disbursement_date: values.date,
+            notes: values.notes ?? null,
+          },
+        },
+        mutationSchema
+      );
+    },
     addGrantPeriod(
       awardId: number,
       input: { periodStart: string; periodEnd: string; dueDate: string }

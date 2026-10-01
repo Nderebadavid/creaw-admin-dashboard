@@ -19,6 +19,8 @@ import {
   declineGrantAction,
   logGrantReportAction,
   sendBackGrantAction,
+  updateAwardAction,
+  updateDisbursementAction,
 } from "./actions";
 import { createGrantsApi } from "./api";
 
@@ -323,5 +325,69 @@ describe("sending a grant sign-off back", () => {
       (await sendBackGrantAction({ id: 3, reason: "Not mine" })).resultCode
     );
     expect(getMockStore().grant_application[2].status).toBe("REVIEWED");
+  });
+});
+
+describe("correcting awards and payments through Server Actions", () => {
+  const payment = () => getMockStore().grant_disbursement.find((row) => row.grant_id === 1)!;
+
+  it("changes the awarded amount for an officer holding the approval permission", async () => {
+    asUser(1);
+    const award = getMockStore().grant_award.find((row) => row.id === 1)!;
+    const paid = getMockStore()
+      .grant_disbursement.filter((row) => row.grant_id === 1)
+      .reduce((sum, row) => sum + row.amount, 0);
+    expect((await updateAwardAction({ applicationId: 1, amount: paid + 1 })).resultCode).toBe(200);
+    expect(getMockStore().grant_award.find((row) => row.id === 1)?.amount_awarded).toBe(paid + 1);
+    expect(award.id).toBe(1);
+  });
+
+  it("refuses the wrong officer, bad input and an application without an award", async () => {
+    asUser(4); // Reviews but does not approve.
+    expect((await updateAwardAction({ applicationId: 1, amount: 100 })).resultCode).toBe(403);
+    asUser(1);
+    expect((await updateAwardAction({ applicationId: 1, amount: -5 })).resultCode).toBe(422);
+    expect((await updateAwardAction({ applicationId: 9999, amount: 5 })).resultCode).toBe(404);
+    // Application 3 is still being signed off, so it has no award.
+    expect((await updateAwardAction({ applicationId: 3, amount: 5 })).resultCode).toBe(422);
+  });
+
+  it("corrects a payment only on its own application and only with the payment permission", async () => {
+    asUser(1);
+    const row = payment();
+    const original = row.amount;
+    const result = await updateDisbursementAction({
+      applicationId: 1,
+      disbursementId: row.id,
+      amount: original - 1,
+      date: "2026-05-21",
+      notes: "Fixed",
+    });
+    expect(result.resultCode).toBe(200);
+    expect(getMockStore().grant_disbursement.find((item) => item.id === row.id)?.amount).toBe(
+      original - 1
+    );
+    // A payment id from another application is not found there.
+    expect(
+      (
+        await updateDisbursementAction({
+          applicationId: 2,
+          disbursementId: row.id,
+          amount: 1,
+          date: "2026-05-21",
+        })
+      ).resultCode
+    ).toBe(404);
+    asUser(5);
+    expect([403, 404]).toContain(
+      (
+        await updateDisbursementAction({
+          applicationId: 1,
+          disbursementId: row.id,
+          amount: 1,
+          date: "2026-05-21",
+        })
+      ).resultCode
+    );
   });
 });

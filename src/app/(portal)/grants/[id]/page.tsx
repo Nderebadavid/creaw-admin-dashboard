@@ -50,6 +50,10 @@ export default async function GrantDetailPage({ params }: { params: Promise<{ id
           { pillarId: detail.pillarId }
         )
       }
+      canEditAward={
+        detail.award !== null &&
+        hasPermission(session.grants, "GRANT_APPLICATION_APPROVE", { pillarId: detail.pillarId })
+      }
       canDisburse={hasPermission(session.grants, "GRANT_DISBURSEMENT_RECORD", {
         pillarId: detail.pillarId,
       })}

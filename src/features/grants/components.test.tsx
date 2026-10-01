@@ -7,6 +7,8 @@ vi.mock("./actions", () => ({
   createGrantApplicationAction: vi.fn(),
   declineGrantAction: vi.fn(),
   sendBackGrantAction: vi.fn(),
+  updateAwardAction: vi.fn(),
+  updateDisbursementAction: vi.fn(),
   recordDisbursementAction: vi.fn(),
   downloadGrantPackAction: vi.fn(),
   exportGrantsAction: vi.fn(),
@@ -14,7 +16,12 @@ vi.mock("./actions", () => ({
   viewGrantDocumentAction: vi.fn(),
 }));
 vi.mock("@/features/participants/actions", () => ({ listParticipantsAction: vi.fn() }));
-import { declineGrantAction, sendBackGrantAction } from "./actions";
+import {
+  declineGrantAction,
+  sendBackGrantAction,
+  updateAwardAction,
+  updateDisbursementAction,
+} from "./actions";
 import { GrantDetailContent } from "./components";
 describe("grant detail", () => {
   afterEach(cleanup);
@@ -336,5 +343,88 @@ describe("grant detail", () => {
     expect(entries[1]).toHaveTextContent("Application received");
     fireEvent.click(screen.getByRole("button", { name: "Hide history" }));
     expect(screen.queryByRole("list", { name: "Sign-off history" })).not.toBeInTheDocument();
+  });
+
+  const editable = {
+    ...approvedDetail,
+    disbursements: [...approvedDetail.disbursements],
+    reports: [],
+    documents: [],
+  };
+
+  it("edits the awarded amount, with the limits explained, for an officer who may", async () => {
+    vi.mocked(updateAwardAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+      data: null,
+    });
+    const { rerender } = render(
+      <GrantDetailContent detail={editable} {...permissions} canEditAward={false} />
+    );
+    expect(screen.queryByRole("button", { name: "Edit awarded amount" })).not.toBeInTheDocument();
+    rerender(<GrantDetailContent detail={editable} {...permissions} canEditAward />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit awarded amount" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit awarded amount" });
+    const input = within(dialog).getByLabelText(/Awarded amount/);
+    expect(input).toHaveValue(100000);
+    expect(input).toHaveAttribute("min", "60000");
+    expect(dialog).toHaveTextContent("It cannot be more than was requested");
+    expect(dialog).toHaveTextContent("60,000 already paid");
+    fireEvent.change(input, { target: { value: "90000" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save amount" }));
+    await waitFor(() =>
+      expect(updateAwardAction).toHaveBeenCalledWith({ applicationId: 1, amount: 90000 })
+    );
+    expect(await screen.findByText("Awarded amount updated.")).toBeInTheDocument();
+  });
+
+  it("corrects a recorded payment, filled in with its current values", async () => {
+    vi.mocked(updateDisbursementAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+      data: null,
+    });
+    render(<GrantDetailContent detail={editable} {...permissions} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit payment 1" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit payment" });
+    expect(within(dialog).getByLabelText("Amount (KES)")).toHaveValue(40000);
+    expect(within(dialog).getByLabelText("Payment date")).toHaveValue("2026-09-10");
+    expect(within(dialog).getByLabelText("Reference or note")).toHaveValue("Tranche 1");
+    fireEvent.change(within(dialog).getByLabelText("Amount (KES)"), { target: { value: "35000" } });
+    fireEvent.change(within(dialog).getByLabelText("Reference or note"), {
+      target: { value: "Tranche 1 (corrected)" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save payment" }));
+    await waitFor(() =>
+      expect(updateDisbursementAction).toHaveBeenCalledWith({
+        applicationId: 1,
+        disbursementId: 1,
+        amount: 35000,
+        date: "2026-09-10",
+        notes: "Tranche 1 (corrected)",
+      })
+    );
+    expect(await screen.findByText("Payment updated.")).toBeInTheDocument();
+  });
+
+  it("shows the API's refusal when a correction breaks a rule, and offers no payment edit without permission", async () => {
+    vi.mocked(updateDisbursementAction).mockResolvedValue({
+      resultCode: 422,
+      success: false,
+      message: "Payment exceeds the approved award or the application is not approved",
+      data: null,
+    });
+    const { rerender } = render(<GrantDetailContent detail={editable} {...permissions} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit payment 2" }));
+    const dialog = screen.getByRole("dialog", { name: "Edit payment" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save payment" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "exceeds the approved award"
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    rerender(<GrantDetailContent detail={editable} {...permissions} canDisburse={false} />);
+    expect(screen.queryByRole("button", { name: /Edit payment/ })).not.toBeInTheDocument();
   });
 });

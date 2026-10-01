@@ -10,6 +10,8 @@ import {
   logGrantReportAction,
   recordDisbursementAction,
   sendBackGrantAction,
+  updateAwardAction,
+  updateDisbursementAction,
 } from "../actions";
 import type { GrantDetail } from "../api";
 
@@ -237,6 +239,161 @@ export function PaymentDialog({
         <Button disabled={submit.busy} type="submit">
           Record payment
         </Button>
+      </form>
+    </ActionDialog>
+  );
+}
+
+/** Changes the awarded amount: not above what was requested, not below payments already made. */
+export function EditAwardDialog({
+  open,
+  detail,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  detail: GrantDetail;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  const award = detail.award;
+  if (!award) return null;
+  const paid = detail.disbursements.reduce((sum, item) => sum + item.amount, 0);
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(new FormData(event.currentTarget).get("amount"));
+    void submit.run(
+      updateAwardAction({ applicationId: detail.id, amount }),
+      "Awarded amount updated."
+    );
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Edit awarded amount"
+      description={`${detail.applicant} · ${detail.requestedAmount} requested`}
+      error={submit.error}
+    >
+      <form key={award.amountAwarded} className="space-y-4" onSubmit={send}>
+        <label className="block text-sm">
+          Awarded amount ({award.currency})
+          <input
+            name="amount"
+            type="number"
+            min={paid > 0 ? paid : 1}
+            step="0.01"
+            required
+            defaultValue={award.amountAwarded}
+            className={fieldClass}
+          />
+        </label>
+        <p className="text-xs text-creaw-faint">
+          It cannot be more than was requested
+          {paid > 0 ? ` or less than the ${paid.toLocaleString("en-KE")} already paid` : ""}. The
+          change is recorded against your name in the audit trail.
+        </p>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={submit.busy} type="submit">
+            Save amount
+          </Button>
+        </div>
+      </form>
+    </ActionDialog>
+  );
+}
+
+/** Corrects one recorded payment's amount, date or note. */
+export function EditPaymentDialog({
+  open,
+  detail,
+  paymentId,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  detail: GrantDetail;
+  paymentId: number | null;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const submit = useActionSubmit(onDone);
+  const payment = detail.disbursements.find((item) => item.id === paymentId);
+  if (!payment) return null;
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    void submit.run(
+      updateDisbursementAction({
+        applicationId: detail.id,
+        disbursementId: payment!.id,
+        amount: Number(form.get("amount")),
+        date: String(form.get("date")),
+        notes: String(form.get("notes") ?? ""),
+      }),
+      "Payment updated."
+    );
+  }
+  return (
+    <ActionDialog
+      open={open}
+      busy={submit.busy}
+      onClose={() => {
+        submit.clearError();
+        onClose();
+      }}
+      title="Edit payment"
+      description={`${detail.applicant} · total payments cannot exceed the award`}
+      error={submit.error}
+    >
+      <form key={payment.id} className="space-y-4" onSubmit={send}>
+        <label className="block text-sm">
+          Amount (KES)
+          <input
+            name="amount"
+            type="number"
+            min="1"
+            step="0.01"
+            required
+            defaultValue={payment.amount}
+            className={fieldClass}
+          />
+        </label>
+        <label className="block text-sm">
+          Payment date
+          <input
+            name="date"
+            type="date"
+            required
+            defaultValue={payment.date?.slice(0, 10)}
+            className={fieldClass}
+          />
+        </label>
+        <label className="block text-sm">
+          Reference or note
+          <input
+            name="notes"
+            maxLength={255}
+            defaultValue={payment.notes ?? ""}
+            className={fieldClass}
+          />
+        </label>
+        <div>
+          <Button type="button" variant="outline" disabled={submit.busy} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={submit.busy} type="submit">
+            Save payment
+          </Button>
+        </div>
       </form>
     </ActionDialog>
   );
