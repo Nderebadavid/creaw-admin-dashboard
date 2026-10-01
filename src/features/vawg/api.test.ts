@@ -46,6 +46,13 @@ describe("VAWG legal case register", () => {
     });
   });
 
+  it("maps a case with no linked advocate to null", async () => {
+    const row = getMockStore().legal_case[1] as unknown as Record<string, unknown>;
+    delete row.advocate_name;
+    const { cases } = await apiFor(1).workspace();
+    expect(cases.find((item) => item.id === row.id)!.advocate).toBeNull();
+  });
+
   it("updates court record fields through the legal-case resource", async () => {
     const api = apiFor(1);
     const updated = await api.updateCase(1, { court_name: "Milimani Law Courts" });
@@ -66,6 +73,8 @@ describe("VAWG legal case register", () => {
     expect(first).toMatchObject({ number: "CRW-VAWG-0001", courtStatus: "in_hearing" });
     expect(first.caseType).toMatch(/IPV/);
     expect(first.counselling.length).toBeGreaterThan(1);
+    expect(first.advocate).toBe("Judy Muthoni");
+    expect(first.counselling[0].counsellor).toBe("Faith Kimani");
     expect(first.documents.map((doc) => doc.name)).toContain("P3 form");
     // A sexual-violence case needs its P3 and PRC forms in the court file.
     const sexualViolence = cases.find((row) => /Sexual violence/.test(row.caseType))!;
