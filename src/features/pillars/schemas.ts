@@ -88,6 +88,14 @@ export const pillarSummarySchema = createEnvelopeSchema(
             coverage: z.custom<import("@/features/sessions/model").TypeCoverage[]>(),
           })
           .nullable(),
+        curriculum: z
+          .object({
+            participants: z.number(),
+            buckets: z.array(z.object({ label: z.string(), count: z.number() })),
+            behind: count,
+          })
+          .nullish()
+          .transform((value) => value ?? null),
         trainees: z
           .object({
             enrolled: z.number(),

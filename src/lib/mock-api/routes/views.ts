@@ -11,6 +11,7 @@ import {
   type Row,
 } from "../core";
 import { calendarRows } from "../reporting";
+import { curriculumMilestones, curriculumProgress, isBehind } from "../curriculum";
 import { presentRow } from "../resources/read";
 import { displayName } from "../references";
 import { grantHandoff } from "../training";
@@ -143,6 +144,31 @@ function sessionCards(store: MockStore, pillarId: number, periodText: string | n
   return { period, summary, coverage };
 }
 
+/** How far SRHR participants are through the curriculum, as headline buckets. */
+function curriculumCards(store: MockStore, pillarId: number, mayGraduation: boolean) {
+  const buckets = [
+    { label: "Not started", count: 0 },
+    { label: "1–49%", count: 0 },
+    { label: "50–99%", count: 0 },
+    { label: "Completed", count: 0 },
+  ];
+  let behind = 0;
+  const enrolled = store.enrollment.filter(
+    (row) => !row.is_deleted && row.pillar_id === pillarId && row.participant_id !== null
+  );
+  for (const enrolment of enrolled) {
+    const progress = curriculumProgress(store, enrolment.participant_id);
+    const share = progress.total ? progress.done / progress.total : 0;
+    const bucket = share === 0 ? 0 : share < 0.5 ? 1 : share < 1 ? 2 : 3;
+    buckets[bucket].count += 1;
+    const graduated = curriculumMilestones(store, enrolment.id).some(
+      (item) => /^graduation/i.test(item.name) && item.reached_at !== null
+    );
+    if (mayGraduation && !graduated && isBehind(progress.lastAttended)) behind += 1;
+  }
+  return { participants: enrolled.length, buckets, behind: mayGraduation ? behind : null };
+}
+
 /** Skilling's trainee cards: completion, work outcomes and grant recommendations. */
 function traineeCards(store: MockStore) {
   const rows = rowsFor(store, "training_enrollment").filter(visible);
@@ -267,6 +293,10 @@ export function handlePillarSummary(ctx: MockContext) {
       sessions:
         (code === "srhr" || code === "skilling") && can("ACTIVITY_SESSION_VIEW")
           ? sessionCards(store, pillar.id, query.get("period"))
+          : null,
+      curriculum:
+        code === "srhr" && can("PARTICIPANT_VIEW")
+          ? curriculumCards(store, pillar.id, can("FIELD_SUBMISSION_VIEW"))
           : null,
       trainees: code === "skilling" && can("TRAINING_ENROLLMENT_VIEW") ? traineeCards(store) : null,
     },

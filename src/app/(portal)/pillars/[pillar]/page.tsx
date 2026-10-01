@@ -20,6 +20,7 @@ import { CounsellingRegister } from "@/features/vawg/components/counselling-regi
 import { VawgHeadingActions } from "@/features/vawg/components/heading-actions";
 import { VawgSummaryCards } from "@/features/vawg/components/summary-cards";
 import { parsePeriod } from "@/features/sessions/model";
+import { CurriculumProgressCard } from "@/features/participants/curriculum-card";
 import { SessionSummaryCards } from "@/features/sessions/components/summary-cards";
 import { SessionWorkspaceView } from "@/features/sessions/components/session-register";
 import { LogSessionButton } from "@/features/sessions/components/session-dialogs";
@@ -207,11 +208,20 @@ export default async function PillarPage({
             tint={pillar.tint}
           />
         ) : sessionWorkspace ? (
-          <SessionSummaryCards
-            summary={sessionWorkspace.summary}
-            color={pillar.color}
-            tint={pillar.tint}
-          />
+          <>
+            <SessionSummaryCards
+              summary={sessionWorkspace.summary}
+              color={pillar.color}
+              tint={pillar.tint}
+            />
+            {pillar.cards.curriculum && (
+              <CurriculumProgressCard
+                card={pillar.cards.curriculum}
+                color={pillar.color}
+                tint={pillar.tint}
+              />
+            )}
+          </>
         ) : undefined
       }
       headingActions={

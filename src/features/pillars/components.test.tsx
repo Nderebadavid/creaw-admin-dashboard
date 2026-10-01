@@ -29,7 +29,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
-      cards: { vawg: null, sessions: null, trainees: null },
+      cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     const html = renderToStaticMarkup(<PillarContent pillar={pillar} canCreate={false} />);
     expect(html).toContain("Leadership");
@@ -54,7 +54,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
-      cards: { vawg: null, sessions: null, trainees: null },
+      cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     const html = renderToStaticMarkup(
       <PillarContent pillar={pillar} canCreate={false} availableCodes={["vawg"]} />
@@ -79,7 +79,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
-      cards: { vawg: null, sessions: null, trainees: null },
+      cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     const html = renderToStaticMarkup(
       <PillarContent
@@ -119,7 +119,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
-      cards: { vawg: null, sessions: null, trainees: null },
+      cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
     };
     expect(
       renderToStaticMarkup(
@@ -143,7 +143,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
-      cards: { vawg: null, sessions: null, trainees: null },
+      cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
       domain: {
         title: "Grant applications",
         subtitle: "Prepared → Reviewed → Approved sign-off chain",
@@ -190,7 +190,7 @@ describe("pillar screen", () => {
       recordCount: 0,
       activeCount: 0,
       pipelineStages: [],
-      cards: { vawg: null, sessions: null, trainees: null },
+      cards: { vawg: null, sessions: null, curriculum: null, trainees: null },
       stageCounts: [
         { name: "Intake", count: 40 },
         { name: "Training", count: 30 },

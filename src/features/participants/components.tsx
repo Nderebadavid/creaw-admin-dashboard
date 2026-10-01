@@ -13,6 +13,7 @@ import { PageHeading, type PageHeadingText } from "@/components/portal/page-head
 import { pillarLook } from "@/components/portal/pillars";
 import { hasPermission, hasModulePermission, type EffectiveGrant } from "@/lib/auth/grants";
 import type { ParticipantCatalog, ParticipantPage, ParticipantQuery, ParticipantView } from "./api";
+import { SRHR_PILLAR_ID } from "./curriculum";
 import { exportParticipantsAction, listParticipantsAction } from "./actions";
 import { participantColumns } from "./registry/columns";
 import { ParticipantDrawer } from "./registry/participant-drawer";
@@ -94,26 +95,44 @@ export function ParticipantsContent({
           })),
         ]}
         filters={
-          catalog.counties.length > 0 && (
-            <label className="flex items-center gap-2 text-sm">
-              <span className="sr-only">County</span>
-              <select
-                aria-label="County"
-                value={list.query.countyId ?? ""}
-                onChange={(event) =>
-                  list.filter({ countyId: Number(event.target.value) || undefined })
-                }
-                className={filterSelectClass}
-              >
-                <option value="">All counties</option>
-                {catalog.counties.map((county) => (
-                  <option key={county.id} value={county.id}>
-                    {county.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )
+          <>
+            {hasPermission(grants, "PARTICIPANT_VIEW", { pillarId: SRHR_PILLAR_ID }) && (
+              <label className="flex items-center gap-2 text-sm">
+                <span className="sr-only">Curriculum</span>
+                <select
+                  aria-label="Curriculum"
+                  value={list.query.behind ? "behind" : ""}
+                  onChange={(event) =>
+                    list.filter({ behind: event.target.value === "behind" ? true : undefined })
+                  }
+                  className={filterSelectClass}
+                >
+                  <option value="">All progress</option>
+                  <option value="behind">Behind on curriculum</option>
+                </select>
+              </label>
+            )}
+            {catalog.counties.length > 0 && (
+              <label className="flex items-center gap-2 text-sm">
+                <span className="sr-only">County</span>
+                <select
+                  aria-label="County"
+                  value={list.query.countyId ?? ""}
+                  onChange={(event) =>
+                    list.filter({ countyId: Number(event.target.value) || undefined })
+                  }
+                  className={filterSelectClass}
+                >
+                  <option value="">All counties</option>
+                  {catalog.counties.map((county) => (
+                    <option key={county.id} value={county.id}>
+                      {county.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </>
         }
         search={{
           value: search,
@@ -143,7 +162,9 @@ export function ParticipantsContent({
           rows={list.data.items}
           getRowId={(row) => row.id}
           loading={list.loading}
-          filtered={Boolean(list.query.pillarId || list.query.countyId || list.query.search)}
+          filtered={Boolean(
+            list.query.pillarId || list.query.countyId || list.query.search || list.query.behind
+          )}
           onRowOpen={setSelected}
           rowOpenLabel={(row) => `Open participant ${row.name}`}
         />
