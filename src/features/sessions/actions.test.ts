@@ -85,7 +85,9 @@ describe("session actions", () => {
   });
 
   it("edits a session without changing its facilitator", async () => {
-    const session = getMockStore().activity_session.find((row) => row.pillar_id === 3)!;
+    const session = getMockStore().activity_session.find(
+      (row) => row.pillar_id === 3 && row.facilitator_user_id === 9
+    )!;
     const result = await updateSessionAction({
       ...base(),
       sessionId: session.id,

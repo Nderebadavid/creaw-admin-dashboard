@@ -80,22 +80,83 @@ function readSpecialView(ctx: ResourceContext): Envelope | undefined {
         .map((item) => ({ id: item.id, name: item.name })),
     });
   }
+  if (table === "external_provider" && existing && query.get("include") === "workload")
+    return envelope(200, {
+      ...masked(table, existing),
+      workload: providerWorkload(store, existing.id),
+    });
   return undefined;
+}
+
+interface WorkloadItem {
+  id: number;
+  date: string;
+  label: string;
+  pillar?: string;
+}
+
+/** A group's total and its five newest items. */
+function workloadGroup(items: WorkloadItem[]) {
+  const recent = [...items].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  return { count: items.length, recent };
+}
+
+/** Work linked to a provider as counts and short labels; labels never name a participant. */
+function providerWorkload(store: MockStore, providerId: number) {
+  const sessions = store.activity_session
+    .filter((row) => !row.is_deleted && row.facilitator_provider_id === providerId)
+    .map((row) => ({
+      id: row.id,
+      date: row.session_date,
+      label:
+        store.activity_topic.find((topic) => topic.id === row.activity_topic_id)?.name ??
+        row.topic ??
+        "Group session",
+      pillar: store.pillar.find((item) => item.id === row.pillar_id)?.code.toUpperCase(),
+    }));
+  const counselling = store.counselling_session
+    .filter((row) => !row.is_deleted && row.counsellor_provider_id === providerId)
+    .map((row) => ({ id: row.id, date: row.session_date, label: `Session ${row.session_no}` }));
+  const trainees = store.training_enrollment
+    .filter((row) => !row.is_deleted && row.trainer_provider_id === providerId)
+    .map((row) => ({
+      id: row.id,
+      date: row.start_date ?? row.created_at.slice(0, 10),
+      label: `${row.course_name ?? "Course not recorded"} · ${row.training_status}`,
+    }));
+  const cases = store.legal_case
+    .filter((row) => !row.is_deleted && row.advocate_provider_id === providerId)
+    .map((row) => ({
+      id: row.id,
+      date: row.opened_date,
+      label: `CRW-VAWG-${String(row.id).padStart(4, "0")} · ${(row.court_status ?? "opened").replaceAll("_", " ")}`,
+    }));
+  return {
+    sessions: workloadGroup(sessions),
+    counselling: workloadGroup(counselling),
+    trainees: workloadGroup(trainees),
+    cases: workloadGroup(cases),
+  };
 }
 
 /** One row, optionally with an audited reveal of a sensitive field or a document download. */
 function readSingle(ctx: ResourceContext, existing: Row): Envelope {
   const { request, store, query, userId, grants, pillar, table, permission } = ctx;
-  if (!allowed(store, grants, permission, table, existing)) return envelope(403);
+  // Providers have no pillar scope, so a reveal-only caller is judged by the reveal rule below.
+  const revealOnly =
+    table === "external_provider" && permission === "SENSITIVE_REVEAL" && query.has("reveal");
+  if (!revealOnly && !allowed(store, grants, permission, table, existing)) return envelope(403);
   const result = presentRow(store, table, existing);
   if (query.has("reveal")) {
     const field = query.get("reveal")!;
     if (!isSensitiveField(table, field) || field === "password_hash") return envelope(422);
-    if (
-      !allowed(store, grants, "SENSITIVE_REVEAL", table, existing) ||
-      (pillar && !hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: pillar.id }))
-    )
-      return envelope(403);
+    const mayReveal =
+      table === "external_provider"
+        ? hasPermission(grants, "PROVIDER_MANAGE") ||
+          hasModulePermission(grants, "SENSITIVE_REVEAL")
+        : allowed(store, grants, "SENSITIVE_REVEAL", table, existing) &&
+          !(pillar && !hasPermission(grants, "SENSITIVE_REVEAL", { pillarId: pillar.id }));
+    if (!mayReveal) return envelope(403);
     result[field] = existing[field];
     auditWrite(store, request, userId, table, existing, existing, "REVEAL");
   }

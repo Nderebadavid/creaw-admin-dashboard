@@ -25,7 +25,7 @@ describe("sessions workspace", () => {
     expect(free).toMatchObject({
       topicId: null,
       freeTopic: "Facility referral day",
-      facilitator: "CREAW staff",
+      facilitator: "External provider",
     });
     const planned = workspace.sessions.find((row) => row.topic === "Menstrual health")!;
     expect(planned.date).toBe("2026-07-01");
