@@ -40,12 +40,13 @@ export interface LegalCaseView {
   courtFileNumber: string | null;
   obNumber: string | null;
   counsellor: string | null;
+  advocate: string | null;
   mediationAttempted: boolean;
   mediationOutcome: string | null;
   opened: string;
   ruling: string | null;
   closed: string | null;
-  counselling: { number: number; date: string }[];
+  counselling: { number: number; date: string; counsellor: string | null }[];
   documents: CaseDocument[];
   /** Forms this case type requires that are not on file, e.g. "P3 form". */
   missing: string[];

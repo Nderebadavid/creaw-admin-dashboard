@@ -30,6 +30,7 @@ const caseSchema = z.object({
   court_file_number: optionalText,
   ob_number: optionalText,
   counsellor: optionalText,
+  advocate_name: optionalText,
   mediation_attempted: z.boolean(),
   mediation_outcome: z.string().nullable(),
   ruling_date: z.string().nullable(),
@@ -42,6 +43,7 @@ const sessionSchema = z.object({
   enrollment_id: id,
   session_no: z.number(),
   session_date: z.string(),
+  counsellor_name: optionalText,
 });
 const documentSchema = z.object({
   id,
@@ -153,6 +155,7 @@ export function createVawgApi(client: ApiClient, token: string) {
           courtFileNumber: row.court_file_number,
           obNumber: row.ob_number,
           counsellor: row.counsellor,
+          advocate: row.advocate_name,
           mediationAttempted: row.mediation_attempted,
           mediationOutcome: row.mediation_outcome,
           opened: row.opened_date,
@@ -160,7 +163,11 @@ export function createVawgApi(client: ApiClient, token: string) {
           closed: row.closed_date,
           counselling: sessions
             .filter((session) => session.enrollment_id === row.enrollment_id)
-            .map((session) => ({ number: session.session_no, date: session.session_date }))
+            .map((session) => ({
+              number: session.session_no,
+              date: session.session_date,
+              counsellor: session.counsellor_name,
+            }))
             .sort((a, b) => a.number - b.number),
           documents: files.map((doc) => ({ id: doc.id, name: titleCase(doc.document_type) })),
           missing: type?.requires_p3_prc_forms

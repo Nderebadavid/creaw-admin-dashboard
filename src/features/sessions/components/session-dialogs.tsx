@@ -23,6 +23,12 @@ export const sessionFileTypes = [
   ["supporting_document", "Supporting document"],
 ] as const;
 
+/** "staff:9" or "provider:2" from the facilitator select. */
+function parseFacilitator(value: string) {
+  const [kind, id] = value.split(":");
+  return { kind: kind as "staff" | "provider", id: Number(id) };
+}
+
 const describe = (session: SessionView | null) =>
   session ? `${session.topic} · ${session.activityType}` : undefined;
 
@@ -66,6 +72,26 @@ export function SessionFormDialog({
         : topicOptions[0]
           ? String(topicOptions[0].id)
           : "other";
+  const { facilitators, currentUser } = workspace;
+  const ref = session?.facilitatorRef ?? null;
+  const staff = facilitators.filter((item) => item.kind === "staff");
+  const providers = facilitators.filter((item) => item.kind === "provider");
+  const offered = (kind: string, id: number) =>
+    facilitators.some((item) => item.kind === kind && item.id === id);
+  // Only the signed-in user when the picker could not load; an edited session keeps its own.
+  const fallbackMe =
+    facilitators.length === 0 && currentUser
+      ? { value: `staff:${currentUser.id}`, label: `Me (${currentUser.name || "CREAW staff"})` }
+      : null;
+  const keptCurrent =
+    session && ref && !offered(ref.kind, ref.id)
+      ? { value: `${ref.kind}:${ref.id}`, label: session.facilitator.name }
+      : null;
+  const defaultFacilitator = ref
+    ? `${ref.kind}:${ref.id}`
+    : session || !currentUser
+      ? ""
+      : `staff:${currentUser.id}`;
   const close = () => {
     submit.clearError();
     onClose();
@@ -82,6 +108,7 @@ export function SessionFormDialog({
       sessionDate: String(form.get("sessionDate") ?? ""),
       venue: String(form.get("venue") ?? ""),
       notes: String(form.get("notes") ?? ""),
+      facilitator: parseFacilitator(String(form.get("facilitator") ?? "")),
     };
     void submit.run(
       session ? updateSessionAction(input) : logSessionAction(input),
@@ -171,6 +198,41 @@ export function SessionFormDialog({
             defaultValue={session?.venue ?? ""}
             className={fieldClass}
           />
+        </label>
+        <label className="text-sm sm:col-span-2">
+          Facilitator
+          <select
+            name="facilitator"
+            required
+            defaultValue={defaultFacilitator}
+            className={fieldClass}
+          >
+            {defaultFacilitator === "" && (
+              <option value="" disabled>
+                Choose a facilitator
+              </option>
+            )}
+            {keptCurrent && <option value={keptCurrent.value}>{keptCurrent.label}</option>}
+            {fallbackMe && <option value={fallbackMe.value}>{fallbackMe.label}</option>}
+            {staff.length > 0 && (
+              <optgroup label="CREAW staff">
+                {staff.map((item) => (
+                  <option key={item.id} value={`staff:${item.id}`}>
+                    {item.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {providers.length > 0 && (
+              <optgroup label="External providers">
+                {providers.map((item) => (
+                  <option key={item.id} value={`provider:${item.id}`}>
+                    {`${item.name} · ${item.detail}`}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </label>
         <label className="text-sm sm:col-span-2">
           Notes

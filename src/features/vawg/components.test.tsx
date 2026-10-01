@@ -37,12 +37,13 @@ const workspace: VawgWorkspace = {
       courtFileNumber: "CR 2210/26",
       obNumber: "OB ••••/26",
       counsellor: "Mercy Achieng",
+      advocate: "Judy Muthoni",
       mediationAttempted: false,
       mediationOutcome: null,
       opened: "2026-08-01",
       ruling: null,
       closed: null,
-      counselling: [{ number: 1, date: "2026-08-10" }],
+      counselling: [{ number: 1, date: "2026-08-10", counsellor: "Faith Kimani" }],
       documents: [{ id: 9, name: "P3 form" }],
       missing: ["Medical report"],
     },
@@ -139,5 +140,41 @@ describe("VAWG case register", () => {
     );
     expect(updateLegalCaseAction).toHaveBeenCalledWith(expect.objectContaining({ caseId: 142 }));
     expect(screen.queryByRole("dialog", { name: "Edit legal case" })).not.toBeInTheDocument();
+  });
+
+  it("shows the advocate in the overview, or Not assigned", () => {
+    const drawer = open(allowed);
+    expect(drawer).toHaveTextContent("Advocate");
+    expect(drawer).toHaveTextContent("Judy Muthoni");
+    cleanup();
+    const unassigned = {
+      ...workspace,
+      cases: [{ ...workspace.cases[0], advocate: null }],
+    };
+    render(<CaseRegister workspace={unassigned} can={allowed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open CRW-VAWG-0142" }));
+    const overview = within(screen.getByRole("dialog")).getByText("Advocate").parentElement!;
+    expect(overview).toHaveTextContent("Not assigned");
+  });
+
+  it("names the counsellor on counselling activity when known", () => {
+    const drawer = open(allowed);
+    fireEvent.click(within(drawer).getByRole("tab", { name: /Activity/ }));
+    expect(drawer).toHaveTextContent("Counselling session 1 · Faith Kimani");
+    cleanup();
+    const unnamed = {
+      ...workspace,
+      cases: [
+        {
+          ...workspace.cases[0],
+          counselling: [{ number: 1, date: "2026-08-10", counsellor: null }],
+        },
+      ],
+    };
+    render(<CaseRegister workspace={unnamed} can={allowed} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open CRW-VAWG-0142" }));
+    const next = screen.getByRole("dialog");
+    fireEvent.click(within(next).getByRole("tab", { name: /Activity/ }));
+    expect(next).toHaveTextContent("Counselling session 1 logged");
   });
 });

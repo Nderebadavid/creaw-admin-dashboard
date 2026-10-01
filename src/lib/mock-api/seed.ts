@@ -557,6 +557,71 @@ export function createSeed(): MockStore {
     notes: "Life-skills session for TVET trainees.",
   });
   add("activity_attendance", { session_id: store.activity_session.at(-3)!.id, participant_id: 5 });
+  // External providers (SQL seed values); an institution link is kept only when that institution exists.
+  (
+    [
+      [
+        1,
+        "Faith",
+        "Kimani",
+        "counsellor",
+        "Trauma-focused psychosocial counselling",
+        3,
+        "0711 900 221",
+        "faith.kimani@nwh.example",
+      ],
+      [
+        2,
+        "Judy",
+        "Muthoni",
+        "advocate",
+        "CREAW-affiliated legal aid advocate — GBV litigation",
+        null,
+        "0722 441 018",
+        "judy.muthoni@legalaid.example",
+      ],
+      [
+        3,
+        "James",
+        "Otieno",
+        "trainer",
+        "Electrical installation instructor",
+        1,
+        "0733 220 447",
+        null,
+      ],
+    ] as const
+  ).forEach(
+    ([
+      ,
+      first_name,
+      last_name,
+      provider_type,
+      service_description,
+      institution,
+      phone_number,
+      email,
+    ]) =>
+      add("external_provider", {
+        first_name,
+        last_name,
+        provider_type,
+        service_description,
+        affiliated_institution_id:
+          institution !== null && store.partner_institution.some((row) => row.id === institution)
+            ? institution
+            : null,
+        phone_number,
+        email,
+      })
+  );
+  store.counselling_session[0].counsellor_provider_id = 1;
+  store.legal_case[0].advocate_provider_id = 2;
+  store.training_enrollment[0].trainer_provider_id = 3;
+  Object.assign(
+    store.activity_session.find((row) => row.topic === "Facility referral day")!,
+    { facilitator_user_id: null, facilitator_provider_id: 1 }
+  );
   [
     [3, 60000, "Retail shop, Kondele Market"],
     [2, 45000, "Poultry farming"],

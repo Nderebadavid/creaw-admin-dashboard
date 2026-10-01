@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 const root = join(process.cwd(), "src");
 const app = join(root, "app");
 
-// The designer's 13 authenticated screen types; dynamic variants count once.
+// The designer's 13 authenticated screen types plus the provider directory; dynamic variants count once.
 const screenRoutes: Record<string, string[]> = {
   dashboard: ["(portal)/dashboard/page.tsx"],
   fieldSubmissions: ["(portal)/field-submissions/page.tsx"],
@@ -26,6 +26,7 @@ const screenRoutes: Record<string, string[]> = {
   reporting: ["(portal)/reporting/page.tsx"],
   audit: ["(portal)/audit/page.tsx"],
   users: ["(portal)/admin/users/page.tsx"],
+  providers: ["(portal)/admin/providers/page.tsx"],
   permissions: ["(portal)/admin/permissions/page.tsx"],
   pipelines: ["(portal)/admin/pipelines/page.tsx"],
   lookups: ["(portal)/admin/lookups/[table]/page.tsx"],
@@ -44,8 +45,8 @@ beforeEach(() => {
 });
 
 describe("route inventory", () => {
-  it("implements exactly the 13 authenticated screen types plus login and root", () => {
-    expect(Object.keys(screenRoutes)).toHaveLength(13);
+  it("implements exactly the 14 authenticated screen types plus login and root", () => {
+    expect(Object.keys(screenRoutes)).toHaveLength(14);
     const expected = [
       ...Object.values(screenRoutes).flat(),
       "(auth)/login/page.tsx",

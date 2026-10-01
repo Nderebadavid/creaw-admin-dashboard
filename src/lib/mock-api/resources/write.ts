@@ -21,6 +21,39 @@ const live = (row: { is_deleted: boolean } | undefined) => !!row && !row.is_dele
 type Step<T> = { error: Envelope } | { value: T };
 const nextId = (rows: { id: number }[]) => Math.max(0, ...rows.map((row) => row.id)) + 1;
 
+const PROVIDER_COLUMNS = [
+  "first_name",
+  "middle_name",
+  "last_name",
+  "provider_type",
+  "service_description",
+  "affiliated_institution_id",
+  "phone_number",
+  "email",
+  "notes",
+  "status",
+];
+const PROVIDER_TYPES = ["counsellor", "nurse", "trainer", "advocate", "facilitator", "other"];
+
+/** Directory rules for external providers: writable columns, type and status values, contact formats. */
+function checkProviderWrite(table: TableName, body: Row): Envelope | undefined {
+  if (table !== "external_provider") return undefined;
+  const invalid = (message: string) => envelope(422, null, message);
+  if (Object.keys(body).some((key) => !PROVIDER_COLUMNS.includes(key)))
+    return invalid("A provider change names a column that cannot be written");
+  if ("provider_type" in body && !PROVIDER_TYPES.includes(String(body.provider_type)))
+    return invalid("Unknown provider type");
+  if ("status" in body && body.status !== "ACTIVE" && body.status !== "INACTIVE")
+    return invalid("Status must be ACTIVE or INACTIVE");
+  if (Object.values(body).some((value) => typeof value === "string" && value.includes("•")))
+    return invalid("A masked value cannot be saved");
+  if (typeof body.phone_number === "string" && !/^[0-9+\-() ]{3,30}$/.test(body.phone_number))
+    return invalid("Enter a valid phone number");
+  if (typeof body.email === "string" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email))
+    return invalid("Enter a valid email address");
+  return undefined;
+}
+
 /** Checks the method, target and body shape; the body on success, an error envelope otherwise. */
 function readWriteBody(ctx: ResourceContext): Step<Row> {
   const { request, query, table, id, existing } = ctx;
@@ -38,7 +71,10 @@ function readWriteBody(ctx: ResourceContext): Step<Row> {
     return { error: envelope(422) };
   if (table === "pipeline_definition" || table === "stage_definition")
     return { error: envelope(422, null, "Use pipeline configuration commands") };
-  const guard = checkLookupWrite(ctx, body) ?? checkAccessControlWrite(ctx, body);
+  const guard =
+    checkLookupWrite(ctx, body) ??
+    checkAccessControlWrite(ctx, body) ??
+    checkProviderWrite(table, body);
   if (guard) return { error: guard };
   // `?enroll=true&pillarId=` registers a participant and enrolls them in one step.
   if (

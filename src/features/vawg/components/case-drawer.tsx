@@ -81,6 +81,7 @@ export function CaseDrawer({
     ],
     ["Assigned officer", legalCase.assignedOfficer ?? "Not assigned"],
     ["Counsellor", legalCase.counsellor ?? "Not assigned"],
+    ["Advocate", legalCase.advocate ?? "Not assigned"],
     ["Next court date", legalCase.nextCourtDate ? formatDate(legalCase.nextCourtDate) : "Pending"],
     ["Court status", courtStatusLabel(legalCase.courtStatus)],
   ];
@@ -105,7 +106,9 @@ export function CaseDrawer({
       : []),
     ...[...legalCase.counselling].reverse().map((session) => ({
       icon: <Stethoscope size={15} />,
-      title: `Counselling session ${session.number} logged`,
+      title: session.counsellor
+        ? `Counselling session ${session.number} · ${session.counsellor}`
+        : `Counselling session ${session.number} logged`,
       detail: formatDate(session.date),
     })),
     {

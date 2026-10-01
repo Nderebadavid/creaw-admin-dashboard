@@ -22,8 +22,27 @@ import {
   type AttendeeView,
   type SessionPermissions,
   type SessionPillar,
+  type FacilitatorView,
   type SessionView,
 } from "../model";
+
+const kindTag = { staff: "Staff", provider: "Provider" } as const;
+
+/** A facilitator's name with a small Staff or Provider tag (none when the kind is unknown). */
+export function FacilitatorName({
+  facilitator,
+  className,
+}: {
+  facilitator: FacilitatorView;
+  className?: string;
+}) {
+  return (
+    <span className={`flex items-center gap-2 ${className ?? ""}`}>
+      {facilitator.name}
+      {facilitator.kind && <StatusBadge tone="neutral">{kindTag[facilitator.kind]}</StatusBadge>}
+    </span>
+  );
+}
 
 const iconButton =
   "flex size-[34px] items-center justify-center rounded-lg text-creaw-body hover:bg-[#F4EEE8] disabled:opacity-50";
@@ -58,7 +77,7 @@ export function SessionDrawer({
     ["Topic", session.topicId === null ? `${session.topic} (Other)` : session.topic],
     ["Date", formatDate(session.date)],
     ["Venue", session.venue ?? "—"],
-    ["Facilitator", session.facilitator],
+    ["Facilitator", <FacilitatorName key="facilitator" facilitator={session.facilitator} />],
     ["Reach", reach],
     ["Notes", session.notes ?? "—"],
   ];
@@ -87,7 +106,7 @@ export function SessionDrawer({
       initials={session.activityType.slice(0, 2).toUpperCase()}
       kind={`Group session · ${pillar === "srhr" ? "SRHR" : "Skilling"}`}
       title={`${session.topic} · ${formatDate(session.date)}`}
-      subtitle={`${session.venue ?? "Venue not recorded"} · ${session.facilitator}`}
+      subtitle={`${session.venue ?? "Venue not recorded"} · ${session.facilitator.name}`}
       accent={look?.color}
       tint={look?.tint}
       status={<StatusBadge tone="neutral">{reach}</StatusBadge>}

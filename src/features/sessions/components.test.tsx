@@ -35,7 +35,8 @@ export const workspace: SessionWorkspace = {
       date: "2026-09-10",
       venue: "Kibera Ward Office",
       notes: "Good turnout",
-      facilitator: "CREAW staff",
+      facilitator: { name: "Wanjiru Otieno", kind: "staff" },
+      facilitatorRef: { kind: "staff", id: 9 },
       communityWide: true,
       attendees: [
         {
@@ -60,7 +61,8 @@ export const workspace: SessionWorkspace = {
       date: "2026-08-20",
       venue: null,
       notes: null,
-      facilitator: "External provider",
+      facilitator: { name: "Faith Kimani", kind: "provider" },
+      facilitatorRef: { kind: "provider", id: 1 },
       communityWide: true,
       attendees: [],
       documents: [],
@@ -106,6 +108,12 @@ export const workspace: SessionWorkspace = {
     { id: 10, activityTypeId: 4, name: "Menstrual health", sequenceNo: 1, active: true },
     { id: 11, activityTypeId: 4, name: "Contraception", sequenceNo: 2, active: true },
   ],
+  facilitators: [
+    { kind: "staff", id: 9, name: "Wanjiru Otieno", detail: "CREAW staff" },
+    { kind: "staff", id: 1, name: "Amina Hassan", detail: "CREAW staff" },
+    { kind: "provider", id: 1, name: "Faith Kimani", detail: "Counsellor · Kibera Clinic" },
+  ],
+  currentUser: { id: 1, name: "Amina Hassan" },
   participants: [
     { id: 5, label: "••ith ••••ani · Laini Saba" },
     { id: 6, label: "••ce ••••yi · Kibera" },
@@ -212,7 +220,7 @@ describe("session drawer", () => {
     const drawer = open();
     expect(drawer).toHaveTextContent("Group session · SRHR");
     expect(drawer).toHaveTextContent("Menstrual health");
-    expect(drawer).toHaveTextContent("Kibera Ward Office · CREAW staff");
+    expect(drawer).toHaveTextContent("Kibera Ward Office · Wanjiru Otieno");
     expect(drawer).toHaveTextContent("Good turnout");
     for (const tab of ["Overview", "Attendance (1)", "Documents & photos (1)", "Activity"])
       expect(within(drawer).getByRole("tab", { name: tab })).toBeInTheDocument();
@@ -253,6 +261,96 @@ describe("session drawer", () => {
     expect(within(drawer).getByRole("button", { name: "Remove ••ith ••••ani" })).toBeDisabled();
     fireEvent.click(within(drawer).getByRole("tab", { name: "Documents & photos (1)" }));
     expect(within(drawer).getByRole("button", { name: "View Attendance sheet" })).toBeDisabled();
+  });
+});
+
+describe("session facilitators in the UI", () => {
+  it("shows the name with a Staff or Provider tag in the register", () => {
+    render(<SessionWorkspaceView workspace={workspace} can={all} />);
+    const row = screen.getByRole("button", { name: /^Open Facility referral day/ }).closest("tr")!;
+    expect(row).toHaveTextContent("Faith Kimani");
+    expect(within(row).getByText("Provider")).toBeInTheDocument();
+    const staffRow = screen.getByRole("button", { name: /^Open Menstrual health/ }).closest("tr")!;
+    expect(within(staffRow).getByText("Staff")).toBeInTheDocument();
+  });
+
+  it("groups staff and providers and defaults to the current user when logging", () => {
+    render(<LogSessionButton workspace={workspace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log session" }));
+    const select = within(screen.getByRole("dialog")).getByLabelText(
+      "Facilitator"
+    ) as HTMLSelectElement;
+    expect([...select.querySelectorAll("optgroup")].map((g) => g.label)).toEqual([
+      "CREAW staff",
+      "External providers",
+    ]);
+    expect(select.value).toBe("staff:1");
+    expect([...select.options].map((o) => o.text)).toContain(
+      "Faith Kimani · Counsellor · Kibera Clinic"
+    );
+  });
+
+  it("offers only Me when no facilitator options loaded", () => {
+    render(<LogSessionButton workspace={{ ...workspace, facilitators: [] }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log session" }));
+    const select = within(screen.getByRole("dialog")).getByLabelText(
+      "Facilitator"
+    ) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.text)).toEqual(["Me (Amina Hassan)"]);
+    expect(select.value).toBe("staff:1");
+  });
+
+  it("keeps an edited session's facilitator selected when it is not among the options", () => {
+    const gone = {
+      ...workspace,
+      facilitators: workspace.facilitators.filter((o) => o.id !== 1 || o.kind !== "provider"),
+    };
+    render(
+      <SessionFormDialog
+        open
+        workspace={gone}
+        session={workspace.sessions[1]}
+        onClose={() => {}}
+        onDone={() => {}}
+      />
+    );
+    const select = screen.getByLabelText("Facilitator") as HTMLSelectElement;
+    expect(select.value).toBe("provider:1");
+    expect(select.selectedOptions[0].text).toBe("Faith Kimani");
+  });
+
+  it("does not assign the editor when a session has no facilitator", () => {
+    const unassigned = { ...workspace.sessions[1], facilitatorRef: null };
+    render(
+      <SessionFormDialog
+        open
+        workspace={workspace}
+        session={unassigned}
+        onClose={() => {}}
+        onDone={() => {}}
+      />
+    );
+    const select = screen.getByLabelText("Facilitator") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(select.selectedOptions[0].text).toBe("Choose a facilitator");
+    expect(select.required).toBe(true);
+  });
+
+  it("submits the chosen facilitator", async () => {
+    render(<LogSessionButton workspace={workspace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Log session" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Activity type"), { target: { value: "4" } });
+    fireEvent.change(within(dialog).getByLabelText("Topic"), { target: { value: "11" } });
+    fireEvent.change(within(dialog).getByLabelText("Facilitator"), {
+      target: { value: "provider:1" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log session" }));
+    await vi.waitFor(() =>
+      expect(actions.logSessionAction).toHaveBeenCalledWith(
+        expect.objectContaining({ facilitator: { kind: "provider", id: 1 } })
+      )
+    );
   });
 });
 

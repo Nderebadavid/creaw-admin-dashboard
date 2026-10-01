@@ -64,6 +64,7 @@ export const routeTables: Record<string, TableName> = {
   "admin/roles": "role",
   "admin/permissions": "permission",
   "admin/pipelines": "pipeline_definition",
+  "admin/providers": "external_provider",
 };
 export const lookups: TableName[] = [
   "pillar",
@@ -140,6 +141,7 @@ export const permissionCodes: Partial<Record<TableName, [string, string]>> = {
   training_enrollment: ["TRAINING_ENROLLMENT_VIEW", "TRAINING_ENROLLMENT_EDIT"],
   activity_session: ["ACTIVITY_SESSION_VIEW", "ACTIVITY_SESSION_LOG"],
   activity_attendance: ["ACTIVITY_SESSION_VIEW", "ACTIVITY_SESSION_LOG"],
+  external_provider: ["PROVIDER_MANAGE", "PROVIDER_MANAGE"],
   audit_logs: ["AUDIT_LOG_VIEW", ""],
 };
 

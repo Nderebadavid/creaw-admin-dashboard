@@ -295,6 +295,13 @@ export const story = {
       name: "Export report as CSV",
       description: "Export a programme report or list view as CSV.",
     },
+    {
+      id: 43,
+      code: "PROVIDER_MANAGE",
+      module: "ADMIN",
+      name: "Manage external providers",
+      description: "Create, edit and deactivate external providers and reveal their contacts.",
+    },
   ],
   users: [
     [

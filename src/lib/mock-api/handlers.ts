@@ -11,6 +11,7 @@ import { handleAdminCommands } from "./routes/admin";
 import { handleAuditLogs } from "./routes/audit-logs";
 import { handleCurrentUser, handleSessionRoutes } from "./routes/auth";
 import { handleDashboard } from "./routes/dashboard";
+import { handleFacilitatorOptions } from "./routes/facilitators";
 import { handleReportViews } from "./routes/reports";
 import { getMockStore, resolveMockToken } from "./store";
 import { type ApiEnvelope } from "@/types/api";
@@ -48,6 +49,7 @@ export async function handleMockRequest(
     handleAuditLogs(ctx) ??
     handleAdminCommands(ctx) ??
     handleReportViews(ctx) ??
+    handleFacilitatorOptions(ctx) ??
     handleDashboard(ctx);
   if (routed) return routed;
 

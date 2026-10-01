@@ -83,6 +83,11 @@ describe("pillar route", () => {
     expect(html).not.toContain("Activity type ID");
   });
 
+  it("names the facilitator in the SRHR session register", async () => {
+    const html = await render("srhr");
+    expect(html).toContain("Faith Kimani");
+  });
+
   it("adds the sessions workspace beside Skilling's trainee enrollments", async () => {
     const html = await render("skilling");
     expect(html).toContain("Session register");
@@ -94,7 +99,10 @@ describe("pillar route", () => {
   it("treats an invalid period as this quarter", async () => {
     const spy = vi.spyOn(sessionsApi, "workspace");
     await render("srhr", "decade");
-    expect(spy).toHaveBeenCalledWith("srhr", "quarter");
+    expect(spy).toHaveBeenCalledWith("srhr", "quarter", {
+      canLog: true,
+      currentUser: { id: 1, name: expect.any(String) },
+    });
   });
 
   it("keeps the SRHR page and shows a banner when sessions fail to load", async () => {

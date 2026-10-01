@@ -14,7 +14,8 @@ import {
   SESSION_PILLAR_IDS,
   type ActivityTopicOption,
   type ActivityTypeOption,
-  type FacilitatorLabel,
+  type FacilitatorOption,
+  type FacilitatorView,
   type SessionPeriod,
   type SessionPillar,
   type SessionView,
@@ -36,6 +37,14 @@ const sessionSchema = z.object({
   topic: z.string().nullable(),
   facilitator_user_id: id.nullable(),
   facilitator_provider_id: id.nullable(),
+  facilitator_name: z
+    .string()
+    .nullish()
+    .transform((value) => value?.trim() || null),
+  facilitator_kind: z
+    .enum(["staff", "provider"])
+    .nullish()
+    .transform((value) => value ?? null),
   notes: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -68,6 +77,12 @@ const participantSchema = z.object({
   last_name: z.string(),
   ward_id: id.nullable().optional(),
 });
+const facilitatorOptionSchema = z.object({
+  kind: z.enum(["staff", "provider"]),
+  id,
+  name: z.string(),
+  detail: z.string(),
+});
 const wardSchema = z.object({ id, name: z.string() });
 const documentSchema = z.object({
   id,
@@ -88,15 +103,31 @@ type Values = Record<string, string | number | boolean | null>;
 
 const isActive = (row: { status: string; is_deleted: boolean }) =>
   row.status === "ACTIVE" && !row.is_deleted;
-const facilitatorOf = (row: {
+type FacilitatorRow = {
   facilitator_user_id: number | null;
   facilitator_provider_id: number | null;
-}): FacilitatorLabel =>
+  facilitator_name: string | null;
+  facilitator_kind: "staff" | "provider" | null;
+};
+const facilitatorRefOf = (row: FacilitatorRow): SessionView["facilitatorRef"] =>
   row.facilitator_user_id
-    ? "CREAW staff"
+    ? { kind: "staff", id: row.facilitator_user_id }
     : row.facilitator_provider_id
-      ? "External provider"
-      : "Not assigned";
+      ? { kind: "provider", id: row.facilitator_provider_id }
+      : null;
+/** The facilitator's name, or a generic label (never an id) when the API did not send one. */
+const facilitatorOf = (row: FacilitatorRow): FacilitatorView => {
+  const kind = row.facilitator_kind ?? facilitatorRefOf(row)?.kind ?? null;
+  const fallback =
+    kind === "staff" ? "CREAW staff" : kind === "provider" ? "External provider" : "Not assigned";
+  return { name: row.facilitator_name ?? fallback, kind };
+};
+
+export interface WorkspaceOptions {
+  /** Whether to load the facilitator picker (needs ACTIVITY_SESSION_LOG in the pillar). */
+  canLog?: boolean;
+  currentUser?: { id: number; name: string };
+}
 
 export function createSessionsApi(client: ApiClient, token: string) {
   const all = <T>(
@@ -182,20 +213,30 @@ export function createSessionsApi(client: ApiClient, token: string) {
     async workspace(
       pillar: SessionPillar,
       period: SessionPeriod,
-      today: Date = new Date()
+      today: Date = new Date(),
+      options: WorkspaceOptions = {}
     ): Promise<SessionWorkspace> {
-      const [sessions, attendance, documents, rawTypes, rawTopics, participants, wards] =
-        await Promise.all([
-          table(pillar, "activity_session", sessionSchema),
-          table(pillar, "activity_attendance", attendanceSchema).catch(() => []),
-          table(pillar, "document", documentSchema).catch(() => []),
-          lookup("activity_type_definition", typeSchema),
-          lookup("activity_topic", topicSchema),
-          all("/participants", "/participants", {}, page(participantSchema) as never).catch(
-            () => [] as z.infer<typeof participantSchema>[]
-          ),
-          lookup("ward", wardSchema),
-        ]);
+      const [
+        sessions,
+        attendance,
+        documents,
+        rawTypes,
+        rawTopics,
+        participants,
+        wards,
+        facilitators,
+      ] = await Promise.all([
+        table(pillar, "activity_session", sessionSchema),
+        table(pillar, "activity_attendance", attendanceSchema).catch(() => []),
+        table(pillar, "document", documentSchema).catch(() => []),
+        lookup("activity_type_definition", typeSchema),
+        lookup("activity_topic", topicSchema),
+        all("/participants", "/participants", {}, page(participantSchema) as never).catch(
+          () => [] as z.infer<typeof participantSchema>[]
+        ),
+        lookup("ward", wardSchema),
+        options.canLog ? this.facilitators(pillar) : Promise.resolve([]),
+      ]);
       const { types, topics } = curriculumOf(pillar, rawTypes, rawTopics);
       const people = participants as z.infer<typeof participantSchema>[];
       const liveAttendance = attendance.filter((row) => !row.is_deleted);
@@ -217,6 +258,7 @@ export function createSessionsApi(client: ApiClient, token: string) {
             venue: row.venue,
             notes: row.notes,
             facilitator: facilitatorOf(row),
+            facilitatorRef: facilitatorRefOf(row),
             communityWide: row.enrollment_id === null,
             attendees: liveAttendance
               .filter((item) => item.session_id === row.id)
@@ -263,7 +305,13 @@ export function createSessionsApi(client: ApiClient, token: string) {
         activityTypes: types,
         topics,
         participants: participantOptions(people, wards),
+        facilitators,
+        currentUser: options.currentUser ?? null,
       };
+    },
+    /** Active staff and providers this user may assign to a session; [] when the read fails. */
+    async facilitators(pillar: SessionPillar): Promise<FacilitatorOption[]> {
+      return table(pillar, "facilitator_option", facilitatorOptionSchema).catch(() => []);
     },
     logSession(pillar: SessionPillar, values: Values) {
       return write("POST", pillar, "activity_session", values);
@@ -341,8 +389,8 @@ export function createSessionsApi(client: ApiClient, token: string) {
 }
 
 export const sessionsApi = {
-  async workspace(pillar: SessionPillar, period: SessionPeriod) {
-    return (await withSessionApi(createSessionsApi)).workspace(pillar, period);
+  async workspace(pillar: SessionPillar, period: SessionPeriod, options?: WorkspaceOptions) {
+    return (await withSessionApi(createSessionsApi)).workspace(pillar, period, undefined, options);
   },
 };
 

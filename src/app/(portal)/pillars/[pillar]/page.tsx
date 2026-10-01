@@ -62,7 +62,10 @@ export default async function PillarPage({
     loadPillar(code.data),
     loadSubmissions(session.grants, ids[code.data]),
     loadVawgWorkspace(session.grants, code.data),
-    loadSessionsWorkspace(session.grants, code.data, period),
+    loadSessionsWorkspace(session.grants, code.data, period, {
+      id: session.user.id,
+      name: session.user.name,
+    }),
   ]);
   if (!pillar)
     return <AlertBanner tone="warning">You do not have access to this pillar.</AlertBanner>;
