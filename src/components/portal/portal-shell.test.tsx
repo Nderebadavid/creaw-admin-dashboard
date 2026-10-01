@@ -6,6 +6,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/auth/actions", () => ({ logoutAction: vi.fn() }));
 import { PortalShell, usePortalDateRange } from "./portal-shell";
+import { PageHeading } from "./page-heading";
 afterEach(cleanup);
 const session = {
   user: {
@@ -51,4 +52,46 @@ it("opens a labelled mobile drawer and the notifications panel", async () => {
   expect(screen.getByRole("region", { name: "Notifications" })).toHaveTextContent(
     "You're all caught up."
   );
+});
+
+it("shows the current page's title in the header, with no search box, and clears it on leaving", () => {
+  const { rerender } = render(
+    <PortalShell session={session}>
+      <PageHeading title="Women's Economic Empowerment" section="Pillars" />
+    </PortalShell>
+  );
+  const header = screen.getByRole("banner");
+  expect(header).toHaveTextContent("Women's Economic Empowerment");
+  expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  expect(screen.queryByPlaceholderText(/Search portal/)).not.toBeInTheDocument();
+  rerender(
+    <PortalShell session={session}>
+      <PageHeading title="Participants" section="Records" />
+    </PortalShell>
+  );
+  expect(header).toHaveTextContent("Participants");
+  expect(header).not.toHaveTextContent("Women's Economic Empowerment");
+  rerender(
+    <PortalShell session={session}>
+      <p>No heading</p>
+    </PortalShell>
+  );
+  expect(header).not.toHaveTextContent("Participants");
+});
+
+it("keeps a page's own buttons as a slim row without repeating the title or breadcrumb", () => {
+  render(
+    <PortalShell session={session}>
+      <PageHeading
+        title="Participants"
+        section="Records"
+        description="One registry"
+        actions={<button type="button">Register participant</button>}
+      />
+    </PortalShell>
+  );
+  expect(screen.getByRole("button", { name: "Register participant" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1, name: "Participants" })).toHaveClass("sr-only");
+  expect(screen.queryByText("One registry")).not.toBeInTheDocument();
+  expect(screen.queryByText("Records")).not.toBeInTheDocument();
 });

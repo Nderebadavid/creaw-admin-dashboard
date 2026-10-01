@@ -2,7 +2,7 @@
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
 import { hasPermission, type EffectiveGrant } from "@/lib/auth/grants";
-import { GlobalSearch, type SearchDestination } from "./global-search";
+import { useHeaderTitle } from "./page-title";
 import { Button } from "@/components/ui/button";
 import type { NavigationStatus } from "./navigation";
 import { NotificationsMenu } from "./notifications-menu";
@@ -24,7 +24,6 @@ export function PortalHeader({
   onOpenMobile,
   range,
   onRangeChange,
-  destinations,
   grants,
   status,
 }: {
@@ -36,8 +35,8 @@ export function PortalHeader({
   onOpenMobile: () => void;
   range: DateRange;
   onRangeChange: (range: DateRange) => void;
-  destinations: readonly SearchDestination[];
 }) {
+  const title = useHeaderTitle();
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3.5 border-b border-[#F0DFC8] bg-[#FDF6EC] px-4 py-3 lg:flex-nowrap lg:px-7">
       <Button
@@ -58,10 +57,8 @@ export function PortalHeader({
       >
         {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
       </Button>
-      <div className="order-last flex w-full lg:order-none lg:max-w-md lg:flex-1">
-        <GlobalSearch destinations={destinations} />
-      </div>
-      <div className="ml-auto flex items-center gap-3">
+      <p className="min-w-0 flex-1 truncate font-heading text-xl font-bold lg:text-2xl">{title}</p>
+      <div className="flex items-center gap-3">
         <DateRangePicker value={range} onChange={onRangeChange} />
         <NotificationsMenu status={status} />
         <UserMenu

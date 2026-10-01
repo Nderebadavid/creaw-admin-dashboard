@@ -174,7 +174,7 @@ describe("pillar screen", () => {
     expect(html).toContain("New application");
   });
 
-  it("shows the pipeline as a progression funnel and puts create beside the heading", () => {
+  it("shows the pipeline as a progression funnel, with create in the records toolbar and no heading block", () => {
     const pillar: PillarView = {
       id: 2,
       code: "wee",
@@ -209,8 +209,11 @@ describe("pillar screen", () => {
     expect(html).toContain("Participant progression this year");
     expect(html).toContain("Training");
     expect(html).toContain("75%");
-    const heading = html.slice(html.indexOf("data-page-heading"), html.indexOf("</h1>") + 200);
-    expect(heading).toContain("Women&#x27;s Economic Empowerment");
-    expect(html.indexOf("New application")).toBeLessThan(html.indexOf("WEE pipeline"));
+    // The title lives in the portal header; the page keeps it only as a screen-reader heading.
+    expect(html).toContain('<h1 class="sr-only">Women&#x27;s Economic Empowerment</h1>');
+    expect(html).not.toContain("Pillars</span>");
+    expect(html).not.toContain("WEE pillar");
+    // Create sits with the records, not in the heading.
+    expect(html.indexOf("New application")).toBeGreaterThan(html.indexOf("WEE pipeline"));
   });
 });
