@@ -3,6 +3,7 @@ vi.mock("server-only", () => ({}));
 const cookieStore = { get: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+import { revalidatePath } from "next/cache";
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import {
   createProviderAction,
@@ -11,7 +12,11 @@ import {
   updateProviderAction,
 } from "./actions";
 
+// Lead Counsellor (user 4) holds roles 4 and 7 only: no PROVIDER_MANAGE and no SENSITIVE_REVEAL in any pillar.
+const NO_PROVIDER_ACCESS_USER = 4;
+
 beforeEach(() => {
+  vi.mocked(revalidatePath).mockClear();
   resetMockStore();
   cookieStore.get.mockReturnValue({ value: issueMockToken(1) });
 });
@@ -61,6 +66,23 @@ describe("provider actions", () => {
     });
   });
 
+  it("rejects a masked email", async () => {
+    expect(await createProviderAction({ ...form, email: "f•••@nwh.example" })).toMatchObject({
+      success: false,
+      message: "Enter the contact in full, or leave it blank to keep it",
+    });
+  });
+
+  it("revalidates the directory after a write, but not after a denied one", async () => {
+    await createProviderAction(form);
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/providers");
+    vi.mocked(revalidatePath).mockClear();
+    cookieStore.get.mockReturnValue({ value: issueMockToken(NO_PROVIDER_ACCESS_USER) });
+    await createProviderAction(form);
+    await setProviderActiveAction({ id: 2, active: false });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid input", async () => {
     expect(await createProviderAction({ ...form, firstName: " " })).toMatchObject({
       success: false,
@@ -73,6 +95,7 @@ describe("provider actions", () => {
     expect((await setProviderActiveAction({ id: 2, active: false })).success).toBe(true);
     expect(getMockStore().external_provider.find((row) => row.id === 2)!.status).toBe("INACTIVE");
     expect((await setProviderActiveAction({ id: 2, active: true })).success).toBe(true);
+    expect(getMockStore().external_provider.find((row) => row.id === 2)!.status).toBe("ACTIVE");
   });
 
   it("reveals a contact with an audit entry", async () => {
@@ -97,5 +120,15 @@ describe("provider actions", () => {
     cookieStore.get.mockReturnValue({ value: issueMockToken(3) });
     expect((await setProviderActiveAction({ id: 2, active: false })).success).toBe(false);
     expect((await createProviderAction(form)).success).toBe(false);
+  });
+
+  it("refuses a reveal to users with neither PROVIDER_MANAGE nor SENSITIVE_REVEAL", async () => {
+    cookieStore.get.mockReturnValue({ value: issueMockToken(NO_PROVIDER_ACCESS_USER) });
+    const before = getMockStore().audit_logs.length;
+    expect(await revealProviderContactAction(1, "phone_number")).toEqual({
+      success: false,
+      error: "Permission denied",
+    });
+    expect(getMockStore().audit_logs.length).toBe(before);
   });
 });
