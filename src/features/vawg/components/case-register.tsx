@@ -90,6 +90,7 @@ const columns: DataColumn<LegalCaseView>[] = [
 export function CaseRegister({
   workspace,
   can,
+  toolbar,
 }: {
   workspace: Pick<VawgWorkspace, "cases" | "counselling" | "currentUserId">;
   can: {
@@ -100,6 +101,8 @@ export function CaseRegister({
     /** May log counselling (shown only when the user can also view it). */
     counsel?: boolean;
   };
+  /** Extra buttons for the register's toolbar, e.g. logging a new record. */
+  toolbar?: React.ReactNode;
 }) {
   const router = useRouter();
   const list = usePagedList<LegalCaseView, ListQuery>(
@@ -161,7 +164,12 @@ export function CaseRegister({
             list.filter({ search: value || undefined });
           },
         }}
-        actions={can.export && <ExportButton label="CSV" exportAction={exportCases} />}
+        actions={
+          <>
+            {toolbar}
+            {can.export && <ExportButton label="CSV" exportAction={exportCases} />}
+          </>
+        }
         footer={
           <Pagination
             page={list.data.page}
