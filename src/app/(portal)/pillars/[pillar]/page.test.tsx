@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 import { issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import { vawgApi } from "@/features/vawg/api";
 import { sessionsApi } from "@/features/sessions/api";
+import { trainingApi } from "@/features/training/api";
 import PillarPage from "./page";
 
 const render = async (pillar: string, period?: string) =>
@@ -88,12 +89,36 @@ describe("pillar route", () => {
     expect(html).toContain("Faith Kimani");
   });
 
-  it("adds the sessions workspace beside Skilling's trainee enrollments", async () => {
+  it("composes Skilling's trainee register beside its sessions", async () => {
     const html = await render("skilling");
-    expect(html).toContain("Session register");
-    expect(html).toContain("Workplace conduct");
-    expect(html).toContain("Trainee enrollments");
+    for (const text of [
+      "Trainees enrolled",
+      "Completion rate",
+      "In work",
+      "Recommended for grants",
+      "Trainee register",
+      "Tailoring &amp; design",
+      "Mathare Skills Centre",
+      "Application filed",
+      "Enrol trainee",
+      "Session register",
+      "Workplace conduct",
+    ])
+      expect(html).toContain(text);
+    expect(html).not.toContain("Trainee enrollments");
+    // The old trainee table's id placeholders are gone.
+    expect(html).not.toContain("Centre #");
+    expect(html).not.toContain("Not tracked");
     expect(html).not.toContain("Facility referral day");
+  });
+
+  it("keeps the Skilling page and shows a banner when trainees fail to load", async () => {
+    vi.spyOn(trainingApi, "workspace").mockRejectedValue(new Error("timeout"));
+    const html = await render("skilling");
+    expect(html).toContain("The trainee register could not be loaded");
+    expect(html).toContain("Session register");
+    expect(html).not.toContain("Trainee enrollments");
+    expect(html).not.toContain("Enrollment ID");
   });
 
   it("treats an invalid period as this quarter", async () => {

@@ -4,6 +4,8 @@ import { assessmentsApi } from "@/features/assessments/api";
 import { wrosApi } from "@/features/wros/api";
 import { vawgApi } from "@/features/vawg/api";
 import { sessionsApi } from "@/features/sessions/api";
+import { trainingApi } from "@/features/training/api";
+import { TRAINING_PILLAR_ID } from "@/features/training/model";
 import { isSessionPillar, SESSION_PILLAR_IDS, type SessionPeriod } from "@/features/sessions/model";
 import { OrganisationRegister } from "@/features/wros/components/organisation-register";
 
@@ -50,6 +52,18 @@ export async function loadSessionsWorkspace(
   return sessionsApi
     .workspace(code, period, { canLog, currentUser: user })
     .catch(() => "failed" as const);
+}
+
+/**
+ * The Skilling trainee workspace, none for other pillars and users without trainee
+ * access there, or "failed" when it can't load (the page then degrades).
+ */
+export async function loadTrainingWorkspace(grants: readonly EffectiveGrant[], code: PillarCode) {
+  const scope = { pillarId: TRAINING_PILLAR_ID };
+  if (code !== "skilling" || !hasPermission(grants, "TRAINING_ENROLLMENT_VIEW", scope))
+    return undefined;
+  const canEdit = hasPermission(grants, "TRAINING_ENROLLMENT_EDIT", scope);
+  return trainingApi.workspace({ canEdit }).catch(() => "failed" as const);
 }
 
 /** The WRO partner register with the options its dialogs need, trimmed to the user's grants. */
