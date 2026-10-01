@@ -2,6 +2,8 @@
 import { useState, type FocusEvent, type MouseEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
+// Imported, so the URL carries a hash of the file and a new logo is never served from cache.
+import logo from "../../../public/creaw-logo.png";
 import type { EffectiveGrant } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import { permittedNavigation, type NavigationStatus } from "./navigation";
@@ -57,7 +59,7 @@ export function PortalSidebar({
       <div
         className={cn(
           "mb-1.5 flex items-center justify-center border-b border-[#F0DFC8] bg-[#FDF6EC]",
-          collapsed ? "px-0 py-3.5" : "px-5 py-4"
+          collapsed ? "px-0 py-2.5" : "px-5 py-2.5"
         )}
       >
         {collapsed ? (
@@ -69,12 +71,12 @@ export function PortalSidebar({
           </span>
         ) : (
           <Image
-            src="/creaw-logo.png"
+            src={logo}
             alt="CREAW — Centre for Rights Education and Awareness"
-            width={657}
-            height={465}
-            sizes="120px"
-            style={{ width: 120, height: "auto" }}
+            width={594}
+            height={420}
+            sizes="108px"
+            style={{ width: 108, height: "auto" }}
             preload
           />
         )}

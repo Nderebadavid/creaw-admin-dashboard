@@ -4,6 +4,8 @@ import { Download, FileUp } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./dialog";
 import { Button } from "./button";
 import { formatDate, titleCase } from "@/lib/format";
+// Imported, so the URL carries a hash of the file and a new logo is never served from cache.
+import logo from "../../../public/creaw-logo.png";
 
 /** A document the API has let the user open; its access is already in the audit log. */
 export interface ViewedDocument {
@@ -46,13 +48,7 @@ function PdfPage({ document }: { document: ViewedDocument }) {
   return (
     <div className="flex aspect-[1/1.3] w-full max-w-[420px] flex-col gap-3 bg-white px-[30px] py-8 shadow-[0_8px_30px_-10px_rgba(34,28,24,.35)]">
       <div className="flex items-center justify-between border-b-2 border-primary pb-2.5">
-        <Image
-          src="/creaw-logo.png"
-          alt="CREAW"
-          width={84}
-          height={60}
-          className="h-auto w-[84px]"
-        />
+        <Image src={logo} alt="CREAW" width={84} height={60} className="h-auto w-[84px]" />
         <span className="font-mono text-[10px] text-creaw-faint">{reference}</span>
       </div>
       <p className="font-heading text-xl font-bold">{document.name}</p>
