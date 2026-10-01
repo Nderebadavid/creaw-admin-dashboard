@@ -122,9 +122,7 @@ export function RegisterOrganisationDialog({
           />
           <span>
             <span className="block font-semibold">Holds a bank account in its own name</span>
-            <span className="text-[12.5px] text-creaw-faint">
-              Shown on the profile
-            </span>
+            <span className="text-[12.5px] text-creaw-faint">Shown on the profile</span>
           </span>
         </label>
         <label className="flex items-start gap-2.5 rounded-[10px] border border-dashed border-[#F2C98A] bg-[#FFFBF4] p-3 text-sm sm:col-span-2">

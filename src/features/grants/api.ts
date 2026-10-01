@@ -90,7 +90,15 @@ export interface GrantProgramme {
   pillarId: number;
 }
 export interface GrantHistoryEntry {
-  event: "SUBMITTED" | "PREPARED" | "REVIEWED" | "APPROVED" | "DECLINED";
+  event:
+    | "SUBMITTED"
+    | "PREPARED"
+    | "REVIEWED"
+    | "APPROVED"
+    | "DECLINED"
+    | "SENT_BACK_TO_REVIEWED"
+    | "SENT_BACK_TO_PREPARED"
+    | "SENT_BACK_TO_NEW";
   /** The deciding officer; null for the application's arrival. */
   byName: string | null;
   at: string;
@@ -103,6 +111,10 @@ export interface GrantDetail extends GrantRow {
   stage: number;
   /** The next sign-off step; null once approved or declined. */
   nextStatus: "PREPARED" | "REVIEWED" | "APPROVED" | null;
+  /** The step a sign-off can be sent back to; null for a new or declined application. */
+  previousStatus: "ACTIVE" | "PREPARED" | "REVIEWED" | null;
+  /** Why the latest sign-off was sent back, while that is the newest event; otherwise null. */
+  sendBackReason: string | null;
   /** Why the application was declined; null unless it was. */
   declineReason: string | null;
   signoffs: { preparedBy: number | null; reviewedBy: number | null; approvedBy: number | null };
@@ -368,6 +380,12 @@ export function createGrantsApi(client: ApiClient, token: string) {
         history: [{ event: "SUBMITTED", byName: null, at: row.created_at }, ...signoffs.history],
         nextStatus:
           !declined && stage < 3 ? (stages[stage + 1] as GrantDetail["nextStatus"]) : null,
+        previousStatus:
+          !declined && stage >= 1 ? (stages[stage - 1] as GrantDetail["previousStatus"]) : null,
+        sendBackReason:
+          !declined && signoffs.history.at(-1)?.event.startsWith("SENT_BACK")
+            ? (row.status_description ?? null)
+            : null,
         declineReason: declined ? (row.status_description ?? "") : null,
         award: award
           ? {
@@ -406,6 +424,18 @@ export function createGrantsApi(client: ApiClient, token: string) {
           routeTemplate: "/grants/:id",
           token,
           body: { status: "DECLINED", status_description: reason },
+        },
+        mutationSchema
+      );
+    },
+    sendBack(id: number, to: "ACTIVE" | "PREPARED" | "REVIEWED", reason: string) {
+      return request<import("zod").infer<typeof mutationSchema>>(
+        {
+          method: "PATCH",
+          path: `/grants/${id}`,
+          routeTemplate: "/grants/:id",
+          token,
+          body: { status: to, status_description: reason },
         },
         mutationSchema
       );

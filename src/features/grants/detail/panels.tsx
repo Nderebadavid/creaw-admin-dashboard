@@ -16,6 +16,9 @@ const HISTORY_LABEL: Record<GrantHistoryEntry["event"], string> = {
   REVIEWED: "Marked as reviewed",
   APPROVED: "Application approved",
   DECLINED: "Application declined",
+  SENT_BACK_TO_REVIEWED: "Approval sent back to reviewed",
+  SENT_BACK_TO_PREPARED: "Review sent back to prepared",
+  SENT_BACK_TO_NEW: "Preparation sent back to new",
 };
 
 const historyTime = (iso: string) =>

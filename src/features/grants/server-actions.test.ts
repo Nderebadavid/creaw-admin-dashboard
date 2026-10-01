@@ -18,6 +18,7 @@ import {
   createGrantApplicationAction,
   declineGrantAction,
   logGrantReportAction,
+  sendBackGrantAction,
 } from "./actions";
 import { createGrantsApi } from "./api";
 
@@ -298,5 +299,29 @@ describe("filing an application from the queue", () => {
     asUser(outsider.id);
     expect((await createGrantApplicationAction(valid())).success).toBe(false);
     expect(store.grant_application).toHaveLength(count);
+  });
+});
+
+describe("sending a grant sign-off back", () => {
+  it("returns the application to the previous step for an officer holding that step's permission", async () => {
+    asUser(1);
+    // Application 3 is prepared by user 4 in the seed; sending it back returns it to new.
+    expect((await sendBackGrantAction({ id: 3, reason: "Wrong amount" })).resultCode).toBe(200);
+    expect(getMockStore().grant_application[2].status).toBe("ACTIVE");
+  });
+
+  it("needs a reason, an existing sign-off, and the permission of the step being undone", async () => {
+    asUser(1);
+    expect((await sendBackGrantAction({ id: 3, reason: "  " })).resultCode).toBe(422);
+    expect((await sendBackGrantAction({ id: 9999, reason: "x" })).resultCode).toBe(404);
+    getMockStore().grant_application[2].status = "ACTIVE";
+    expect((await sendBackGrantAction({ id: 3, reason: "Nothing to undo" })).resultCode).toBe(422);
+    getMockStore().grant_application[2].status = "REVIEWED";
+    asUser(5); // Leads VAWG: no sign-off permission on a WEE grant.
+    // Outside the pillar the grant is not even visible, so it reads as not found.
+    expect([403, 404]).toContain(
+      (await sendBackGrantAction({ id: 3, reason: "Not mine" })).resultCode
+    );
+    expect(getMockStore().grant_application[2].status).toBe("REVIEWED");
   });
 });

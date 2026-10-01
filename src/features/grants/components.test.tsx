@@ -6,6 +6,7 @@ vi.mock("./actions", () => ({
   advanceGrantAction: vi.fn(),
   createGrantApplicationAction: vi.fn(),
   declineGrantAction: vi.fn(),
+  sendBackGrantAction: vi.fn(),
   recordDisbursementAction: vi.fn(),
   downloadGrantPackAction: vi.fn(),
   exportGrantsAction: vi.fn(),
@@ -13,7 +14,7 @@ vi.mock("./actions", () => ({
   viewGrantDocumentAction: vi.fn(),
 }));
 vi.mock("@/features/participants/actions", () => ({ listParticipantsAction: vi.fn() }));
-import { declineGrantAction } from "./actions";
+import { declineGrantAction, sendBackGrantAction } from "./actions";
 import { GrantDetailContent } from "./components";
 describe("grant detail", () => {
   afterEach(cleanup);
@@ -35,6 +36,8 @@ describe("grant detail", () => {
           stage: 2,
           nextStatus: "APPROVED",
           declineReason: null,
+          previousStatus: null,
+          sendBackReason: null,
           history: [],
           signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: null },
           award: { id: 1, amountAwarded: 55000, currency: "KES", lifecycle: "active" },
@@ -70,6 +73,8 @@ describe("grant detail", () => {
           stage: 3,
           nextStatus: null,
           declineReason: null,
+          previousStatus: null,
+          sendBackReason: null,
           history: [],
           signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: 1 },
           award: { id: 1, amountAwarded: 55000, currency: "KES", lifecycle: "active" },
@@ -105,6 +110,8 @@ describe("grant detail", () => {
     stage: 3,
     nextStatus: null,
     declineReason: null,
+    previousStatus: null,
+    sendBackReason: null,
     history: [],
     signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: 1 },
     award: { id: 1, amountAwarded: 100000, currency: "KES", lifecycle: "active" },
@@ -226,6 +233,48 @@ describe("grant detail", () => {
     expect(await screen.findByText("Application declined.")).toBeInTheDocument();
   });
 
+  it("sends the latest sign-off back with a reason, only for an officer who holds that step", async () => {
+    vi.mocked(sendBackGrantAction).mockResolvedValue({
+      resultCode: 200,
+      success: true,
+      message: "OK",
+      data: null,
+    });
+    const reviewed = { ...inReview, previousStatus: "PREPARED" as const };
+    const { rerender } = render(
+      <GrantDetailContent detail={reviewed} {...permissions} canSendBack={false} />
+    );
+    expect(screen.getByRole("button", { name: "Send back" })).toBeDisabled();
+    rerender(<GrantDetailContent detail={reviewed} {...permissions} canSendBack />);
+    fireEvent.click(screen.getByRole("button", { name: "Send back" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("returns the application to prepared");
+    expect(within(dialog).getByLabelText("Reason for sending back")).toBeRequired();
+    fireEvent.change(within(dialog).getByLabelText("Reason for sending back"), {
+      target: { value: "Wrong amount entered" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Send back" }));
+    await waitFor(() =>
+      expect(sendBackGrantAction).toHaveBeenCalledWith({ id: 1, reason: "Wrong amount entered" })
+    );
+    expect(await screen.findByText("Sign-off sent back.")).toBeInTheDocument();
+  });
+
+  it("shows why the sign-off was sent back, and offers nothing to send back when new or declined", () => {
+    const { rerender } = render(
+      <GrantDetailContent
+        detail={{ ...inReview, previousStatus: "PREPARED", sendBackReason: "Wrong amount entered" }}
+        {...permissions}
+        canSendBack
+      />
+    );
+    expect(screen.getByRole("heading", { name: "Sign-off sent back" })).toBeInTheDocument();
+    expect(screen.getByText("Wrong amount entered")).toBeInTheDocument();
+    rerender(<GrantDetailContent detail={inReview} {...permissions} canSendBack />);
+    expect(screen.queryByRole("button", { name: "Send back" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Sign-off sent back" })).not.toBeInTheDocument();
+  });
+
   it("disables declining for an officer who cannot decide the next step", () => {
     render(<GrantDetailContent detail={inReview} {...permissions} canAdvance={false} />);
     expect(screen.getByRole("button", { name: "Decline application" })).toBeDisabled();
@@ -239,6 +288,8 @@ describe("grant detail", () => {
           status: "DECLINED",
           nextStatus: null,
           declineReason: "Business plan not viable",
+          previousStatus: null,
+          sendBackReason: null,
         }}
         {...permissions}
       />

@@ -274,6 +274,28 @@ function awardOnApproval(ctx: ResourceContext, before: Row | null, next: Row, no
   );
 }
 
+/** Sending an approved application back withdraws the award it created, and its report periods. */
+function retractAwardOnSendBack(ctx: ResourceContext, before: Row | null, next: Row, now: string) {
+  if (ctx.table !== "grant_application" || before?.status !== "APPROVED") return;
+  if (next.status !== "REVIEWED") return;
+  const { store, request, userId } = ctx;
+  const awards = store.grant_award.filter(
+    (award) => !award.is_deleted && award.application_id === next.id
+  );
+  for (const award of awards) {
+    for (const report of store.grant_report.filter(
+      (row) => !row.is_deleted && row.grant_award_id === award.id
+    )) {
+      const previous = structuredClone(report) as unknown as Row;
+      Object.assign(report, { is_deleted: true, updated_at: now });
+      auditWrite(store, request, userId, "grant_report", previous, report as unknown as Row);
+    }
+    const previous = structuredClone(award) as unknown as Row;
+    Object.assign(award, { is_deleted: true, updated_at: now });
+    auditWrite(store, request, userId, "grant_award", previous, award as unknown as Row);
+  }
+}
+
 /** `?enroll=true` enrolls a newly registered participant in the requested pillar. */
 function enrollOnRegistration(ctx: ResourceContext, next: Row, now: string) {
   if (!isRegistration(ctx) || ctx.table !== "participant") return;
@@ -355,6 +377,7 @@ export function writeResource(ctx: ResourceContext): Envelope {
   auditWrite(store, request, userId, table, before, next);
 
   awardOnApproval(ctx, before, next, now);
+  retractAwardOnSendBack(ctx, before, next, now);
   enrollOnRegistration(ctx, next, now);
   enrollOnAcceptedReferral(ctx, before, next, now);
   trainingSideEffects(ctx, before, next, now);
