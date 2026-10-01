@@ -17,7 +17,7 @@ import { declineGrantAction } from "./actions";
 import { GrantDetailContent } from "./components";
 describe("grant detail", () => {
   afterEach(cleanup);
-  it("shows sign-off and masked disbursement values without enabling an unauthorized step", () => {
+  it("shows sign-off and disbursement values without enabling an unauthorized step", () => {
     render(
       <GrantDetailContent
         detail={{
@@ -37,9 +37,9 @@ describe("grant detail", () => {
           declineReason: null,
           history: [],
           signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: null },
-          award: { id: 1, amountAwarded: "••••", currency: "KES", lifecycle: "active" },
+          award: { id: 1, amountAwarded: 55000, currency: "KES", lifecycle: "active" },
           reportingAwardId: null,
-          disbursements: [{ id: 1, amount: "••••", date: "2026-09-02", notes: null }],
+          disbursements: [{ id: 1, amount: 27500, date: "2026-09-02", notes: null }],
           reports: [],
           documents: [],
         }}
@@ -51,7 +51,6 @@ describe("grant detail", () => {
     );
     expect(screen.getByText("Sign-off chain")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /approve application/i })).toBeDisabled();
-    expect(screen.queryByText("55000")).not.toBeInTheDocument();
   });
   it("offers an approved award reporting-period form with start, end, and due dates", async () => {
     render(
@@ -73,7 +72,7 @@ describe("grant detail", () => {
           declineReason: null,
           history: [],
           signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: 1 },
-          award: { id: 1, amountAwarded: "••••", currency: "KES", lifecycle: "active" },
+          award: { id: 1, amountAwarded: 55000, currency: "KES", lifecycle: "active" },
           reportingAwardId: 1,
           disbursements: [],
           reports: [],
@@ -108,11 +107,11 @@ describe("grant detail", () => {
     declineReason: null,
     history: [],
     signoffs: { preparedBy: 4, reviewedBy: 3, approvedBy: 1 },
-    award: { id: 1, amountAwarded: "100000", currency: "KES", lifecycle: "active" },
+    award: { id: 1, amountAwarded: 100000, currency: "KES", lifecycle: "active" },
     reportingAwardId: 1,
     disbursements: [
-      { id: 1, amount: "40000", date: "2026-09-10", notes: "Tranche 1" },
-      { id: 2, amount: "20000", date: "2026-09-20", notes: null },
+      { id: 1, amount: 40000, date: "2026-09-10", notes: "Tranche 1" },
+      { id: 2, amount: 20000, date: "2026-09-20", notes: null },
     ],
     reports: [],
     documents: [],

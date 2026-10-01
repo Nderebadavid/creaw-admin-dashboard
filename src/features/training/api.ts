@@ -1,7 +1,7 @@
 /**
  * Typed client for Skilling trainees: placements, outcomes and the grant hand-off
  * to WEE. Reads go through /pillars/skilling; the API scopes them to the pillar,
- * masks the salary and adds the display names and hand-off stage.
+ * adds the display names and hand-off stage.
  */
 import { z } from "zod";
 import type { ApiClient } from "@/lib/api/client";

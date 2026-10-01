@@ -63,8 +63,7 @@ describe("trainee reads", () => {
       current_work_status: "self_employed",
     });
     expect(tailoring.participant_name).toMatch(/^[A-Z][a-z]+ [A-Z]/);
-    expect(String(tailoring.monthly_salary)).toContain("•");
-    expect(JSON.stringify(tailoring)).not.toContain("18000");
+    expect(Number(tailoring.monthly_salary)).toBe(18000);
     expect((await trainee("Catering & pastry")).grant_handoff).toBe("referred");
     expect(await trainee("Electrical installation")).toMatchObject({
       grant_handoff: "none",
@@ -132,7 +131,7 @@ describe("trainee outcome rules", () => {
       monthly_salary: 9000,
     });
     expect(employed.success).toBe(true);
-    expect(String(employed.data.monthly_salary)).toContain("•");
+    expect(Number(employed.data.monthly_salary)).toBe(9000);
   });
 });
 

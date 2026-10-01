@@ -37,7 +37,7 @@ export const applicationSchema = z.object({
 export const awardSchema = z.object({
   id,
   application_id: id,
-  amount_awarded: z.string(),
+  amount_awarded: z.number(),
   currency: z.string(),
   contract_start: z.string().nullable(),
   contract_end: z.string().nullable(),
@@ -47,7 +47,7 @@ export const awardSchema = z.object({
 export const disbursementSchema = z.object({
   id,
   grant_id: id,
-  amount: z.string(),
+  amount: z.number(),
   percentage_of_total: z.number().nullable(),
   disbursement_date: z.string().nullable(),
   notes: z.string().nullable(),

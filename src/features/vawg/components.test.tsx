@@ -40,7 +40,7 @@ const legalCase: LegalCaseView = {
   assignedOfficer: "Grace Otieno",
   nextCourtDate: "2026-10-14",
   courtFileNumber: "CR 2210/26",
-  obNumber: "OB ••••/26",
+  obNumber: "OB 1042/26",
   counsellor: "Mercy Achieng",
   advocate: "Judy Muthoni",
   mediationAttempted: false,
@@ -169,7 +169,7 @@ describe("VAWG case register", () => {
     expect(drawer).toHaveTextContent("Grace Otieno");
     expect(drawer).toHaveTextContent("Mercy Achieng");
     expect(within(drawer).getByRole("button", { name: "Edit" })).toBeEnabled();
-    expect(within(drawer).getByLabelText("OB number")).toBeInTheDocument();
+    expect(drawer).toHaveTextContent("OB 1042/26");
     expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
     for (const tab of ["Overview", "Documents & photos", "Activity"])
       expect(within(drawer).getByRole("tab", { name: new RegExp(tab) })).toBeInTheDocument();
@@ -236,7 +236,7 @@ describe("VAWG case register", () => {
     await waitFor(() => expect(listCasesAction).toHaveBeenCalled());
   });
 
-  it("ends the overview with the record's status, dates and masked outcome notes", async () => {
+  it("ends the overview with the record's status, dates and outcome notes", async () => {
     const withNotes = {
       ...workspace,
       cases: page([
@@ -244,7 +244,7 @@ describe("VAWG case register", () => {
           ...legalCase,
           status: "INACTIVE",
           statusDescription: "Case withdrawn by the survivor",
-          outcomeNotes: "•••••••• plan",
+          outcomeNotes: "Safety plan agreed",
         },
       ]),
     };
@@ -255,7 +255,7 @@ describe("VAWG case register", () => {
     expect(record).toHaveTextContent("Status noteCase withdrawn by the survivor");
     expect(record).toHaveTextContent("Created01 Aug 2026");
     expect(record).toHaveTextContent("Last updated01 Sept 2026");
-    expect(within(record).getByLabelText("Outcome notes")).toHaveTextContent("•••••••• plan");
+    expect(record).toHaveTextContent("Safety plan agreed");
     expect(within(record).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
   });
 

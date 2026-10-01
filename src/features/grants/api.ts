@@ -108,9 +108,9 @@ export interface GrantDetail extends GrantRow {
   signoffs: { preparedBy: number | null; reviewedBy: number | null; approvedBy: number | null };
   /** The application's arrival and every sign-off decision since, oldest first. */
   history: readonly GrantHistoryEntry[];
-  award: { id: number; amountAwarded: string; currency: string; lifecycle: string } | null;
+  award: { id: number; amountAwarded: number; currency: string; lifecycle: string } | null;
   reportingAwardId: number | null;
-  disbursements: { id: number; amount: string; date: string | null; notes: string | null }[];
+  disbursements: { id: number; amount: number; date: string | null; notes: string | null }[];
   reports: {
     id: number;
     periodStart: string;

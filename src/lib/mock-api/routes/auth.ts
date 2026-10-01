@@ -1,6 +1,6 @@
 import { getEffectiveGrants } from "../../auth/permissions";
 import { type MockContext } from "../context";
-import { envelope, masked, type Row } from "../core";
+import { envelope, safeRow, type Row } from "../core";
 import { MOCK_OTP_CODE, MOCK_PASSWORD } from "../seed";
 import { issueMockToken, revokeMockToken } from "../store";
 import { findAccount, stringFields } from "./accounts";
@@ -112,7 +112,7 @@ function verifyOtp({ request, store }: MockContext): ApiEnvelope<unknown> {
   const user = store.user.find((row) => row.id === challenge.userId)!;
   return envelope(200, {
     token: issueMockToken(user.id),
-    user: masked("user", user as unknown as Row),
+    user: safeRow("user", user as unknown as Row),
     grants: getEffectiveGrants(user.id),
     roles: activeRoleNames(store, user.id),
   });
@@ -143,7 +143,7 @@ export function handleCurrentUser(ctx: MockContext): ApiEnvelope<unknown> | unde
     return request.method === "GET"
       ? envelope(200, {
           // The caller's own email is shown in the account menu, so it is not masked.
-          user: { ...masked("user", user as unknown as Row), email: user.email },
+          user: { ...safeRow("user", user as unknown as Row), email: user.email },
           grants,
           roles: activeRoleNames(store, userId),
         })

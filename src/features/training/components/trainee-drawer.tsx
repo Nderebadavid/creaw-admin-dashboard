@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
-import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
@@ -187,7 +186,9 @@ export function TraineeDrawer({
     ["Workplace", trainee.workstation ?? "—"],
     [
       "Monthly salary",
-      <MaskedField key="salary" label="Monthly salary" maskedValue={trainee.salary ?? "—"} />,
+      trainee.salary && Number.isFinite(Number(trainee.salary))
+        ? `KES ${Number(trainee.salary).toLocaleString("en-KE")}`
+        : (trainee.salary ?? "—"),
     ],
   ];
   const { handoff } = trainee;

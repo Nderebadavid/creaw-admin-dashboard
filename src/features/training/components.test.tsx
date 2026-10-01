@@ -44,7 +44,7 @@ const base: TraineeView = {
   status: "completed",
   workStatus: "self_employed",
   workstation: "Tailoring workshop, Mathare",
-  salary: "•8000",
+  salary: "45000",
   lifeSkillsSessions: 2,
   recommended: true,
   handoff: {
@@ -233,13 +233,13 @@ describe("trainee register", () => {
 });
 
 describe("trainee drawer", () => {
-  it("shows the placement, outcome and masked salary with the three tabs", () => {
+  it("shows the placement, outcome and salary with the three tabs", () => {
     const drawer = open("Wanjiru Achieng");
     expect(drawer).toHaveTextContent("Trainee · Skilling");
     expect(drawer).toHaveTextContent("Tailoring & design · Mathare Skills Centre");
     expect(drawer).toHaveTextContent("James Otieno");
     expect(drawer).toHaveTextContent("Self-employed");
-    expect(drawer).toHaveTextContent("•8000");
+    expect(drawer).toHaveTextContent("KES 45,000");
     expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).toBeNull();
     for (const tab of ["Overview", "Grant hand-off", "Activity"])
       expect(within(drawer).getByRole("tab", { name: tab })).toBeInTheDocument();

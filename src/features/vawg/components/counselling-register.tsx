@@ -9,7 +9,6 @@ import { usePagedList } from "@/components/data-table/use-paged-list";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { FormBanner } from "@/components/ui/form-banner";
-import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { SectionTitle } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -182,10 +181,12 @@ function SurvivorDrawer({
                   <span className="text-[13px]">
                     <CounsellorName counsellor={session.counsellor} />
                   </span>
-                  <MaskedField
-                    label={`Session ${session.number} notes`}
-                    maskedValue={session.notes ?? "No notes"}
-                  />
+                  <span
+                    aria-label={`Session ${session.number} notes`}
+                    className="whitespace-pre-wrap break-words"
+                  >
+                    {session.notes ?? "No notes"}
+                  </span>
                 </article>
               ))}
               {!loading && list.length === 0 && (

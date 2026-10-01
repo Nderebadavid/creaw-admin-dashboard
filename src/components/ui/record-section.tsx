@@ -20,7 +20,7 @@ export function RecordSection({
   statusDescription?: string | null;
   created?: string | null;
   updated?: string | null;
-  /** Labelled notes, e.g. ["Notes", …], ["Remarks", …] or ["Outcome notes", <MaskedField/>]. */
+  /** Labelled notes, e.g. ["Notes", …], ["Remarks", …] or ["Outcome notes", <span/>]. */
   notes?: readonly (readonly [string, ReactNode])[];
 }) {
   const fields: [string, ReactNode][] = [

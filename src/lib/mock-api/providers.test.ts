@@ -33,13 +33,13 @@ describe("provider directory", () => {
       query,
     });
 
-  it("lists providers to PROVIDER_MANAGE holders with contacts masked", async () => {
+  it("lists providers to PROVIDER_MANAGE holders with their contacts in full", async () => {
     const result = await list(1);
     expect(result.success).toBe(true);
     const faith = result.data.items.find((row: any) => row.first_name === "Faith");
     expect(faith).toMatchObject({ last_name: "Kimani", provider_type: "counsellor" });
-    expect(faith.phone_number).toMatch(/•/);
-    expect(faith.email).toMatch(/•/);
+    expect(faith.phone_number).toBe("0711 900 221");
+    expect(faith.email).toBe("faith.kimani@nwh.example");
   });
 
   it("refuses the directory to users without PROVIDER_MANAGE", async () => {
@@ -47,7 +47,7 @@ describe("provider directory", () => {
     expect((await one(9, 1)).resultCode).toBe(403);
   });
 
-  it("creates, edits and deactivates a provider, keeping contacts masked in responses", async () => {
+  it("creates, edits and deactivates a provider, returning contacts in full", async () => {
     const created = await raw(1, {
       method: "POST",
       path: "/admin/providers",
@@ -65,7 +65,7 @@ describe("provider directory", () => {
       },
     });
     expect(created.resultCode).toBe(201);
-    expect(created.data.phone_number).toMatch(/•/);
+    expect(created.data.phone_number).toBe("0700 111 222");
     const id = created.data.id;
     const deactivated = await raw(1, {
       method: "PATCH",
@@ -77,10 +77,10 @@ describe("provider directory", () => {
     expect((await one(1, id)).success).toBe(true);
   });
 
-  it("keeps contacts masked in CSV exports and audit snapshots", async () => {
+  it("exports contacts in full but keeps them out of audit snapshots", async () => {
     const csv = await list(1, { format: "csv" });
     expect(csv.success).toBe(true);
-    expect(JSON.stringify(csv.data)).not.toContain("0711 900 221");
+    expect(JSON.stringify(csv.data)).toContain("0711 900 221");
     await raw(1, {
       method: "PATCH",
       path: "/admin/providers/1",
@@ -92,7 +92,7 @@ describe("provider directory", () => {
     expect(JSON.stringify(entry)).not.toContain("faith.kimani@nwh.example");
   });
 
-  it("rejects an unknown provider type and a masked contact value", async () => {
+  it("rejects an unknown provider type and a malformed contact value", async () => {
     const post = (body: Record<string, unknown>) =>
       raw(1, {
         method: "POST",

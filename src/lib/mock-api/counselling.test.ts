@@ -101,7 +101,7 @@ describe("logging counselling", () => {
 });
 
 describe("reading counselling", () => {
-  it("names the counsellor, tags staff or provider, and masks the notes", async () => {
+  it("names the counsellor, tags staff or provider, and returns the notes in full", async () => {
     const rows = await sessions();
     expect(rows.find((row) => row.enrollment_id === 1 && row.session_no === 1)).toMatchObject({
       counsellor_name: "Faith Kimani",
@@ -111,8 +111,8 @@ describe("reading counselling", () => {
       counsellor_name: "Cynthia Chelimo",
       counsellor_kind: "staff",
     });
-    expect(rows.every((row) => row.notes === null || row.notes.includes("•"))).toBe(true);
-    expect(JSON.stringify(rows)).not.toContain("Confidential");
+    const stored = getMockStore().counselling_session.find((row) => row.notes !== null)!;
+    expect(rows.find((row) => row.id === stored.id)?.notes).toBe(stored.notes);
   });
 
   it("offers active staff and external counsellors, names only, to loggers", async () => {

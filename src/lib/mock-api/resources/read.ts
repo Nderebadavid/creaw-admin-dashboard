@@ -1,5 +1,4 @@
 import { hasPermission, hasModulePermission } from "../../auth/permissions";
-import { isSensitiveField } from "../../sensitive-fields";
 import { auditWrite } from "../audit";
 import { type ResourceContext } from "../context";
 import {
@@ -7,7 +6,7 @@ import {
   rowsFor,
   enrollmentRead,
   envelope,
-  masked,
+  safeRow,
   referralRead,
   scopes,
   submissionSummary,
@@ -117,7 +116,7 @@ export function presentedColumns(table: TableName): string[] {
 }
 
 /**
- * Rows as the API returns them: sensitive fields masked, every linked record named,
+ * Rows as the API returns them: sensitive fields safeRow, every linked record named,
  * plus each table's own derived fields (stages, hand-offs, people).
  */
 export function presentRow(
@@ -132,8 +131,8 @@ export function presentRow(
       : table === "enrollment"
         ? enrollmentRead(store, row)
         : table === "training_enrollment"
-          ? trainingRead(store, withNames(store, table, masked(table, row)))
-          : withNames(store, table, masked(table, row));
+          ? trainingRead(store, withNames(store, table, safeRow(table, row)))
+          : withNames(store, table, safeRow(table, row));
   return withReferenceNames(store, table, { ...base, ...derivedFields(store, table, row, grants) });
 }
 
@@ -203,7 +202,7 @@ function readSpecialView(ctx: ResourceContext): Envelope | undefined {
   if (table === "external_provider" && existing && query.get("include") === "workload") {
     if (!hasPermission(grants, "PROVIDER_MANAGE")) return envelope(403);
     return envelope(200, {
-      ...masked(table, existing),
+      ...safeRow(table, existing),
       workload: providerWorkload(store, existing.id),
     });
   }
@@ -261,12 +260,10 @@ function providerWorkload(store: MockStore, providerId: number) {
   };
 }
 
-/** One row, optionally as a document download. Sensitive fields are never returned unmasked. */
+/** One row, optionally as a document download. */
 function readSingle(ctx: ResourceContext, existing: Row): Envelope {
   const { request, store, query, userId, grants, table, permission } = ctx;
   if (!allowed(store, grants, permission, table, existing)) return envelope(403);
-  // There is no reveal: a masked field stays masked for every caller.
-  if (query.has("reveal")) return envelope(422, null, "Sensitive fields cannot be revealed");
   const includes = parseIncludes(table, query.get("include"));
   if (!includes) return envelope(422, null, "Unknown include");
   const result = withIncludes(
@@ -351,9 +348,9 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   if (query.has("includeDeleted") && (!mayIncludeDeleted || query.get("includeDeleted") !== "true"))
     return envelope(422);
 
-  // Column filters and sorts must name a returned, non-sensitive field (stored or derived).
+  // Column filters and sorts must name a returned field (never the password hash) (stored or derived).
   const fields = presentedColumns(table);
-  const usable = (key: string) => fields.includes(key) && !isSensitiveField(table, key);
+  const usable = (key: string) => fields.includes(key) && key !== "password_hash";
   for (const [key] of query) if (!RESERVED_KEYS.has(key) && !usable(key)) return envelope(422);
 
   // `sort=a:asc,b:desc`, or the older `sortBy` + `sortOrder`.
@@ -411,7 +408,7 @@ function filterRows(
   for (const [key, value] of query)
     if (!RESERVED_KEYS.has(key) && !skip.includes(key))
       presented = presented.filter((item) => String(item.view[key]) === value);
-  // Search uses the visible representation (masked, with names) so it cannot become
+  // Search uses the visible representation (safeRow, with names) so it cannot become
   // an oracle for masked identity numbers or other hidden data.
   if (params.search)
     presented = presented.filter(({ row, view }) =>

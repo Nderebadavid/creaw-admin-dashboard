@@ -14,7 +14,6 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
 import { RecordSection } from "@/components/ui/record-section";
 import { DocumentRow, FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
@@ -61,10 +60,7 @@ export function CaseDrawer({
     ["Case type", legalCase.caseType],
     ["Court", legalCase.court ?? "—"],
     ["Court file number", legalCase.courtFileNumber ?? "—"],
-    [
-      "OB number",
-      <MaskedField key="ob" label="OB number" maskedValue={legalCase.obNumber ?? "—"} />,
-    ],
+    ["OB number", legalCase.obNumber ?? "—"],
     ["Assigned officer", legalCase.assignedOfficer ?? "Not assigned"],
     ["Counsellor", legalCase.counsellor ?? "Not assigned"],
     ["Advocate", legalCase.advocate ?? "Not assigned"],
@@ -155,11 +151,9 @@ export function CaseDrawer({
                 notes={[
                   [
                     "Outcome notes",
-                    <MaskedField
-                      key="outcome-notes"
-                      label="Outcome notes"
-                      maskedValue={legalCase.outcomeNotes ?? "—"}
-                    />,
+                    <span key="outcome-notes" className="whitespace-pre-wrap break-words">
+                      {legalCase.outcomeNotes ?? "—"}
+                    </span>,
                   ],
                 ]}
               />

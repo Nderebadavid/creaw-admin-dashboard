@@ -22,8 +22,7 @@ describe("participant workflows", () => {
     expect(first).toMatchObject({ page: 1, pageSize: 1, totalItems: 1, totalPages: 1 });
     expect(first.items[0]).toMatchObject({ county: "Nairobi", pillarIds: [6, 2] });
     expect(first.items[0].name).toBe("Faith Atieno");
-    expect(first.items[0].idNumber).not.toBe("35510442");
-    expect(first.items[0].idNumber).toContain("•");
+    expect(first.items[0].idNumber).toBe("35510442");
   });
 
   it("reads later participant pages without dropping joined enrollments", async () => {
@@ -69,9 +68,9 @@ describe("participant workflows", () => {
     expect(forbidden.resultCode).toBe(403);
   });
 
-  it("keeps the identity number masked on the detail read", async () => {
+  it("returns the full identity number on the detail read", async () => {
     const detail = await apiFor(1).get(1);
-    expect(detail?.idNumber).not.toBe("29481172");
+    expect(detail?.idNumber).toBe("29481172");
   });
 
   it("shows the latest pipeline stage instead of the enrollment entry category", async () => {
@@ -115,7 +114,7 @@ describe("participant workflows", () => {
     expect(participant?.enrollments.map((row) => row.id)).toContain(1200);
   });
 
-  it("exports only the filtered participant set with masked identity values", async () => {
+  it("exports only the filtered participant set without participants outside the filter", async () => {
     const response = await handleMockRequest({
       method: "GET",
       path: "/participants",

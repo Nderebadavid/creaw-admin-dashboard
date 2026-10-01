@@ -19,7 +19,7 @@ describe("VAWG legal case register", () => {
       assignedOfficer: "Cynthia Chelimo",
       nextCourtDate: "2026-10-03",
       courtFileNumber: "CR 2210/26",
-      obNumber: expect.stringMatching(/•+2026$/),
+      obNumber: getMockStore().legal_case[0].ob_number,
       counsellor: "Mary Achola",
     });
   });
@@ -123,7 +123,7 @@ describe("VAWG legal case register", () => {
       counsellor: { name: "Cynthia Chelimo", kind: "staff" },
       counsellorRef: { kind: "staff", id: 6 },
     });
-    expect(sessions[0].notes).toContain("•");
+    expect(sessions[0].notes).toBe("Confidential counselling session.");
   });
 
   it("offers the dialogs' options in one call each", async () => {

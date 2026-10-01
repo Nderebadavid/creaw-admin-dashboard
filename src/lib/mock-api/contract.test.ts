@@ -38,9 +38,9 @@ describe("standard record fields", () => {
     for (const key of [...STANDARD, "remarks"]) expect(participant).toHaveProperty(key);
   });
 
-  it("masks sensitive notes", async () => {
+  it("returns counselling notes in full", async () => {
     const row = (await pillarTable("vawg", "counselling_session")).data.items[0];
-    expect(row.notes).toContain("•");
+    expect(row.notes).toBe(getMockStore().counselling_session[0].notes);
   });
 });
 
@@ -95,7 +95,7 @@ describe("list query conventions", () => {
     expect(filtered.every((row: any) => row.activity_type_name === typeName)).toBe(true);
   });
 
-  it("supports several sort keys and rejects unknown or sensitive ones", async () => {
+  it("supports several sort keys and rejects unknown ones and allows id_number", async () => {
     const result = await pillarTable("srhr", "activity_session", {
       sort: "activity_type_name:asc,session_date:desc",
     });
@@ -105,7 +105,7 @@ describe("list query conventions", () => {
     );
     expect(
       (await get("/participants", "/participants", { sort: "id_number:asc" })).resultCode
-    ).toBe(422);
+    ).toBe(200);
   });
 
   it("reads a batch of records by id in one call", async () => {
@@ -136,7 +136,7 @@ describe("list query conventions", () => {
       include: "awards,disbursements,reports,documents",
     });
     expect(one.data.awards.length).toBe(1);
-    expect(one.data.awards[0].amount_awarded).toContain("•");
+    expect(one.data.awards[0].amount_awarded).toBe(getMockStore().grant_award[0].amount_awarded);
 
     expect((await pillarTable("srhr", "activity_session", { include: "bogus" })).resultCode).toBe(
       422

@@ -62,7 +62,7 @@ describe("trainee workspace", () => {
       trainer: "James Otieno",
       handoff: { stage: "application_filed" },
     });
-    expect(tailoring.salary).toContain("•");
+    expect(tailoring.salary).toBe("18000");
   });
 
   it("pages, filters and sorts trainees on the server", async () => {

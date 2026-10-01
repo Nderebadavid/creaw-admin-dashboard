@@ -32,7 +32,7 @@ const directory: ProviderDirectory = {
       service: "Trauma counselling",
       institutionId: 1,
       institution: "Nairobi Women's Hospital",
-      phone: "••••• ••0 221",
+      phone: "0711 900 221",
       email: null,
       notes: null,
       active: true,
@@ -90,13 +90,13 @@ describe("provider directory", () => {
     expect(screen.getByRole("button", { name: "Open Judy Muthoni" })).toBeInTheDocument();
   });
 
-  it("opens the drawer with masked contacts and linked work", () => {
+  it("opens the drawer with contacts and linked work", () => {
     render(<ProviderRegister directory={directory} can={all} />);
     fireEvent.click(screen.getByRole("button", { name: "Open Faith Kimani" }));
     const drawer = screen.getByRole("dialog");
     expect(drawer).toHaveTextContent("External provider");
     expect(drawer).toHaveTextContent("Counsellor · Nairobi Women's Hospital");
-    expect(within(drawer).getByLabelText("Phone")).toHaveTextContent("••••• ••0 221");
+    expect(drawer).toHaveTextContent("0711 900 221");
     expect(within(drawer).queryByRole("button", { name: /reveal|hide/i })).not.toBeInTheDocument();
     fireEvent.click(within(drawer).getByRole("tab", { name: /Linked work/ }));
     expect(drawer).toHaveTextContent("Facility referral day");
