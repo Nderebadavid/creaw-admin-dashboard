@@ -95,10 +95,19 @@ describe("mock repository contracts", () => {
     ).toMatchObject({ resultCode: 201 });
     expect(getMockStore().participant.at(-1)?.first_name).toBe("New");
   });
-  it("masks sensitive response fields by default", async () => {
+  it("masks sensitive response fields by default but shows participant names", async () => {
     const result = await request({ path: "/participants/1", routeTemplate: "/participants/:id" });
     expect(JSON.stringify(result)).not.toContain("29481172");
-    expect(JSON.stringify(result)).not.toContain("Faith");
+    expect(result.data).toMatchObject({ first_name: "Faith", last_name: "Njeri" });
+    expect((result.data as { phone_number: string }).phone_number).toMatch(/^•+\d{4}$/);
+  });
+  it("rejects a reveal of a participant name, which is no longer sensitive", async () => {
+    const result = await request({
+      path: "/participants/1",
+      routeTemplate: "/participants/:id",
+      query: { reveal: "first_name" },
+    });
+    expect(result.resultCode).toBe(422);
   });
   it("preserves store across module reloads and resets deterministically", async () => {
     getMockStore().participant[0].remarks = "retained";

@@ -101,7 +101,7 @@ export async function loadPillarDomain(
     const rows = await read(table, schemas.vawg);
     return {
       title: "Legal case register",
-      subtitle: "Survivor names stay masked in the list",
+      subtitle: "Open a case for the full record",
       columns: ["Case", "Case type", "Court", "Officer", "Ruling date"],
       rows: rows.map((row) => ({
         id: row.id,

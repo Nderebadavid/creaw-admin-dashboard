@@ -19,7 +19,7 @@ import { DocumentRow, FieldGrid, SectionTitle, Timeline } from "@/components/ui/
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pillarLook } from "@/components/portal/pillars";
 import { formatDate } from "@/lib/format";
-import { revealCaseObNumberAction, revealSurvivorNameAction } from "../actions";
+import { revealCaseObNumberAction } from "../actions";
 import { VAWG_PILLAR_ID, type LegalCaseView } from "../model";
 import { courtStatusLabel, courtStatusTone } from "./status";
 
@@ -50,19 +50,7 @@ export function CaseDrawer({
   const fileCount = legalCase.documents.length + legalCase.missing.length;
   const fields: [string, React.ReactNode][] = [
     ["Case number", legalCase.number],
-    [
-      "Survivor",
-      <MaskedField
-        key="survivor"
-        label="Survivor name"
-        maskedValue={legalCase.survivor}
-        revealAction={
-          can.reveal && legalCase.participantId
-            ? () => revealSurvivorNameAction(legalCase.participantId!)
-            : undefined
-        }
-      />,
-    ],
+    ["Survivor", legalCase.survivor],
     ["Case type", legalCase.caseType],
     ["Court", legalCase.court ?? "—"],
     ["Court file number", legalCase.courtFileNumber ?? "—"],

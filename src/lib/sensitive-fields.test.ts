@@ -3,8 +3,8 @@ import { isSensitiveField, maskSensitiveValue } from "./sensitive-fields";
 describe("schema sensitivity", () => {
   it("maps the sensitive columns and leaves ordinary ones open", () => {
     for (const [table, column] of [
-      ["participant", "first_name"],
       ["participant", "id_number"],
+      ["participant", "phone_number"],
       ["user", "password_hash"],
       ["organisation", "has_bank_account"],
       ["document", "file_url"],
@@ -17,6 +17,8 @@ describe("schema sensitivity", () => {
     ])
       expect(isSensitiveField(table, column)).toBe(true);
     expect(isSensitiveField("participant", "gender")).toBe(false);
+    for (const column of ["first_name", "middle_name", "last_name"])
+      expect(isSensitiveField("participant", column)).toBe(false);
     expect(isSensitiveField("grant_application", "requested_amount")).toBe(false);
     expect(isSensitiveField("toString", "name")).toBe(false);
   });

@@ -97,13 +97,13 @@ describe("sessions workspace", () => {
     expect(skilling.activityTypes.map((row) => row.name)).toEqual(["Life Skills Session"]);
   });
 
-  it("counts coverage for the period and lists attendees with masked names", async () => {
+  it("counts coverage for the period and lists attendees by full name", async () => {
     const workspace = await apiFor(1).workspace("srhr", "quarter", today);
     const health = workspace.coverage.find((row) => row.name === "Health Talk")!;
     expect(health.topics.find((row) => row.name === "Menstrual health")?.sessions).toBe(1);
     expect(workspace.summary.topicsPlanned).toBe(14);
     const withPeople = workspace.sessions.find((row) => row.attendees.length > 0)!;
-    expect(withPeople.attendees[0].name).toMatch(/•/);
+    expect(withPeople.attendees[0].name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
   });
 
   it("still shows a session's retired topic and type names", async () => {
@@ -193,9 +193,9 @@ describe("attendee picker labels", () => {
     const { participants } = await apiFor(1).workspace("srhr", "all", today);
     const ward = store.ward[0].name;
     const label = (id: number) => participants.find((row) => row.id === id)?.label;
-    expect(label(a.id)).toBe(`•••• •••• · ${ward} · #${a.id}`);
-    expect(label(b.id)).toBe(`•••• •••• · ${ward} · #${b.id}`);
-    expect(label(c.id)).toBe("•••• •••• · Ward not recorded");
+    expect(label(a.id)).toBe(`Same Name · ${ward} · #${a.id}`);
+    expect(label(b.id)).toBe(`Same Name · ${ward} · #${b.id}`);
+    expect(label(c.id)).toBe("Same Name · Ward not recorded");
     expect(participants.filter((row) => row.label.includes("#"))).toHaveLength(2);
   });
 });

@@ -16,7 +16,6 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasPermission } from "@/lib/auth/permissions";
 import { titleCase } from "@/lib/format";
-import { revealParticipantAction } from "@/features/participants/actions";
 import { caseNumber, createVawgApi } from "./api";
 import { courtStatuses, VAWG_PILLAR_ID } from "./model";
 
@@ -156,15 +155,4 @@ export async function viewCaseFileAction(caseId: number, documentId: number) {
   } catch {
     return fail("Could not open the document");
   }
-}
-
-/** The survivor's full name, revealed through the participant record (each reveal is audited). */
-export async function revealSurvivorNameAction(participantId: number) {
-  const [first, last] = await Promise.all([
-    revealParticipantAction(participantId, "first_name"),
-    revealParticipantAction(participantId, "last_name"),
-  ]);
-  if (!first.success) return first;
-  if (!last.success) return last;
-  return { success: true as const, value: `${first.value} ${last.value}` };
 }

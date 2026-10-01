@@ -239,7 +239,7 @@ export function createParticipantsApi(client: ApiClient, token: string) {
         participantMutationSchema
       );
     },
-    reveal(id: number, field: "id_number" | "phone_number" | "first_name" | "last_name") {
+    reveal(id: number, field: "id_number" | "phone_number") {
       return client.request(
         {
           method: "GET",

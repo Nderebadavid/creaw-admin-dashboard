@@ -129,7 +129,7 @@ The drawer uses the shared `RecordDrawer`.
 **Tabs:**
 - **Overview:** activity type, planned topic (or the free-text topic marked "Other"), date, venue, facilitator, notes, and whether the session is linked to one participant or is community-wide.
 - **Attendance:**
-  - Attendees are listed with abbreviated names, their ward, and a link to their participant record. The count matches the register.
+  - Attendees are listed with their full names, their ward, and a link to their participant record. The count matches the register.
   - **Add attendee** searches registered participants, and a person already on the list can't be added twice.
   - **Remove** asks for confirmation.
   - Both actions require `ACTIVITY_SESSION_LOG` and are written to the audit log.
@@ -158,7 +158,7 @@ The unique key `(session_id, participant_id)` also covers soft-deleted rows. `ad
 
 ## Privacy and Permissions
 
-- Attendee names are always abbreviated in lists and drawers. Full identity stays behind the participant record's existing masking and audited reveal.
+- **Update (2026-10-01):** participant names are no longer masked, so attendees show their full names. ID number and phone stay behind the participant record's masking and audited reveal.
 - A user without `ACTIVITY_SESSION_VIEW` on the pillar never receives session data.
 - Other pillars' pages and drawers are unchanged.
 
@@ -171,6 +171,7 @@ The live API must provide:
 - attendance create, soft delete and restore written to the audit log
 - `includeDeleted=true` on `activity_attendance` reads, for callers holding `ACTIVITY_SESSION_LOG`
 - `includeDeleted=true` on the `activity_topic` and `activity_type_definition` lookups, for callers holding `ACTIVITY_SESSION_VIEW` in any pillar, so retired names still show on old sessions
+- participant `first_name`, `middle_name` and `last_name` no longer treated as sensitive (the SQL schema still labels them so; the portal shows them in full by product decision)
 - a write rule that a session's `activity_topic_id` belongs to its `activity_type_id`, and that the type belongs to the session's `pillar_id`
 
 The mock API already limits `/pillars/:pillar` reads to rows scoped to that pillar, so SRHR never receives Skilling sessions. A page test pins this.

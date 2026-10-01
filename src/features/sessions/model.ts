@@ -98,7 +98,7 @@ export interface SessionWorkspace {
   summary: SessionSummary;
   activityTypes: ActivityTypeOption[];
   topics: ActivityTopicOption[];
-  /** People an attendee can be picked from, labelled "<masked name> · <ward>" (plus "#<id>" only to tell identical labels apart). */
+  /** People an attendee can be picked from, labelled "<name> · <ward>" (plus "#<id>" only to tell identical labels apart). */
   participants: { id: number; label: string }[];
   /** Active staff and providers a session can be assigned to; [] when the user can't log or the read fails. */
   facilitators: FacilitatorOption[];

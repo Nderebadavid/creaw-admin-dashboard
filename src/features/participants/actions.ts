@@ -90,16 +90,9 @@ export async function updateParticipantAction(input: unknown) {
   }
 }
 
-export async function revealParticipantAction(
-  id: number,
-  field: "id_number" | "phone_number" | "first_name" | "last_name"
-) {
+export async function revealParticipantAction(id: number, field: "id_number" | "phone_number") {
   const session = await requireSession();
-  if (
-    !Number.isSafeInteger(id) ||
-    id < 1 ||
-    !["id_number", "phone_number", "first_name", "last_name"].includes(field)
-  )
+  if (!Number.isSafeInteger(id) || id < 1 || !["id_number", "phone_number"].includes(field))
     return { success: false as const, error: "Invalid field" };
   try {
     const client = await api();

@@ -28,7 +28,7 @@ it("announces a decision failure inside the active dialog", async () => {
     id: 4,
     enrollmentId: 7,
     participantId: 6,
-    participant: "••••a ••••med",
+    participant: "Aisha Mohamed",
     fromPillarId: 1,
     toPillarId: 2,
     fromPillar: "VAWG",
@@ -85,7 +85,7 @@ it("submits an external institution destination from the referral dialog", async
         { id: 2, name: "WEE" },
       ]}
       origins={[
-        { enrollmentId: 1, pillarId: 1, participant: "••••h ••••eri", category: "Legal aid" },
+        { enrollmentId: 1, pillarId: 1, participant: "Faith Njeri", category: "Legal aid" },
       ]}
       catalog={{
         internalPillarIds: [1, 2],
@@ -118,7 +118,7 @@ it("shows the external destination name in both the queue and decision dialog", 
     id: 1,
     enrollmentId: 1,
     participantId: 1,
-    participant: "••••h ••••eri",
+    participant: "Faith Njeri",
     fromPillarId: 1,
     toPillarId: 1,
     fromPillar: "VAWG",
