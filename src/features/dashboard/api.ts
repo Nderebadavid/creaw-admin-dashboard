@@ -9,7 +9,7 @@
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
 import { MONTHS_SHORT } from "@/lib/format";
-import { pillarLookBySlug } from "@/components/portal/pillars";
+import { pillarLookBySlug, shownPillars } from "@/components/portal/pillars";
 import { daysUntil } from "@/features/reporting/status";
 import { dashboardOverviewSchema } from "./schemas";
 
@@ -125,7 +125,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
       );
       if (!result.success || !result.data) throw new Error(result.message);
       const dto = result.data;
-      const pillars: DashboardPillar[] = dto.pillars.map((pillar) => {
+      const pillars: DashboardPillar[] = shownPillars(dto.pillars).map((pillar) => {
         const key = pillar.code.toUpperCase();
         const presentation = pillarPresentation[key] ?? unknownPillar(pillar.code);
         return {

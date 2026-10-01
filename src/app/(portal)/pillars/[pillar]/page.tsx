@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { isPillarShown } from "@/components/portal/pillars";
 import { AlertBanner } from "@/components/ui/alert-banner";
 import { hasModulePermission, hasPermission, type EffectiveGrant } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
@@ -77,7 +78,8 @@ export default async function PillarPage({
 }) {
   const session = await requireSession();
   const code = pillarCodeSchema.safeParse((await params).pillar);
-  if (!code.success) notFound();
+  // A pillar hidden from the portal (no data yet) has no page.
+  if (!code.success || !isPillarShown(code.data)) notFound();
   const period = parsePeriod((await searchParams)?.period);
   // The pillar's summary carries the cards its workspaces show, so they load after it.
   const pillar = await loadPillar(code.data, period);
@@ -101,8 +103,9 @@ export default async function PillarPage({
   ]);
   const can = (permission: string) =>
     hasPermission(session.grants, permission, { pillarId: pillar.id });
-  const availableCodes = (Object.keys(ids) as PillarCode[]).filter((key) =>
-    hasPermission(session.grants, "DASHBOARD_VIEW", { pillarId: ids[key] })
+  const availableCodes = (Object.keys(ids) as PillarCode[]).filter(
+    (key) =>
+      isPillarShown(key) && hasPermission(session.grants, "DASHBOARD_VIEW", { pillarId: ids[key] })
   );
   const canEdit = can("PARTICIPANT_EDIT");
   const canCreate = canEdit && pillar.hasPipeline && pillar.code !== "wros";

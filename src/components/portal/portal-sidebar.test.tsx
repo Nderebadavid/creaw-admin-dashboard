@@ -201,3 +201,14 @@ it("shows no tooltip when the sidebar is expanded, since the labels are visible"
   fireEvent.mouseEnter(screen.getByRole("link", { name: "Dashboard" }));
   expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
 });
+
+it("leaves the hidden Leadership pillar out of the navigation", () => {
+  render(
+    <PortalSidebar
+      pathname="/dashboard"
+      grants={[{ permissionCode: "DASHBOARD_VIEW", pillarId: null }]}
+    />
+  );
+  expect(screen.queryByRole("link", { name: "Leadership" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "VAWG" })).toBeInTheDocument();
+});

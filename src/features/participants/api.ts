@@ -6,6 +6,7 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import { shownPillars } from "@/components/portal/pillars";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { listParams } from "@/lib/api/list";
@@ -147,7 +148,7 @@ export function createParticipantsApi(client: ApiClient, token: string) {
     if (!response.success || !response.data) throw new Error(response.message);
     const { tables } = response.data;
     return {
-      pillars: tables.pillar.map((row) => ({ id: row.id, name: row.name })),
+      pillars: shownPillars(tables.pillar).map((row) => ({ id: row.id, name: row.name })),
       counties: tables.county.map((row) => ({ id: row.id, name: row.name })),
       wards: tables.ward.map((row) => ({
         id: row.id,

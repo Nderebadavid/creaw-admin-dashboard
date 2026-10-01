@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { EffectiveGrant } from "@/lib/auth/permissions";
+import { isPillarShown } from "./pillars";
 
 /** Work waiting in each module, shown as sidebar badges and in notifications. */
 export interface NavigationStatus {
@@ -49,7 +50,6 @@ export const implementedPortalRoutes: readonly string[] = [
   "/pillars/vawg",
   "/pillars/wee",
   "/pillars/srhr",
-  "/pillars/leadership",
   "/pillars/wros",
   "/pillars/skilling",
   "/participants",
@@ -245,6 +245,7 @@ export function permittedNavigation(
       items: group.items.filter(
         (item) =>
           availableRoutes.includes(item.href) &&
+          (item.pillarId === undefined || isPillarShown(item.pillarId)) &&
           grants.some(
             (grant) =>
               item.permissions.includes(grant.permissionCode) &&

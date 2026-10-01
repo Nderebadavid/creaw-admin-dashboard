@@ -107,7 +107,7 @@ const pages: {
     params: { table: "ward" },
     budget: 4,
   },
-  ...["vawg", "wee", "srhr", "skilling", "wros", "leadership"].map((pillar) => ({
+  ...["vawg", "wee", "srhr", "skilling", "wros"].map((pillar) => ({
     name: `pillar ${pillar}`,
     load: () => import("@/app/(portal)/pillars/[pillar]/page"),
     params: { pillar },

@@ -11,6 +11,7 @@ import type { SubmissionRow } from "@/features/submissions/api";
 import { PillarDomainTable } from "./domain-table";
 import { PillarRecordsTable } from "./records-table";
 import { PipelineFunnel } from "./overview/pipeline-funnel";
+import { isPillarShown } from "@/components/portal/pillars";
 import { ProjectsPanel } from "@/features/projects/projects-panel";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 
@@ -76,7 +77,8 @@ export function PillarContent({
       {heading && <PageHeading {...heading} actions={headingActions} />}
       <div className="flex flex-wrap items-center gap-2" aria-label="Pillar navigation">
         {(
-          availableCodes ?? (["vawg", "wee", "srhr", "leadership", "wros", "skilling"] as const)
+          availableCodes ??
+          (["vawg", "wee", "srhr", "leadership", "wros", "skilling"] as const).filter(isPillarShown)
         ).map((code) => {
           const tab = pillarLookBySlug(code);
           const on = code === pillar.code;

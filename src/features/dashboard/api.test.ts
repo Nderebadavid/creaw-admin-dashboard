@@ -7,7 +7,7 @@ import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/sto
 beforeEach(() => resetMockStore());
 
 describe("dashboard API", () => {
-  it("derives totals and six scoped pillar summaries from seed records", async () => {
+  it("derives totals and the shown pillars' summaries (Leadership is hidden) from seed records", async () => {
     const overview = await createDashboardApi(
       createPortalApiClient(),
       issueMockToken(1)
@@ -20,7 +20,6 @@ describe("dashboard API", () => {
       "vawg",
       "wee",
       "srhr",
-      "leadership",
       "wros",
       "skilling",
     ]);

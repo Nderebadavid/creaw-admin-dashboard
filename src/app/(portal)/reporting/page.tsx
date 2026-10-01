@@ -1,3 +1,4 @@
+import { shownPillars } from "@/components/portal/pillars";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
@@ -14,10 +15,10 @@ export default async function ReportingPage() {
     reportingApi.list({ page: 1, pageSize: 25 }),
     reportingApi.catalog(),
   ]);
-  const narrativePillars = catalog.pillars
+  const narrativePillars = shownPillars(catalog.pillars)
     .filter((row) => hasPermission(session.grants, "NARRATIVE_REPORT_MANAGE", { pillarId: row.id }))
     .map((row) => row.id);
-  const grantPillars = catalog.pillars
+  const grantPillars = shownPillars(catalog.pillars)
     .filter((row) => hasPermission(session.grants, "GRANT_REPORT_MANAGE", { pillarId: row.id }))
     .map((row) => row.id);
   return (
