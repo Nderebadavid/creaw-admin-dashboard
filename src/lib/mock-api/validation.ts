@@ -52,6 +52,18 @@ export function validate(store: MockStore, table: TableName, row: Row, previous?
     Boolean(row.participant_id) === Boolean(row.organisation_id)
   )
     return false;
+  if (table === "activity_session") {
+    const type = rowsFor(store, "activity_type_definition").find(
+      (candidate) => candidate.id === row.activity_type_id
+    );
+    if (!type || type.pillar_id !== row.pillar_id) return false;
+    if (row.activity_topic_id !== null && row.activity_topic_id !== undefined) {
+      const topic = rowsFor(store, "activity_topic").find(
+        (candidate) => candidate.id === row.activity_topic_id
+      );
+      if (!topic || topic.activity_type_id !== row.activity_type_id) return false;
+    }
+  }
   if (
     table === "activity_session" &&
     Boolean(row.facilitator_user_id) === Boolean(row.facilitator_provider_id)

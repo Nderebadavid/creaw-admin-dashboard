@@ -46,6 +46,8 @@ export function resolveTarget(ctx: MockContext): ApiEnvelope<unknown> | Resource
             (visible(row) ||
               table === "user_role" ||
               table === "role_permission" ||
+              // A removed attendee can be restored by patching the soft-deleted row.
+              (table === "activity_attendance" && request.method === "PATCH") ||
               (family === "lookups" && request.method === "PATCH"))
         );
   if (id !== undefined && !existing) return envelope(404);

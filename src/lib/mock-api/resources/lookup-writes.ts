@@ -22,6 +22,7 @@ export function checkLookupWrite(
     case_type: ["name", "pillar_id", "requires_p3_prc_forms", "default_route"],
     partner_institution: ["name", "institution_type", "county_id", "contact_details"],
     activity_type_definition: ["name", "pillar_id", "description"],
+    activity_topic: ["activity_type_id", "name", "description", "sequence_no"],
   };
   const keys = Object.keys(body),
     allowedKeys = writable[table] ?? [];
@@ -48,7 +49,9 @@ export function checkLookupWrite(
           ? "sub_county_id"
           : table === "activity_type_definition" || table === "case_type"
             ? "pillar_id"
-            : undefined;
+            : table === "activity_topic"
+              ? "activity_type_id"
+              : undefined;
     // Moving a ward or sub-county to another parent would silently re-home every
     // record that references it, so geographic and pillar parents are fixed.
     if (relation && relation in body && body[relation] !== existing[relation])
@@ -115,7 +118,9 @@ export function checkLookupWrite(
           ? "sub_county_id"
           : table === "activity_type_definition"
             ? "pillar_id"
-            : null;
+            : table === "activity_topic"
+              ? "activity_type_id"
+              : null;
     const parentId = parentKey ? (body[parentKey] ?? existing?.[parentKey]) : null;
     if (
       rows.some(

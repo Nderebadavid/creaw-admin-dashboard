@@ -245,6 +245,28 @@ export function createSeed(): MockStore {
   story.lookups["Activity types"].forEach(([pillar, name, description]) =>
     add("activity_type_definition", { pillar_id: pillar === "SRHR" ? 3 : 6, name, description })
   );
+  const typeIdOf = (name: string) =>
+    store.activity_type_definition.find((row) => row.name === name)!.id;
+  const plannedTopics: [string, string[]][] = [
+    ["YSLA", ["Savings cycle", "Loan rules & repayment", "Group governance", "Share-out"]],
+    ["Mentorship", ["Goal setting", "Self-esteem", "Healthy relationships"]],
+    ["Male Engagement", ["Positive masculinity", "GBV prevention", "Consent"]],
+    ["Health Talk", ["Menstrual health", "Contraception", "HIV & STIs", "Consent & GBV"]],
+    ["Life Skills Session", ["Workplace conduct", "Budgeting", "Communication"]],
+  ];
+  for (const [type, names] of plannedTopics)
+    names.forEach((name, index) =>
+      add("activity_topic", {
+        activity_type_id: typeIdOf(type),
+        name,
+        description: null,
+        sequence_no: index + 1,
+      })
+    );
+  const topicIdOf = (type: string, name: string) =>
+    store.activity_topic.find(
+      (row) => row.activity_type_id === typeIdOf(type) && row.name === name
+    )!.id;
 
   const enrollmentSpecs: [number, number, string][] = [
     [1, 1, "Legal aid & counselling"],
@@ -430,7 +452,16 @@ export function createSeed(): MockStore {
       [9, 1, "2025-12-11", "judgment_delivered", true, "agreement", "2026-06-10", "2026-06-20"],
     ] as const
   ).forEach(
-    ([enrollment_id, case_type_id, opened_date, court_status, mediation, outcome, ruling, closed]) =>
+    ([
+      enrollment_id,
+      case_type_id,
+      opened_date,
+      court_status,
+      mediation,
+      outcome,
+      ruling,
+      closed,
+    ]) =>
       add("legal_case", {
         enrollment_id,
         case_type_id,
@@ -491,9 +522,41 @@ export function createSeed(): MockStore {
     session_date: "2026-09-24",
     venue: "Kilifi County Hospital",
     topic: "Facility referral day",
+    activity_topic_id: null,
     facilitator_user_id: 9,
   });
   add("activity_attendance", { session_id: 1, participant_id: 5 });
+  add("activity_session", {
+    pillar_id: 3,
+    activity_type_id: typeIdOf("Health Talk"),
+    activity_topic_id: topicIdOf("Health Talk", "Menstrual health"),
+    session_date: "2026-07-01",
+    venue: "Kibera Ward Office",
+    topic: null,
+    facilitator_user_id: 9,
+    notes: "Quarter-opening health talk.",
+  });
+  add("activity_session", {
+    pillar_id: 3,
+    activity_type_id: typeIdOf("YSLA"),
+    activity_topic_id: topicIdOf("YSLA", "Savings cycle"),
+    session_date: "2026-08-20",
+    venue: "Kibera Ward Office",
+    topic: null,
+    facilitator_user_id: 9,
+    notes: "Community-wide YSLA meeting.",
+  });
+  add("activity_session", {
+    pillar_id: 6,
+    activity_type_id: typeIdOf("Life Skills Session"),
+    activity_topic_id: topicIdOf("Life Skills Session", "Workplace conduct"),
+    session_date: "2026-08-01",
+    venue: "Rift Valley Technical",
+    topic: null,
+    facilitator_user_id: 9,
+    notes: "Life-skills session for TVET trainees.",
+  });
+  add("activity_attendance", { session_id: store.activity_session.at(-3)!.id, participant_id: 5 });
   [
     [3, 60000, "Retail shop, Kondele Market"],
     [2, 45000, "Poultry farming"],

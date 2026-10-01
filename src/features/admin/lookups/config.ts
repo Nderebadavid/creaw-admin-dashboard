@@ -5,8 +5,8 @@ export type Option = { id: number; name: string };
 export type Field = {
   key: string;
   label: string;
-  kind?: "text" | "textarea" | "select" | "checkbox";
-  source?: "county" | "pillar";
+  kind?: "text" | "textarea" | "select" | "checkbox" | "number";
+  source?: "county" | "pillar" | "activity_type";
   choices?: { value: string; label: string }[];
   required?: boolean;
 };
@@ -137,6 +137,29 @@ export const lookupConfig: Record<LookupTable, Config> = {
       { key: "description", label: "Description", kind: "textarea" },
     ],
   },
+  activity_topic: {
+    label: "Activity topics",
+    singular: "activity topic",
+    subtitle: "activity_topic · planned curriculum",
+    columns: [
+      { key: "activity_type_id", label: "Activity type" },
+      { key: "sequence_no", label: "Order" },
+      { key: "name", label: "Name" },
+      { key: "description", label: "Description" },
+    ],
+    fields: [
+      {
+        key: "activity_type_id",
+        label: "Activity type",
+        kind: "select",
+        source: "activity_type",
+        required: true,
+      },
+      { key: "sequence_no", label: "Order", kind: "number", required: true },
+      { key: "name", label: "Name", required: true },
+      { key: "description", label: "Description", kind: "textarea" },
+    ],
+  },
 };
 /** Category tabs; the three geography tables share the first tab. */
 export const lookupTabs: { label: string; table: LookupTable }[] = [
@@ -147,6 +170,7 @@ export const lookupTabs: { label: string; table: LookupTable }[] = [
   { label: "Case types", table: "case_type" },
   { label: "Partner institutions", table: "partner_institution" },
   { label: "Activity types", table: "activity_type_definition" },
+  { label: "Activity topics", table: "activity_topic" },
 ];
 /** Display text for one cell, resolving foreign keys to names. */
 export function labelFor(
@@ -154,12 +178,15 @@ export function labelFor(
   key: string,
   counties: Option[],
   subCounties: Option[],
-  pillars: Option[]
+  pillars: Option[],
+  activityTypes: Option[] = []
 ) {
   const value = row[key as keyof LookupView];
   if (key === "county_id") return counties.find((item) => item.id === value)?.name ?? "—";
   if (key === "sub_county_id") return subCounties.find((item) => item.id === value)?.name ?? "—";
   if (key === "pillar_id") return pillars.find((item) => item.id === value)?.name ?? "—";
+  if (key === "activity_type_id")
+    return activityTypes.find((item) => item.id === value)?.name ?? "—";
   if (key === "requires_p3_prc_forms") return value ? "Yes" : "No";
   if (key === "default_route")
     return value === "court_direct" ? "Court, direct" : "Mediation/ADR first";
@@ -175,7 +202,10 @@ export function readLookupValues(data: FormData, fields: Field[]): Record<string
   const values: Record<string, unknown> = {};
   for (const field of fields) {
     if (field.kind === "checkbox") values[field.key] = data.has(field.key);
-    else if (field.source) {
+    else if (field.kind === "number") {
+      const raw = String(data.get(field.key) ?? "").trim();
+      values[field.key] = raw ? Number(raw) : field.required ? "" : null;
+    } else if (field.source) {
       const raw = String(data.get(field.key) ?? "");
       if (raw) values[field.key] = Number(raw);
       else if (!field.required) values[field.key] = null;

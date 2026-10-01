@@ -75,6 +75,7 @@ export const lookups: TableName[] = [
   "case_type",
   "partner_institution",
   "activity_type_definition",
+  "activity_topic",
 ];
 // Related resources use a table query on the owning route family, keeping the
 // existing closed route-template catalogue intact and logs free of row IDs.

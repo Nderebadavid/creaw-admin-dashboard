@@ -10,6 +10,7 @@ export const uniqueKeys: Partial<Record<TableName, string[][]>> = {
   business_sector: [["name"]],
   case_type: [["name"]],
   activity_type_definition: [["pillar_id", "name"]],
+  activity_topic: [["activity_type_id", "name"]],
   role: [["code"]],
   user_role: [["user_id", "role_id", "pillar_id"]],
   permission: [["code"]],

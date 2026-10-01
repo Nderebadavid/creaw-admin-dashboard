@@ -157,6 +157,7 @@ export const lookupTableSchema = z.enum([
   "case_type",
   "partner_institution",
   "activity_type_definition",
+  "activity_topic",
 ]);
 export type LookupTable = z.infer<typeof lookupTableSchema>;
 export const lookupSchema = z.object({
@@ -170,6 +171,8 @@ export const lookupSchema = z.object({
   county_id: id.nullable().optional(),
   sub_county_id: id.optional(),
   pillar_id: id.nullable().optional(),
+  activity_type_id: id.optional(),
+  sequence_no: z.number().int().optional(),
   requires_p3_prc_forms: z.boolean().optional(),
   default_route: z.string().optional(),
   institution_type: z.string().optional(),

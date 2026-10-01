@@ -159,7 +159,16 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   const mayIncludeDeleted =
     table === "user_role" ||
     table === "role_permission" ||
-    (family === "lookups" && hasPermission(grants, "LOOKUP_MANAGE"));
+    (table === "activity_attendance" &&
+      hasPermission(
+        grants,
+        "ACTIVITY_SESSION_LOG",
+        pillar ? { pillarId: pillar.id } : undefined
+      )) ||
+    (family === "lookups" && hasPermission(grants, "LOOKUP_MANAGE")) ||
+    // Session staff need a retired topic or type's name to show and edit old sessions.
+    ((table === "activity_topic" || table === "activity_type_definition") &&
+      hasModulePermission(grants, "ACTIVITY_SESSION_VIEW"));
   if (query.has("includeDeleted") && (!mayIncludeDeleted || query.get("includeDeleted") !== "true"))
     return envelope(422);
 
