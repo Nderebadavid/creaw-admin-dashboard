@@ -91,9 +91,10 @@ async function sessionValues(input: unknown) {
   const keeps =
     current?.facilitator_user_id === (facilitator.kind === "staff" ? facilitator.id : null) &&
     current?.facilitator_provider_id === (facilitator.kind === "provider" ? facilitator.id : null);
-  const offered = options.some(
-    (item) => item.kind === facilitator.kind && item.id === facilitator.id
-  );
+  // The signed-in user may always log as themselves, even when the picker could not load.
+  const isMe = facilitator.kind === "staff" && facilitator.id === session.user.id;
+  const offered =
+    isMe || options.some((item) => item.kind === facilitator.kind && item.id === facilitator.id);
   if (!offered && !(current && keeps))
     return { error: actionResult(422, "Choose a facilitator from the list") };
   return {

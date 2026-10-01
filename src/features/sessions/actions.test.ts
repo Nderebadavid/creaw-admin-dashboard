@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const cookieStore = { get: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => cookieStore) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+import { ApiClient } from "@/lib/api/client";
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 import {
   addAttendeeAction,
@@ -103,6 +104,46 @@ describe("session actions", () => {
     });
     expect(result.success).toBe(true);
     expect(session).toMatchObject({ venue: "Moved", facilitator_provider_id: 1 });
+  });
+
+  describe("when the facilitator options cannot be read", () => {
+    const failOptions = () => {
+      const real = ApiClient.prototype.request;
+      vi.spyOn(ApiClient.prototype, "request").mockImplementation(function (
+        this: ApiClient,
+        req: { query?: Record<string, unknown> },
+        schema: never
+      ) {
+        return req.query?.table === "facilitator_option"
+          ? Promise.reject(new Error("down"))
+          : real.call(this, req as never, schema);
+      } as never);
+    };
+    afterEach(() => vi.restoreAllMocks());
+
+    it("still lets the signed-in user log as themselves", async () => {
+      failOptions();
+      const result = await logSessionAction(base());
+      expect(result.success).toBe(true);
+      expect(getMockStore().activity_session.at(-1)).toMatchObject({
+        facilitator_user_id: 1,
+        facilitator_provider_id: null,
+      });
+    });
+
+    it("still refuses a forged provider", async () => {
+      failOptions();
+      const before = getMockStore().activity_session.length;
+      const result = await logSessionAction({
+        ...base(),
+        facilitator: { kind: "provider", id: 999 },
+      });
+      expect(result).toMatchObject({
+        success: false,
+        message: "Choose a facilitator from the list",
+      });
+      expect(getMockStore().activity_session).toHaveLength(before);
+    });
   });
 
   it("requires a facilitator", async () => {
