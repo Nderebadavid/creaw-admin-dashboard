@@ -222,15 +222,20 @@ describe("administration screens", () => {
       />
     );
     expect(screen.getByText(/built-in roles cannot be edited/i)).toBeInTheDocument();
+    // Modules start collapsed: the header shows the count, and opening it shows the permission.
+    const admin = screen.getByRole("button", { name: /^ADMIN/ });
+    expect(admin).toHaveAttribute("aria-expanded", "false");
+    expect(admin).toHaveTextContent("1 of 1");
+    fireEvent.click(admin);
     expect(screen.getByRole("button", { name: /view audit log/i })).toBeDisabled();
   });
-  it("lays the permission module cards out in a grid, not one long column", () => {
-    const permission = (id: number, module: string) => ({
+  it("groups collapsed module cards by area in a grid, opening them on search or request", () => {
+    const permission = (id: number, module: string, name: string) => ({
       id,
       code: `${module}_${id}`,
-      name: `Permission ${id}`,
+      name,
       module,
-      description: null,
+      description: `Lets staff ${name.toLowerCase()}`,
       status: "ACTIVE",
       is_deleted: false,
     });
@@ -239,23 +244,56 @@ describe("administration screens", () => {
         roles={[
           {
             id: 1,
-            code: "SYSTEM_ADMIN",
-            name: "System Administrator",
+            code: "CUSTOM",
+            name: "Programme officer",
             description: null,
             status: "ACTIVE",
             is_deleted: false,
-            is_system_role: true,
+            is_system_role: false,
           },
         ]}
-        permissions={[permission(1, "ADMIN"), permission(2, "VAWG"), permission(3, "GRANTS")]}
-        grants={[]}
+        permissions={[
+          permission(1, "ADMIN", "Manage users"),
+          permission(2, "VAWG", "View cases"),
+          permission(3, "GRANTS", "Approve grants"),
+          permission(4, "NEW_MODULE", "Something new"),
+        ]}
+        grants={[{ id: 1, role_id: 1, permission_id: 2, status: "ACTIVE", is_deleted: false }]}
         canManageRoles
         canManagePermissions
       />
     );
     const groups = screen.getByTestId("permission-groups");
-    expect(groups).toHaveClass("grid", "lg:grid-cols-2", "2xl:grid-cols-3", "items-start");
-    expect(groups.querySelectorAll(":scope > section")).toHaveLength(3);
+    const areas = within(groups)
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(areas).toEqual(["Programmes", "Money & reporting", "Platform", "Other"]);
+    const programmes = within(groups).getByRole("region", { name: "Programmes" });
+    expect(programmes.querySelector(".grid")).toHaveClass("lg:grid-cols-2", "2xl:grid-cols-3");
+    // Collapsed: no permission rows, but the count is visible.
+    expect(screen.queryByRole("button", { name: /view cases/i })).not.toBeInTheDocument();
+    expect(within(programmes).getByRole("button", { name: /^VAWG/ })).toHaveTextContent("1 of 1");
+    // A search opens the matching module.
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search permissions" }), {
+      target: { value: "approve" },
+    });
+    expect(screen.getByRole("button", { name: /approve grants/i })).toHaveAttribute(
+      "title",
+      "Lets staff approve grants"
+    );
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search permissions" }), {
+      target: { value: "" },
+    });
+    expect(screen.queryByRole("button", { name: /approve grants/i })).not.toBeInTheDocument();
+    // Expand all and collapse all.
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(screen.getByRole("button", { name: /manage users/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(screen.queryByRole("button", { name: /manage users/i })).not.toBeInTheDocument();
+    // An unsaved change keeps its module open.
+    fireEvent.click(screen.getByRole("button", { name: /^ADMIN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /manage users/i }));
+    expect(screen.getByText("Will be granted")).toBeInTheDocument();
   });
   it("puts role and permission creation beside the heading and explains the matrix", () => {
     render(
@@ -291,6 +329,7 @@ describe("administration screens", () => {
       canManagePermissions: true,
     };
     const view = render(<PermissionsContent {...props} grants={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
     fireEvent.click(screen.getByRole("button", { name: /view audit log/i }));
     expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
 
@@ -328,6 +367,7 @@ describe("administration screens", () => {
       canManagePermissions: true,
     };
     const view = render(<PermissionsContent {...props} grants={[grant(10, remove.id)]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
     fireEvent.click(screen.getByRole("button", { name: /manage users/i }));
     fireEvent.click(screen.getByRole("button", { name: /view audit log/i }));
     fireEvent.click(screen.getByRole("button", { name: /manage roles/i }));
@@ -369,6 +409,7 @@ describe("administration screens", () => {
       canManagePermissions: true,
     };
     const view = render(<PermissionsContent {...props} grants={[]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
     fireEvent.click(screen.getByRole("button", { name: /view audit log/i }));
     fireEvent.click(screen.getByRole("button", { name: /review & save/i }));
     fireEvent.click(
