@@ -6,6 +6,7 @@ import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import type { ListQuery } from "@/lib/api/list";
+import { recordStatusColumn, updatedColumn } from "@/components/data-table/record-columns";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { ExportButton } from "@/components/ui/export-button";
 import { FormBanner } from "@/components/ui/form-banner";
@@ -84,6 +85,8 @@ const columns: DataColumn<TraineeView>[] = [
         <HandoffBadge stage={row.handoff.stage} />
       ),
   },
+  recordStatusColumn((row) => row.recordStatus),
+  updatedColumn((row) => row.updated),
 ];
 
 type Modal =

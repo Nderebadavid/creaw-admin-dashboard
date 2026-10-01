@@ -12,6 +12,7 @@ import { useRecordDetail } from "@/components/ui/use-record-detail";
 import type { ListQuery } from "@/lib/api/list";
 import type { PaginatedData } from "@/types/api";
 import { loadAssessmentOptionsAction } from "@/features/assessments/actions";
+import { recordStatusColumn, updatedColumn } from "@/components/data-table/record-columns";
 import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { FormBanner } from "@/components/ui/form-banner";
@@ -125,6 +126,8 @@ const columnsFor = (stages: readonly PipelineStageDef[]): DataColumn<Organisatio
       </StatusBadge>
     ),
   },
+  recordStatusColumn((row) => row.status),
+  updatedColumn((row) => row.updated),
 ];
 
 /**

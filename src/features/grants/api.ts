@@ -43,6 +43,7 @@ export const GRANT_SORT_KEYS: Record<string, string> = {
   type: "grant_type",
   date: "created_at",
   stage: "stage_index",
+  updated: "updated_at",
 };
 
 export interface GrantRow {

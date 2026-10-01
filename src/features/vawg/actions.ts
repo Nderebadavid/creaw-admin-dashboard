@@ -87,6 +87,22 @@ export async function revealCaseObNumberAction(caseId: number): Promise<RevealRe
   }
 }
 
+/** Audited reveal of a case's outcome notes, a sensitive field. */
+export async function revealCaseOutcomeNotesAction(caseId: number): Promise<RevealResult> {
+  const session = await requireSession();
+  if (!Number.isSafeInteger(caseId) || caseId < 1) return { success: false, error: "Invalid case" };
+  if (!hasPermission(session.grants, "SENSITIVE_REVEAL", scope))
+    return { success: false, error: "Permission denied" };
+  try {
+    const response = await (await api()).revealCaseField(caseId, "outcome_notes");
+    if (!response.success) return { success: false, error: response.message };
+    if (!response.data) return { success: false, error: "No outcome notes recorded" };
+    return { success: true, value: response.data.value };
+  } catch {
+    return { success: false, error: "Could not reveal this field" };
+  }
+}
+
 export async function setCourtStatusAction(input: unknown) {
   const session = await requireSession();
   const parsed = z.object({ caseId: id, courtStatus: z.enum(courtStatuses) }).safeParse(input);
@@ -280,7 +296,7 @@ export async function listCasesAction(query: ListQuery) {
         await api()
       ).listCases(
         cleanListQuery(query, {
-          sort: ["case", "type", "court", "officer", "nextDate", "status"],
+          sort: ["case", "type", "court", "officer", "nextDate", "status", "record", "updated"],
           filters: ["court_status"],
         })
       ),

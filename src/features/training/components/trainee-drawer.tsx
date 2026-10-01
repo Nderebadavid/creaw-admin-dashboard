@@ -16,6 +16,7 @@ import { pillarLook } from "@/components/portal/pillars";
 import { Button } from "@/components/ui/button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { formatDate, initials } from "@/lib/format";
 import { revealSalaryAction } from "../actions";
@@ -269,7 +270,21 @@ export function TraineeDrawer({
         </>
       }
       tabs={[
-        { id: "overview", label: "Overview", content: <FieldGrid fields={fields} /> },
+        {
+          id: "overview",
+          label: "Overview",
+          content: (
+            <div className="flex flex-col gap-[22px]">
+              <FieldGrid fields={fields} />
+              <RecordSection
+                status={trainee.recordStatus}
+                statusDescription={trainee.statusDescription}
+                created={trainee.created}
+                updated={trainee.updated}
+              />
+            </div>
+          ),
+        },
         { id: "handoff", label: "Grant hand-off", content: <HandoffTrail trainee={trainee} /> },
         { id: "activity", label: "Activity", content: <Timeline events={events} /> },
       ]}

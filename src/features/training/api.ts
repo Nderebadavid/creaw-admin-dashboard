@@ -44,6 +44,11 @@ export const traineeSchema = z.object({
   workstation: z.string().nullable(),
   monthly_salary: optional(z.union([z.string(), z.number()]).transform(String)),
   recommended_for_grant: z.boolean(),
+  status: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? "ACTIVE"),
+  status_description: optionalText,
   participant_name: optionalText,
   institution_name: optionalText,
   trainer_name: optionalText,
@@ -101,6 +106,8 @@ export function traineeView(row: TraineeRow): TraineeView {
       applicationOn: row.grant_application_on,
       awardedOn: row.grant_awarded_on,
     },
+    recordStatus: row.status,
+    statusDescription: row.status_description,
     created: row.created_at,
     updated: row.updated_at,
   };
@@ -116,6 +123,8 @@ export const TRAINEE_SORT_KEYS: Record<string, string> = {
   status: "training_status",
   outcome: "current_work_status",
   grant: "grant_handoff",
+  record: "status",
+  updated: "updated_at",
 };
 
 const optionsSchema = createEnvelopeSchema(

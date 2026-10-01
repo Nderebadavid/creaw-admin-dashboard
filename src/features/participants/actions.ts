@@ -29,7 +29,9 @@ export async function listParticipantsAction(query: ParticipantQuery) {
   try {
     const clean = cleanListQuery(
       { page: query.page, pageSize: query.pageSize, search: query.search, sort: query.sort },
-      { sort: ["participant", "county", "pillars", "stage", "registered", "status"] }
+      {
+        sort: ["participant", "county", "pillars", "stage", "registered", "status", "updated"],
+      }
     );
     return {
       ...actionResult(200, "OK"),

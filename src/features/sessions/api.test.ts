@@ -73,6 +73,23 @@ describe("session registers", () => {
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
+  it("returns the standard record fields and sorts by when a session last changed", async () => {
+    const store = getMockStore();
+    store.activity_session.find((row) => row.topic === "Facility referral day")!.updated_at =
+      "2030-01-01T00:00:00.000Z";
+    const page = await apiFor(1).listSessions("srhr", {
+      pageSize: 100,
+      sort: { by: "updated", order: "desc" },
+    });
+    expect(page.items[0]).toMatchObject({
+      topic: "Facility referral day",
+      status: "ACTIVE",
+      statusDescription: null,
+    });
+    expect(page.items[0].updated).toBe("2030-01-01T00:00:00.000Z");
+    expect(page.items[0].logged).toEqual(expect.any(String));
+  });
+
   it("falls back to a generic label, never an id, when the API sends no facilitator name", async () => {
     const client = clientFor();
     const real = client.request.bind(client);

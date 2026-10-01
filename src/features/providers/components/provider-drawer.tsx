@@ -3,6 +3,7 @@ import { Pencil, Power, PowerOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { RecordSection } from "@/components/ui/record-section";
 import { FieldGrid, SectionTitle } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/format";
@@ -93,7 +94,6 @@ export function ProviderDrawer({
         "—"
       ),
     ],
-    ["Notes", provider.notes ?? "—"],
   ];
   return (
     <RecordDrawer
@@ -128,7 +128,22 @@ export function ProviderDrawer({
         </>
       }
       tabs={[
-        { id: "overview", label: "Overview", content: <FieldGrid fields={fields} /> },
+        {
+          id: "overview",
+          label: "Overview",
+          content: (
+            <div className="flex flex-col gap-[22px]">
+              <FieldGrid fields={fields} />
+              <RecordSection
+                status={provider.active ? "ACTIVE" : "INACTIVE"}
+                statusDescription={provider.statusDescription}
+                created={provider.created}
+                updated={provider.updated}
+                notes={[["Notes", provider.notes ?? "—"]]}
+              />
+            </div>
+          ),
+        },
         {
           id: "work",
           label: `Linked work (${provider.linkedWork})`,

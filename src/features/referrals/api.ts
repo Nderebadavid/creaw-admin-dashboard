@@ -44,6 +44,7 @@ export const REFERRAL_SORT_KEYS: Record<string, string> = {
   referredBy: "referred_by_name",
   date: "created_at",
   status: "status",
+  updated: "updated_at",
 };
 
 /** An enrollment a referral can be made from. */
@@ -84,6 +85,7 @@ export interface ReferralView {
   canEdit: boolean;
   canWithdraw: boolean;
   enrollmentId: number;
+  updated: string;
 }
 export interface ReferralPage {
   items: ReferralView[];
@@ -160,6 +162,7 @@ export function createReferralsApi(client: ApiClient, token: string) {
           canEdit: canChange,
           canWithdraw: canChange,
           enrollmentId: row.enrollment_id,
+          updated: row.updated_at,
         };
       })
     );

@@ -93,7 +93,16 @@ export async function listOrganisationsAction(query: ListQuery) {
         await withSessionApi(createWrosApi)
       ).list(
         cleanListQuery(query, {
-          sort: ["organisation", "legalForm", "location", "stage", "registered", "dueDiligence"],
+          sort: [
+            "organisation",
+            "legalForm",
+            "location",
+            "stage",
+            "registered",
+            "dueDiligence",
+            "record",
+            "updated",
+          ],
           filters: ["is_contracted", "in_due_diligence"],
         })
       ),

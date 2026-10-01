@@ -29,6 +29,7 @@ export const PARTICIPANT_SORT_KEYS: Record<string, string> = {
   stage: "current_stage_name",
   registered: "created_at",
   status: "status",
+  updated: "updated_at",
 };
 
 export interface ParticipantQuery {

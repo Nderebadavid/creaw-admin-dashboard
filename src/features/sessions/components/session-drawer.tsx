@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { RecordSection } from "@/components/ui/record-section";
 import { DocumentRow, FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pillarLook } from "@/components/portal/pillars";
@@ -87,7 +88,6 @@ export function SessionDrawer({
     ["Venue", session.venue ?? "—"],
     ["Facilitator", <FacilitatorName key="facilitator" facilitator={session.facilitator} />],
     ["Reach", reach],
-    ["Notes", session.notes ?? "—"],
   ];
   const events = [
     ...(session.updated !== session.logged
@@ -131,7 +131,22 @@ export function SessionDrawer({
         </>
       }
       tabs={[
-        { id: "overview", label: "Overview", content: <FieldGrid fields={fields} /> },
+        {
+          id: "overview",
+          label: "Overview",
+          content: (
+            <div className="flex flex-col gap-[22px]">
+              <FieldGrid fields={fields} />
+              <RecordSection
+                status={session.status}
+                statusDescription={session.statusDescription}
+                created={session.logged}
+                updated={session.updated}
+                notes={[["Notes", session.notes ?? "—"]]}
+              />
+            </div>
+          ),
+        },
         {
           id: "attendance",
           label: `Attendance (${session.attendeeCount})`,

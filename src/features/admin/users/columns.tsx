@@ -1,6 +1,7 @@
 import { titleCase } from "@/lib/format";
 import type { DataColumn } from "@/components/data-table/data-table";
 import { withSortValues } from "@/components/data-table/sorting";
+import { updatedColumn } from "@/components/data-table/record-columns";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { UserView } from "../api";
 import { scopesOf, staffSortValues, type StaffLookups } from "./sort-values";
@@ -78,5 +79,6 @@ export function staffColumns(lookups: StaffLookups): DataColumn<UserView>[] {
         </StatusBadge>
       ),
     },
+    updatedColumn((user) => user.updated_at),
   ]);
 }

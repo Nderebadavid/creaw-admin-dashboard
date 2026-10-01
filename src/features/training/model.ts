@@ -93,6 +93,10 @@ export interface TraineeView {
   lifeSkillsSessions: number;
   recommended: boolean;
   handoff: GrantHandoff;
+  /** The record's own status (Active, Inactive…), apart from the training status. */
+  recordStatus: string;
+  /** Why the record has its status, e.g. a deactivation reason. */
+  statusDescription: string | null;
   created: string;
   updated: string;
 }

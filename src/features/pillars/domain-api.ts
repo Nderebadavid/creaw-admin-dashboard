@@ -10,6 +10,7 @@ export interface PillarDomainRecord {
   title: string;
   values: string[];
   status: string;
+  updated: string;
 }
 export interface PillarDomainView {
   title: string;
@@ -46,6 +47,7 @@ export const DOMAIN_SORT_KEYS: Record<string, string> = {
   "1": "notes",
   "2": "requested_amount",
   status: "status",
+  updated: "updated_at",
 };
 
 /** One page of WEE's grant applications for the generic pillar register. */
@@ -81,6 +83,7 @@ export async function loadPillarDomain(
         `KES ${row.requested_amount.toLocaleString("en-KE")}`,
       ],
       status: row.status,
+      updated: row.updated_at,
     })),
     totalItems: page.totalItems,
     statuses: ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED", "DECLINED"],

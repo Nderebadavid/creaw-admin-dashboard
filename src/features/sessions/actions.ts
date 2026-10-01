@@ -261,7 +261,7 @@ export async function listSessionsAction(pillarCode: SessionPillar, query: ListQ
       ).listSessions(
         pillarCode,
         cleanListQuery(query, {
-          sort: ["type", "topic", "date", "venue", "facilitator", "attendees"],
+          sort: ["type", "topic", "date", "venue", "facilitator", "attendees", "record", "updated"],
           filters: ["activity_type_id", "activity_topic_id", "topic"],
         })
       ),

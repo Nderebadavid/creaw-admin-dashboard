@@ -8,6 +8,7 @@ import { TableCard } from "@/components/data-table/table-card";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { useRecordDetail } from "@/components/ui/use-record-detail";
 import type { ListQuery } from "@/lib/api/list";
+import { recordStatusColumn, updatedColumn } from "@/components/data-table/record-columns";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { DocumentViewer, type ViewedDocument } from "@/components/ui/document-viewer";
 import { ExportButton } from "@/components/ui/export-button";
@@ -69,6 +70,8 @@ const columns: DataColumn<SessionView>[] = [
     sortValue: (row) => row.attendeeCount,
     cell: (row) => <span className={text}>{row.attendeeCount}</span>,
   },
+  recordStatusColumn((row) => row.status),
+  updatedColumn((row) => row.updated),
 ];
 
 /** The API filters that a chip and a picked topic ask for; a topic wins over the chip. */

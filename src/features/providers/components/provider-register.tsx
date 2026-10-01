@@ -7,6 +7,7 @@ import { Pagination } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
 import { useClientPaging } from "@/components/data-table/use-client-paging";
 import { useClientSort } from "@/components/data-table/use-client-sort";
+import { updatedColumn } from "@/components/data-table/record-columns";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
@@ -69,6 +70,7 @@ const columns: DataColumn<ProviderView>[] = [
       </StatusBadge>
     ),
   },
+  updatedColumn((row) => row.updated),
 ];
 
 /** The external provider directory. Opening a row selects it for the record panel. */

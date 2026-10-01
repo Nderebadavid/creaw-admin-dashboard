@@ -57,6 +57,8 @@ export const ORGANISATION_SORT_KEYS: Record<string, string> = {
   stage: "current_stage_index",
   registered: "created_at",
   dueDiligence: "due_diligence_status",
+  record: "status",
+  updated: "updated_at",
 };
 
 /** An organisation as the register shows it; its place and pipeline progress arrive with the row. */

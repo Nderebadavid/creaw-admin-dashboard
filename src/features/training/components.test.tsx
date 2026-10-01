@@ -56,6 +56,8 @@ const base: TraineeView = {
     applicationOn: "2026-04-20",
     awardedOn: null,
   },
+  recordStatus: "ACTIVE",
+  statusDescription: null,
   created: "2025-11-01T08:00:00.000Z",
   updated: "2026-04-20T08:00:00.000Z",
 };
@@ -149,6 +151,8 @@ describe("trainee register", () => {
       "Status",
       "Work outcome",
       "Grant",
+      "Record",
+      "Updated",
     ];
     wanted.forEach((heading, i) => expect(headers[i]).toContain(heading));
     expect(screen.getByText("Application filed")).toBeInTheDocument();
@@ -206,6 +210,13 @@ describe("trainee register", () => {
     await waitFor(() => expect(table().queryByText("Halima Noor")).toBeNull());
   });
 
+  it("shows the record status and when each trainee last changed", () => {
+    render(<TraineeRegister workspace={workspace} can={allowed} />);
+    const row = screen.getByRole("button", { name: /^Open Wanjiru Achieng/ }).closest("tr")!;
+    expect(within(row).getByText("Active")).toBeInTheDocument();
+    expect(within(row).getByText("20 Apr 2026")).toBeInTheDocument();
+  });
+
   it("sorts on the server by the clicked column", async () => {
     vi.mocked(listTraineesAction).mockResolvedValue({
       success: true,
@@ -233,6 +244,14 @@ describe("trainee drawer", () => {
     expect(within(drawer).getByRole("button", { name: "Reveal Monthly salary" })).toBeEnabled();
     for (const tab of ["Overview", "Grant hand-off", "Activity"])
       expect(within(drawer).getByRole("tab", { name: tab })).toBeInTheDocument();
+  });
+
+  it("ends the overview with the record's status and dates", () => {
+    const drawer = open("Wanjiru Achieng");
+    const record = within(drawer).getByRole("region", { name: "Record" });
+    expect(within(record).getByText("Active")).toBeInTheDocument();
+    expect(record).toHaveTextContent("Created01 Nov 2025");
+    expect(record).toHaveTextContent("Last updated20 Apr 2026");
   });
 
   it("traces the hand-off and offers no recommend control once WEE accepted", () => {

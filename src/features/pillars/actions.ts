@@ -220,7 +220,10 @@ export async function listPillarDomainAction(code: PillarCode, query: ListQuery)
     const head = await api.summary(parsed.data);
     if (!hasPermission(session.grants, "GRANT_APPLICATION_VIEW", { pillarId: head.pillar.id }))
       return { success: false, message: "You cannot view these applications.", data: null };
-    const clean = cleanListQuery(query, { sort: ["0", "1", "2", "status"], filters: ["status"] });
+    const clean = cleanListQuery(query, {
+      sort: ["0", "1", "2", "status", "updated"],
+      filters: ["status"],
+    });
     const domain = await api.listDomain(parsed.data, clean);
     if (!domain) return { success: false, message: "Could not load the register.", data: null };
     return {

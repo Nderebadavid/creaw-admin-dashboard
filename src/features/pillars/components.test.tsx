@@ -154,6 +154,7 @@ describe("pillar screen", () => {
             title: "Application #1",
             values: ["Rehema Karisa", "Posho mill", "KES 120,000"],
             status: "PREPARED",
+            updated: "2026-09-20T08:00:00Z",
           },
         ],
         totalItems: 1,

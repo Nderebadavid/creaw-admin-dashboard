@@ -16,11 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { MaskedField } from "@/components/ui/masked-field";
 import { RecordDrawer } from "@/components/ui/record-drawer";
+import { RecordSection } from "@/components/ui/record-section";
 import { DocumentRow, FieldGrid, SectionTitle, Timeline } from "@/components/ui/record-parts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pillarLook } from "@/components/portal/pillars";
 import { formatDate } from "@/lib/format";
-import { revealCaseObNumberAction } from "../actions";
+import { revealCaseObNumberAction, revealCaseOutcomeNotesAction } from "../actions";
 import { VAWG_PILLAR_ID, type LegalCaseView } from "../model";
 import { courtStatusLabel, courtStatusTone } from "./status";
 
@@ -156,6 +157,27 @@ export function CaseDrawer({
           content: (
             <div className="flex flex-col gap-[22px]">
               <FieldGrid fields={fields} />
+              <RecordSection
+                status={legalCase.status}
+                statusDescription={legalCase.statusDescription}
+                created={legalCase.created}
+                updated={legalCase.updated}
+                notes={[
+                  [
+                    "Outcome notes",
+                    <MaskedField
+                      key="outcome-notes"
+                      label="Outcome notes"
+                      maskedValue={legalCase.outcomeNotes ?? "—"}
+                      revealAction={
+                        can.reveal && legalCase.outcomeNotes
+                          ? () => revealCaseOutcomeNotesAction(legalCase.id)
+                          : undefined
+                      }
+                    />,
+                  ],
+                ]}
+              />
               {legalCase.participantId && (
                 <section className="flex flex-col gap-2.5">
                   <SectionTitle>Linked records</SectionTitle>

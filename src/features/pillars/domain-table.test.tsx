@@ -12,6 +12,7 @@ const row = (id: number, status = "PREPARED") => ({
   title: `Application #${id}`,
   values: [`Applicant ${id}`, "Posho mill", "KES 1,000"],
   status,
+  updated: "2026-09-20T08:00:00Z",
 });
 const domain: PillarDomainView = {
   title: "Grant applications",
