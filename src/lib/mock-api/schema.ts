@@ -622,6 +622,14 @@ export const tableDefinitions: Record<TableName, Record<string, ColumnDefinition
     },
     trigger_reason: { kind: "string", nullable: true },
     notes: { kind: "string", nullable: true },
+    // Proposed addition: the trainee record whose grant recommendation created this referral.
+    source_training_enrollment_id: {
+      kind: "number",
+      nullable: true,
+      integer: true,
+      unsigned: true,
+      references: "training_enrollment",
+    },
   },
   legal_case: {
     id: { kind: "number", nullable: false, integer: true, unsigned: true },
@@ -705,7 +713,12 @@ export const tableDefinitions: Record<TableName, Record<string, ColumnDefinition
       unsigned: true,
       references: "enrollment",
     },
-    pathway: { kind: "string", nullable: false, maxLength: 30 },
+    pathway: {
+      kind: "string",
+      nullable: false,
+      maxLength: 30,
+      values: ["tvet", "apprenticeship", "community_center", "life_skills"],
+    },
     partner_institution_id: {
       kind: "number",
       nullable: true,
@@ -723,8 +736,19 @@ export const tableDefinitions: Record<TableName, Record<string, ColumnDefinition
     course_name: { kind: "string", nullable: true, maxLength: 160 },
     start_date: { kind: "string", nullable: true, date: "date" },
     completion_date: { kind: "string", nullable: true, date: "date" },
-    training_status: { kind: "string", nullable: false, default: "ongoing", maxLength: 20 },
-    current_work_status: { kind: "string", nullable: true, maxLength: 120 },
+    training_status: {
+      kind: "string",
+      nullable: false,
+      default: "ongoing",
+      maxLength: 20,
+      values: ["ongoing", "dropped_out", "completed"],
+    },
+    current_work_status: {
+      kind: "string",
+      nullable: true,
+      maxLength: 120,
+      values: ["employed", "self_employed", "further_training", "seeking_work", "not_seeking_work"],
+    },
     workstation: { kind: "string", nullable: true, maxLength: 160 },
     monthly_salary: { kind: "number", nullable: true },
     recommended_for_grant: { kind: "boolean", nullable: false, default: false },

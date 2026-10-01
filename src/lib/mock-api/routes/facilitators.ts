@@ -7,13 +7,18 @@ const titleType = (type: unknown) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
-/** Active staff and providers a session logger can pick as facilitator: names only. */
+/**
+ * People a pillar form can pick, names only: active staff and providers a session
+ * logger can choose as facilitator (`facilitator_option`), or active trainer
+ * providers for a trainee placement (`trainer_option`).
+ */
 export function handleFacilitatorOptions(ctx: MockContext) {
   const { request, store, query, parts, grants } = ctx;
+  const view = query.get("table");
   if (
     request.method !== "GET" ||
     parts[0] !== "pillars" ||
-    query.get("table") !== "facilitator_option"
+    (view !== "facilitator_option" && view !== "trainer_option")
   )
     return undefined;
   const pillar = store.pillar.find(
@@ -22,12 +27,15 @@ export function handleFacilitatorOptions(ctx: MockContext) {
       (row.code.toLowerCase() === parts[1]?.toLowerCase() || String(row.id) === parts[1])
   );
   if (!pillar) return envelope(404);
-  if (!hasPermission(grants, "ACTIVITY_SESSION_LOG", { pillarId: pillar.id })) return envelope(403);
+  const permission =
+    view === "trainer_option" ? "TRAINING_ENROLLMENT_EDIT" : "ACTIVITY_SESSION_LOG";
+  if (!hasPermission(grants, permission, { pillarId: pillar.id })) return envelope(403);
   const active = (row: Row) => visible(row) && row.status === "ACTIVE";
+  const trainersOnly = view === "trainer_option";
   const institutions = rowsFor(store, "partner_institution");
   const items = [
     ...rowsFor(store, "user")
-      .filter(active)
+      .filter((row) => !trainersOnly && active(row))
       .map((user) => ({
         kind: "staff" as const,
         id: user.id,
@@ -35,7 +43,7 @@ export function handleFacilitatorOptions(ctx: MockContext) {
         detail: "CREAW staff",
       })),
     ...rowsFor(store, "external_provider")
-      .filter(active)
+      .filter((row) => active(row) && (!trainersOnly || row.provider_type === "trainer"))
       .map((provider) => {
         const institution = institutions.find(
           (row) => row.id === provider.affiliated_institution_id

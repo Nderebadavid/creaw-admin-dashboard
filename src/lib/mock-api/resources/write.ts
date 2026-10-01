@@ -4,6 +4,7 @@ import { type ResourceContext } from "../context";
 import { allowed, envelope, masked, scopes, type Row } from "../core";
 import { checkLookupWrite } from "../resources/lookup-writes";
 import { checkAccessControlWrite } from "../resources/rbac-writes";
+import { checkTrainingWrite, trainingSideEffects } from "../resources/training-writes";
 import { makeRow } from "../rows";
 import { validate } from "../validation";
 import { type ApiEnvelope } from "@/types/api";
@@ -71,6 +72,9 @@ function readWriteBody(ctx: ResourceContext): Step<Row> {
     return { error: envelope(422) };
   if (table === "pipeline_definition" || table === "stage_definition")
     return { error: envelope(422, null, "Use pipeline configuration commands") };
+  // Only a trainee's grant recommendation links a referral to its training record.
+  if (table === "referral" && "source_training_enrollment_id" in body)
+    return { error: envelope(422) };
   const guard =
     checkLookupWrite(ctx, body) ??
     checkAccessControlWrite(ctx, body) ??
@@ -313,7 +317,8 @@ export function writeResource(ctx: ResourceContext): Envelope {
   if ("error" in built) return built.error;
   let next = built.value;
   if (!validate(store, table, next, existing)) return envelope(422);
-  const broken = invariants[table]?.(store, next, existing);
+  const broken =
+    invariants[table]?.(store, next, existing) ?? checkTrainingWrite(ctx, next, existing);
   if (broken) return broken;
   const denied = authorizeWrite(ctx, next);
   if (denied) return denied;
@@ -333,5 +338,6 @@ export function writeResource(ctx: ResourceContext): Envelope {
   awardOnApproval(ctx, before, next, now);
   enrollOnRegistration(ctx, next, now);
   enrollOnAcceptedReferral(ctx, before, next, now);
+  trainingSideEffects(ctx, before, next, now);
   return envelope(existing ? 200 : 201, masked(table, next));
 }

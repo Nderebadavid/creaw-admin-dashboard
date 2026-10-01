@@ -6,8 +6,10 @@
  * for Server Components. Responses are envelope-validated with Zod; the API
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
+import { z } from "zod";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
+import { createEnvelopeSchema } from "@/lib/api/contracts";
 import { withSessionApi } from "@/lib/api/session-api";
 import { collectPages } from "@/lib/api/pagination";
 import { createReportingApi, type ReportView } from "@/features/reporting/api";
@@ -46,6 +48,31 @@ export interface GrantRow {
   grantType: string;
   createdAt: string;
 }
+/** A Skilling graduate WEE accepted for a grant and has not yet filed an application for. */
+export interface GrantRecommendation {
+  participantId: number;
+  name: string;
+  course: string | null;
+  acceptedOn: string | null;
+  suggestedNotes: string;
+}
+const recommendationListSchema = createEnvelopeSchema(
+  z.union([
+    z.object({
+      items: z.array(
+        z.object({
+          participant_id: z.number().int().positive(),
+          participant_name: z.string(),
+          course_name: z.string().nullable(),
+          accepted_on: z.string().nullable(),
+          suggested_notes: z.string(),
+        })
+      ),
+    }),
+    z.null(),
+  ])
+);
+
 export interface GrantProgramme {
   id: number;
   name: string;
@@ -157,6 +184,26 @@ export function createGrantsApi(client: ApiClient, token: string) {
     });
   }
   return {
+    /** Skilling graduates recommended to WEE and accepted, with no application yet. */
+    async recommendations(): Promise<GrantRecommendation[]> {
+      const result = await client.request(
+        {
+          method: "GET",
+          path: "/grants",
+          routeTemplate: "/grants",
+          token,
+          query: { view: "recommended" },
+        },
+        recommendationListSchema
+      );
+      return required(result).items.map((item) => ({
+        participantId: item.participant_id,
+        name: item.participant_name,
+        course: item.course_name,
+        acceptedOn: item.accepted_on,
+        suggestedNotes: item.suggested_notes,
+      }));
+    },
     /** Grant programmes (projects) an application can be filed under. */
     async programmes(): Promise<GrantProgramme[]> {
       return (await projects()).map((row) => ({

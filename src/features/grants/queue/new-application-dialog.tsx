@@ -6,12 +6,14 @@ import { fieldClass } from "@/components/ui/form-styles";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
 import { listParticipantsAction } from "@/features/participants/actions";
 import { titleCase } from "@/lib/format";
-import { createGrantApplicationAction } from "../actions";
-import type { GrantProgramme } from "../api";
+import { createGrantApplicationAction, listGrantRecommendationsAction } from "../actions";
+import type { GrantProgramme, GrantRecommendation } from "../api";
 import { GRANT_TYPES } from "../schemas";
 
 /** The most applicants one dropdown offers; the dialog says so when a pillar has more. */
 const APPLICANT_LIMIT = 100;
+/** Skilling recommends graduates to WEE, so only WEE programmes offer them. */
+const WEE_PILLAR_ID = 2;
 
 interface Applicants {
   pillarId: number;
@@ -22,7 +24,8 @@ interface Applicants {
 
 /**
  * Files a grant application from the queue. The applicant is chosen from the
- * participants enrolled in the programme's pillar.
+ * participants enrolled in the programme's pillar; for WEE programmes, graduates
+ * Skilling recommended (and WEE accepted) lead the list and pre-fill the notes.
  */
 export function NewApplicationDialog({
   open,
@@ -42,6 +45,32 @@ export function NewApplicationDialog({
   const pillarId = programme?.pillarId;
   const [applicants, setApplicants] = useState<Applicants | null>(null);
   const current = applicants?.pillarId === pillarId ? applicants : null;
+  const [recommendations, setRecommendations] = useState<GrantRecommendation[]>([]);
+  const [applicant, setApplicant] = useState("");
+  const [notes, setNotes] = useState("");
+  const recommended = pillarId === WEE_PILLAR_ID ? recommendations : [];
+  const recommendedIds = new Set(recommended.map((item) => item.participantId));
+  const others = current?.items.filter((item) => !recommendedIds.has(item.id)) ?? [];
+
+  // A failed read just leaves the group out; the ordinary applicant list still works.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void listGrantRecommendationsAction()
+      .then((result) => {
+        if (active) setRecommendations(result.data ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  function chooseApplicant(value: string) {
+    setApplicant(value);
+    const pick = recommended.find((item) => String(item.participantId) === value);
+    if (pick) setNotes(pick.suggestedNotes);
+  }
 
   useEffect(() => {
     if (!open || pillarId === undefined) return;
@@ -99,7 +128,10 @@ export function NewApplicationDialog({
             name="projectId"
             required
             value={programmeId}
-            onChange={(event) => setProgrammeId(Number(event.target.value))}
+            onChange={(event) => {
+              setProgrammeId(Number(event.target.value));
+              setApplicant("");
+            }}
             className={fieldClass}
           >
             {programmes.map((item) => (
@@ -114,18 +146,38 @@ export function NewApplicationDialog({
           <select
             name="participantId"
             required
-            defaultValue=""
+            value={applicant}
+            onChange={(event) => chooseApplicant(event.target.value)}
             disabled={!current}
             className={fieldClass}
           >
             <option value="" disabled>
               {current ? "Choose a participant" : "Loading participants…"}
             </option>
-            {current?.items.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} · Participant #{item.id}
-              </option>
-            ))}
+            {current && recommended.length > 0 && (
+              <optgroup label="Recommended by Skilling">
+                {recommended.map((item) => (
+                  <option key={item.participantId} value={item.participantId}>
+                    {item.course ? `${item.name} · ${item.course}` : item.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {current && recommended.length > 0 ? (
+              <optgroup label="Enrolled participants">
+                {others.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} · Participant #{item.id}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              others.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · Participant #{item.id}
+                </option>
+              ))
+            )}
           </select>
         </label>
         {current && current.total > current.items.length && (
@@ -158,9 +210,18 @@ export function NewApplicationDialog({
         </div>
         <label className="block text-sm">
           Business or purpose
-          <input name="notes" maxLength={500} className={fieldClass} />
+          <input
+            name="notes"
+            maxLength={500}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            className={fieldClass}
+          />
         </label>
-        <Button type="submit" disabled={submit.busy || !current?.items.length}>
+        <Button
+          type="submit"
+          disabled={submit.busy || !current || others.length + recommended.length === 0}
+        >
           File application
         </Button>
       </form>

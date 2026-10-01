@@ -7,10 +7,15 @@ vi.mock("./actions", () => ({
   listGrantsAction: vi.fn(),
   exportGrantsAction: vi.fn(),
   createGrantApplicationAction: vi.fn(),
+  listGrantRecommendationsAction: vi.fn(async () => ({ success: true, data: [] })),
 }));
 vi.mock("@/features/participants/actions", () => ({ listParticipantsAction: vi.fn() }));
 import { listParticipantsAction } from "@/features/participants/actions";
-import { createGrantApplicationAction, listGrantsAction } from "./actions";
+import {
+  createGrantApplicationAction,
+  listGrantRecommendationsAction,
+  listGrantsAction,
+} from "./actions";
 import { GrantsContent } from "./components";
 
 afterEach(() => {
@@ -114,6 +119,51 @@ it("files a new application for a participant enrolled in the programme's pillar
     })
   );
   expect(await screen.findByText(/Application filed and marked as prepared/)).toBeInTheDocument();
+});
+
+it("leads with Skilling's recommended graduates and pre-fills their notes", async () => {
+  vi.mocked(listParticipantsAction).mockResolvedValue({
+    ...ok,
+    data: {
+      items: [
+        { id: 12, name: "Mwadi Kyende" },
+        { id: 4, name: "Wanjiru Achieng" },
+      ],
+      page: 1,
+      pageSize: 100,
+      totalItems: 2,
+      totalPages: 1,
+    },
+  } as never);
+  vi.mocked(listGrantRecommendationsAction).mockResolvedValueOnce({
+    ...ok,
+    data: [
+      {
+        participantId: 4,
+        name: "Wanjiru Achieng",
+        course: "Tailoring & design",
+        acceptedOn: "2026-04-09",
+        suggestedNotes: "Skilling graduate · Tailoring & design · Self-employed",
+      },
+    ],
+  } as never);
+  renderWithProgrammes();
+  fireEvent.click(screen.getByRole("button", { name: "New application" }));
+  const dialog = screen.getByRole("dialog");
+  const group = await within(dialog).findByRole("group", { name: "Recommended by Skilling" });
+  expect(within(group).getByRole("option")).toHaveTextContent(
+    "Wanjiru Achieng · Tailoring & design"
+  );
+  // The recommended graduate is not listed twice.
+  expect(within(dialog).queryByRole("option", { name: /Participant #4/ })).toBeNull();
+  fireEvent.change(within(dialog).getByLabelText("Applicant"), { target: { value: "4" } });
+  expect(within(dialog).getByLabelText("Business or purpose")).toHaveValue(
+    "Skilling graduate · Tailoring & design · Self-employed"
+  );
+  fireEvent.change(screen.getByLabelText("Programme"), { target: { value: "5" } });
+  await waitFor(() =>
+    expect(within(dialog).queryByRole("group", { name: "Recommended by Skilling" })).toBeNull()
+  );
 });
 
 it("reloads the applicants when another programme is chosen", async () => {

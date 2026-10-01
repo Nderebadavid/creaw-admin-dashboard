@@ -10,7 +10,13 @@ import {
   PillarEditButton,
 } from "@/features/pillars/record-controls";
 import { pillarCodeSchema, type PillarCode } from "@/features/pillars/schemas";
-import { ids, loadSessionsWorkspace, loadVawgWorkspace, loadWroRegister } from "./loaders";
+import {
+  ids,
+  loadSessionsWorkspace,
+  loadTrainingWorkspace,
+  loadVawgWorkspace,
+  loadWroRegister,
+} from "./loaders";
 import { submissionsApi } from "@/features/submissions/api";
 import { CaseRegister } from "@/features/vawg/components/case-register";
 import { VawgHeadingActions } from "@/features/vawg/components/heading-actions";
@@ -19,6 +25,9 @@ import { parsePeriod } from "@/features/sessions/model";
 import { SessionSummaryCards } from "@/features/sessions/components/summary-cards";
 import { SessionWorkspaceView } from "@/features/sessions/components/session-register";
 import { LogSessionButton } from "@/features/sessions/components/session-dialogs";
+import { TrainingSummaryCards } from "@/features/training/components/summary-cards";
+import { TraineeRegister } from "@/features/training/components/trainee-register";
+import { EnrolTraineeButton } from "@/features/training/components/trainee-dialogs";
 
 /** The permission that lets a user add records to each pillar's domain register. */
 const domainPermission = {
@@ -58,7 +67,7 @@ export default async function PillarPage({
   if (!code.success) notFound();
   const period = parsePeriod((await searchParams)?.period);
   // The pillar id is fixed per code, so submissions load alongside the pillar.
-  const [pillar, submissions, workspace, sessions] = await Promise.all([
+  const [pillar, submissions, workspace, sessions, training] = await Promise.all([
     loadPillar(code.data),
     loadSubmissions(session.grants, ids[code.data]),
     loadVawgWorkspace(session.grants, code.data),
@@ -66,6 +75,7 @@ export default async function PillarPage({
       id: session.user.id,
       name: session.user.name,
     }),
+    loadTrainingWorkspace(session.grants, code.data),
   ]);
   if (!pillar)
     return <AlertBanner tone="warning">You do not have access to this pillar.</AlertBanner>;
@@ -101,25 +111,54 @@ export default async function PillarPage({
     download: can("DOCUMENT_DOWNLOAD"),
     export: can("REPORT_EXPORT_CSV"),
   };
-  // SRHR logs sessions through the workspace, never the raw-ID form, even when it failed to load.
+  const trainingWorkspace = training !== "failed" ? training : undefined;
+  const trainingPermissions = {
+    edit: can("TRAINING_ENROLLMENT_EDIT"),
+    recommend: can("TRAINING_ENROLLMENT_EDIT") && can("REFERRAL_CREATE"),
+    reveal: can("SENSITIVE_REVEAL"),
+    export: can("REPORT_EXPORT_CSV"),
+  };
+  const enrolTrainee =
+    trainingWorkspace && trainingPermissions.edit ? (
+      <EnrolTraineeButton workspace={trainingWorkspace} />
+    ) : null;
+  // SRHR logs sessions and Skilling enrols trainees through their workspaces, never the
+  // raw-ID form, even when a workspace failed to load.
   const domainActions =
     (pillar.code === "srhr" && sessions !== undefined) ||
+    (pillar.code === "skilling" && training !== undefined) ||
     !canCreateDomain ||
     pillar.code === "wros" ? undefined : (
       <PillarDomainCreateButton code={pillar.code} />
     );
+  const sessionsView = sessionWorkspace ? (
+    <SessionWorkspaceView workspace={sessionWorkspace} can={sessionPermissions} />
+  ) : sessionsFailed ? (
+    <AlertBanner tone="warning">
+      The session register could not be loaded. Refresh the page to try again.
+    </AlertBanner>
+  ) : undefined;
+  const traineesView = trainingWorkspace ? (
+    <TraineeRegister workspace={trainingWorkspace} can={trainingPermissions} />
+  ) : training === "failed" ? (
+    <AlertBanner tone="warning">
+      The trainee register could not be loaded. Refresh the page to try again.
+    </AlertBanner>
+  ) : undefined;
   return (
     <PillarContent
       workspace={
-        sessionWorkspace ? (
-          <SessionWorkspaceView workspace={sessionWorkspace} can={sessionPermissions} />
-        ) : sessionsFailed ? (
-          <AlertBanner tone="warning">
-            The session register could not be loaded. Refresh the page to try again.
-          </AlertBanner>
+        traineesView || sessionsView ? (
+          <>
+            {traineesView}
+            {sessionsView}
+          </>
         ) : undefined
       }
-      showDomainTable={!(pillar.code === "srhr" && (sessionWorkspace || sessionsFailed))}
+      showDomainTable={
+        !(pillar.code === "srhr" && (sessionWorkspace || sessionsFailed)) &&
+        !(pillar.code === "skilling" && training !== undefined)
+      }
       register={
         vawg ? (
           <CaseRegister workspace={workspace} can={vawgPermissions} />
@@ -134,6 +173,12 @@ export default async function PillarPage({
       kpis={
         vawg ? (
           <VawgSummaryCards summary={workspace.summary} color={pillar.color} tint={pillar.tint} />
+        ) : trainingWorkspace ? (
+          <TrainingSummaryCards
+            summary={trainingWorkspace.summary}
+            color={pillar.color}
+            tint={pillar.tint}
+          />
         ) : sessionWorkspace ? (
           <SessionSummaryCards
             summary={sessionWorkspace.summary}
@@ -148,10 +193,15 @@ export default async function PillarPage({
             {canCreate ? (
               <PillarCreateButton code={pillar.code} name={pillar.name} variant="outline" />
             ) : null}
-            {pillar.code === "skilling" && canCreateDomain ? (
-              <PillarDomainCreateButton code="skilling" />
-            ) : null}
+            {enrolTrainee}
             <LogSessionButton workspace={sessionWorkspace} />
+          </>
+        ) : enrolTrainee ? (
+          <>
+            {canCreate ? (
+              <PillarCreateButton code={pillar.code} name={pillar.name} variant="outline" />
+            ) : null}
+            {enrolTrainee}
           </>
         ) : vawg ? (
           <VawgHeadingActions
