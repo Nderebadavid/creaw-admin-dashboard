@@ -142,11 +142,13 @@ export default async function PillarPage({
   const enrolTrainee =
     trainingWorkspace && trainingPermissions.edit ? <EnrolTraineeButton /> : null;
   // SRHR logs sessions and Skilling enrols trainees through their workspaces, never the
-  // raw-ID form, even when a workspace failed to load.
+  // raw-ID form, even when a workspace failed to load. WEE applications are filed from the
+  // grants page, so its table offers no "New application".
   const domainActions =
     (pillar.code === "srhr" && sessions !== undefined) ||
     (pillar.code === "skilling" && training !== undefined) ||
     !canCreateDomain ||
+    pillar.code === "wee" ||
     pillar.code === "wros" ? undefined : (
       <PillarDomainCreateButton code={pillar.code} />
     );

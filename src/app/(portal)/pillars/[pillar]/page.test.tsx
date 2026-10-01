@@ -79,6 +79,12 @@ describe("pillar route", () => {
     expect(html).not.toContain("Open legal case");
   });
 
+  it("offers no New application button in WEE's grant applications table", async () => {
+    const html = await render("wee");
+    expect(html).toContain("Programme records");
+    expect(html).not.toContain("New application");
+  });
+
   it("shows the no-access state to a user outside the VAWG pillar", async () => {
     cookieStore.get.mockReturnValue({ value: issueMockToken(3) });
     const html = await render("vawg");
