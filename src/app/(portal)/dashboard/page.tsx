@@ -9,17 +9,23 @@ import { DashboardContent } from "@/features/dashboard/components";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string | string[]; pillar?: string | string[] }>;
+  searchParams: Promise<{
+    year?: string | string[];
+    pillar?: string | string[];
+    funnel?: string | string[];
+  }>;
 }) {
   const session = await requireSession();
   if (!hasModulePermission(session.grants, "DASHBOARD_VIEW")) notFound();
-  const { year: rawYear, pillar: rawPillar } = await searchParams;
+  const { year: rawYear, pillar: rawPillar, funnel: rawFunnel } = await searchParams;
   // The chart offers this year and the six before it.
   const thisYear = new Date().getFullYear();
   const asked = typeof rawYear === "string" && /^20\d{2}$/.test(rawYear) ? Number(rawYear) : 0;
   const year = String(asked > thisYear - 7 && asked <= thisYear ? asked : thisYear);
   const chartPillar = typeof rawPillar === "string" ? pillarLookBySlug(rawPillar)?.slug : undefined;
-  const overview = await dashboardApi.getOverview(year, chartPillar);
+  const funnelPillar =
+    typeof rawFunnel === "string" ? pillarLookBySlug(rawFunnel)?.slug : undefined;
+  const overview = await dashboardApi.getOverview(year, chartPillar, funnelPillar);
   return (
     <>
       <PageHeading title="MERL overview" section="Overview" />

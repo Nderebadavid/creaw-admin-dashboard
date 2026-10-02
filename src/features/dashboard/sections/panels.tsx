@@ -7,7 +7,7 @@ import type { DashboardOverview } from "../api";
 
 const card = "flex flex-col rounded-2xl border border-creaw-line bg-white p-6";
 
-function SectionHeader({
+export function SectionHeader({
   title,
   subtitle,
   href,

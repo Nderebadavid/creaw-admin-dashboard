@@ -14,12 +14,15 @@ export function MonthlyChart({
   year,
   pillar,
   pillars = [],
+  funnel,
 }: {
   monthly: DashboardOverview["monthly"];
   year: string;
   /** The pillar slug the chart is narrowed to; every pillar when omitted. */
   pillar?: string;
   pillars?: DashboardOverview["pillars"];
+  /** The funnel's pillar slug, kept when the chart's filters change. */
+  funnel?: string;
 }) {
   const max = Math.max(1, ...monthly.flatMap((row) => [row.newCount, row.completedCount]));
   const yMax = Math.ceil((max * 1.15) / 10) * 10 || 10;
@@ -40,6 +43,7 @@ export function MonthlyChart({
           years={chartYears(new Date().getFullYear())}
           pillar={selected?.code ?? ""}
           pillars={pillars}
+          funnel={funnel}
         />
       </div>
       <div className="flex gap-[18px] text-[13px] text-creaw-body">

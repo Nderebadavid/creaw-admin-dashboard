@@ -15,6 +15,7 @@ import { curriculumMilestones, curriculumProgress, isBehind } from "../curriculu
 import { presentRow } from "../resources/read";
 import { displayName } from "../references";
 import { grantHandoff } from "../training";
+import { pipelineFunnel, referralOversight } from "./dashboard-panels";
 import { peopleOptions } from "./facilitators";
 import { buildCoverage } from "@/features/sessions/coverage";
 import { parsePeriod } from "@/features/sessions/model";
@@ -451,17 +452,18 @@ export function handleFormOptions(ctx: MockContext) {
 }
 
 /**
- * `GET /dashboard?view=overview&year=&pillar=`: every dashboard panel computed on the
- * server: reach per pillar, quarter counts, the monthly chart (optionally for one
- * pillar), pending submissions, reporting alerts and recent activity. Each panel is
- * scoped to what the caller may see, and null when they may see none of it.
+ * `GET /dashboard?view=overview&year=&pillar=&funnel=`: every dashboard panel computed on
+ * the server: reach per pillar, quarter counts, the monthly chart (optionally for one
+ * pillar), pending submissions, reporting alerts, recent activity, referral oversight and
+ * one pillar's pipeline funnel. Each panel is scoped to what the caller may see, and null
+ * when they may see none of it.
  */
 export function handleDashboardOverview(ctx: MockContext) {
   const { request, store, url, query, grants } = ctx;
   if (url.pathname !== "/dashboard" || query.get("view") !== "overview") return undefined;
   if (
     request.method !== "GET" ||
-    [...query.keys()].some((key) => !["view", "year", "pillar"].includes(key))
+    [...query.keys()].some((key) => !["view", "year", "pillar", "funnel"].includes(key))
   )
     return envelope(422);
   const pillars = store.pillar.filter(
@@ -580,6 +582,13 @@ export function handleDashboardOverview(ctx: MockContext) {
           due_date: row.dueDate,
         })),
     },
+    referrals: referralOversight(store, grants),
+    funnel: pipelineFunnel(
+      store,
+      grants,
+      pillars.map((pillar) => pillar.id),
+      query.get("funnel")
+    ),
     recent_activity: hasPermission(grants, "AUDIT_LOG_VIEW")
       ? [...store.audit_logs]
           .sort((a, b) => b.performed_at.localeCompare(a.performed_at) || b.id - a.id)

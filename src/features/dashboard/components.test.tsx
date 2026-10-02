@@ -152,4 +152,87 @@ describe("dashboard screen", () => {
     expect(html).toContain("participant #7");
     expect(html).toContain("Participant · via portal");
   });
+
+  it("shows referral oversight and the pipeline funnel when the API returns them", () => {
+    const overview: DashboardOverview = {
+      activeParticipants: 0,
+      newThisQuarter: 0,
+      pendingSubmissions: 0,
+      overdueReports: 0,
+      pillars: [],
+      monthly: [],
+      participantDistribution: [],
+      projects: [],
+      reportingAlerts: [],
+      recentSubmissions: [],
+      upcomingReports: [],
+      recentActivity: [],
+      referrals: {
+        open: 3,
+        overdue: 1,
+        overdueAfterDays: 7,
+        decidedThisQuarter: 4,
+        acceptedRate: 75,
+        byDestination: [{ pillarId: 2, pillar: "WEE", color: "#D9772B", open: 3, oldestDays: 9 }],
+        oldest: [
+          {
+            id: 1,
+            participant: "Faith Njeri",
+            from: "VAWG",
+            to: "WEE",
+            raisedOn: "2026-09-23",
+            ageDays: 9,
+          },
+        ],
+      },
+      funnel: {
+        pillar: "srhr",
+        name: "SRHR",
+        color: "#C9921F",
+        pipelineName: "SRHR pathway",
+        enrollments: 40,
+        stages: [
+          { name: "Registered", count: 40 },
+          { name: "Baseline", count: 10 },
+        ],
+        available: [
+          { slug: "vawg", name: "VAWG" },
+          { slug: "srhr", name: "SRHR" },
+        ],
+      },
+    };
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    expect(html).toContain("Referral oversight");
+    expect(html).toContain("Waiting over 7 days");
+    expect(html).toContain("75%");
+    expect(html).toContain("Faith Njeri");
+    expect(html).toContain("VAWG → WEE");
+    expect(html).toContain('href="/referrals"');
+    expect(html).toContain("SRHR pipeline");
+    expect(html).toContain("40 current enrollments");
+    expect(html).toContain('aria-label="Pipeline pillar"');
+    expect(html).toContain("25%");
+  });
+
+  it("leaves both panels out when the user may see neither", () => {
+    const overview: DashboardOverview = {
+      activeParticipants: 0,
+      newThisQuarter: 0,
+      pendingSubmissions: 0,
+      overdueReports: 0,
+      pillars: [],
+      monthly: [],
+      participantDistribution: [],
+      projects: [],
+      reportingAlerts: [],
+      recentSubmissions: [],
+      upcomingReports: [],
+      recentActivity: [],
+      referrals: null,
+      funnel: null,
+    };
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    expect(html).not.toContain("Referral oversight");
+    expect(html).not.toContain("pipeline");
+  });
 });

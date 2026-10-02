@@ -64,6 +64,10 @@ export interface DashboardOverview {
     periodEnd: string;
     dueDate?: string;
   }[];
+  /** Referrals waiting on a response; absent when the user cannot view referrals. */
+  referrals?: DashboardReferrals | null;
+  /** One pillar's pipeline funnel; absent when the user cannot see any. */
+  funnel?: DashboardFunnel | null;
   /** Newest audit entries; `who` is the officer, or "System" for background jobs. */
   recentActivity: {
     id: number;
@@ -75,6 +79,46 @@ export interface DashboardOverview {
     when: string;
     who: string;
   }[];
+}
+
+export interface DashboardReferrals {
+  open: number;
+  /** Open longer than `overdueAfterDays`. */
+  overdue: number;
+  overdueAfterDays: number;
+  decidedThisQuarter: number;
+  /** Share of this quarter's decisions that were acceptances, or null with none decided. */
+  acceptedRate: number | null;
+  byDestination: {
+    pillarId: number;
+    pillar: string;
+    color: string;
+    open: number;
+    oldestDays: number;
+  }[];
+  /** The open referrals waiting longest, oldest first. */
+  oldest: {
+    id: number;
+    participant: string;
+    from: string;
+    to: string;
+    raisedOn: string;
+    ageDays: number;
+  }[];
+}
+
+export interface DashboardFunnel {
+  /** Pillar slug, e.g. "srhr". */
+  pillar: string;
+  name: string;
+  color: string;
+  pipelineName: string;
+  /** Current enrollments in the pillar, whether or not they have reached a stage. */
+  enrollments: number;
+  /** Enrollments that have reached each stage or a later one. */
+  stages: { name: string; count: number }[];
+  /** Pillars the user may switch the funnel to. */
+  available: { slug: string; name: string }[];
 }
 
 /** Presentation for each pillar code; the schema has no targets, so they live here. */
@@ -110,8 +154,13 @@ export function createDashboardApi(client: ApiClient, token: string) {
      * Every panel of the overview from one call: the API counts, groups and scopes them.
      * @param period The year charted in "Monthly enrollments".
      * @param chartPillar A pillar slug narrowing that chart; every pillar when omitted.
+     * @param funnelPillar The pillar slug whose funnel to show; the API picks one when omitted.
      */
-    async getOverview(period: string, chartPillar?: string): Promise<DashboardOverview> {
+    async getOverview(
+      period: string,
+      chartPillar?: string,
+      funnelPillar?: string
+    ): Promise<DashboardOverview> {
       const year = /^20\d{2}$/.test(period) ? period : "2026";
       const result = await client.request(
         {
@@ -119,7 +168,12 @@ export function createDashboardApi(client: ApiClient, token: string) {
           path: "/dashboard",
           routeTemplate: "/dashboard",
           token,
-          query: { view: "overview", year, ...(chartPillar ? { pillar: chartPillar } : {}) },
+          query: {
+            view: "overview",
+            year,
+            ...(chartPillar ? { pillar: chartPillar } : {}),
+            ...(funnelPillar ? { funnel: funnelPillar } : {}),
+          },
         },
         dashboardOverviewSchema
       );
@@ -141,6 +195,14 @@ export function createDashboardApi(client: ApiClient, token: string) {
         };
       });
       const reportingAlerts = (dto.reports?.overdue ?? []).map(overdueAlert);
+      const pillarById = (id: number) => {
+        const pillar = dto.pillars.find((row) => row.id === id);
+        return pillar
+          ? (pillarPresentation[pillar.code.toUpperCase()] ?? unknownPillar(pillar.code))
+          : null;
+      };
+      const pillarBySlug = (slug: string) =>
+        pillarPresentation[slug.toUpperCase()] ?? unknownPillar(slug);
       return {
         activeParticipants: dto.participant_count,
         newThisQuarter: dto.new_this_quarter,
@@ -184,6 +246,43 @@ export function createDashboardApi(client: ApiClient, token: string) {
           periodEnd: row.period_end,
           dueDate: row.due_date,
         })),
+        referrals: dto.referrals && {
+          open: dto.referrals.open,
+          overdue: dto.referrals.overdue,
+          overdueAfterDays: dto.referrals.overdue_after_days,
+          decidedThisQuarter: dto.referrals.decided_this_quarter,
+          acceptedRate: dto.referrals.accepted_rate,
+          byDestination: dto.referrals.by_destination.map((row) => {
+            const pillar = pillarById(row.pillar_id);
+            return {
+              pillarId: row.pillar_id,
+              pillar: pillar?.label ?? "Another pillar",
+              color: pillar?.color ?? unknownPillar("").color,
+              open: row.open,
+              oldestDays: row.oldest_days,
+            };
+          }),
+          oldest: dto.referrals.oldest.map((row) => ({
+            id: row.id,
+            participant: row.participant_name ?? "Participant record",
+            from: pillarById(row.from_pillar_id)?.label ?? "Another pillar",
+            to: row.destination_name ?? pillarById(row.to_pillar_id)?.label ?? "Another pillar",
+            raisedOn: row.raised_on,
+            ageDays: row.age_days,
+          })),
+        },
+        funnel: dto.funnel && {
+          pillar: pillarBySlug(dto.funnel.code).slug,
+          name: pillarBySlug(dto.funnel.code).label,
+          color: pillarBySlug(dto.funnel.code).color,
+          pipelineName: dto.funnel.pipeline_name,
+          enrollments: dto.funnel.enrollments,
+          stages: dto.funnel.stages.map((row) => ({ name: row.name, count: row.reached })),
+          available: dto.funnel.available.map((code) => ({
+            slug: pillarBySlug(code).slug,
+            name: pillarBySlug(code).label,
+          })),
+        },
         recentActivity: (dto.recent_activity ?? []).map((row) => ({
           id: row.id,
           action: row.action,
@@ -199,7 +298,11 @@ export function createDashboardApi(client: ApiClient, token: string) {
 }
 
 export const dashboardApi = {
-  async getOverview(period: string, chartPillar?: string) {
-    return (await withSessionApi(createDashboardApi)).getOverview(period, chartPillar);
+  async getOverview(period: string, chartPillar?: string, funnelPillar?: string) {
+    return (await withSessionApi(createDashboardApi)).getOverview(
+      period,
+      chartPillar,
+      funnelPillar
+    );
   },
 };

@@ -203,7 +203,17 @@ export function PillarContent({
         </div>
       )}
       <div className="grid gap-5 xl:grid-cols-2">
-        <PipelineFunnel pillar={pillar} />
+        <PipelineFunnel
+          title={`${pillar.name} pipeline`}
+          subtitle="Participant progression this year"
+          color={pillar.color}
+          stages={pillar.stageCounts ?? []}
+          emptyMessage={
+            pillar.stages.length
+              ? "Stage counts unavailable for this role."
+              : "No stages configured yet."
+          }
+        />
         <section className="flex flex-col gap-1.5 rounded-2xl border border-creaw-line bg-white p-6">
           <div className="mb-1.5 flex flex-wrap items-start justify-between gap-3">
             <div>

@@ -5,7 +5,10 @@ import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { pillarLookBySlug } from "@/components/portal/pillars";
 import type { DashboardOverview } from "./api";
 import { ProjectsPanel } from "@/features/projects/projects-panel";
+import { PipelineFunnel } from "@/features/pillars/overview/pipeline-funnel";
+import { FunnelPicker } from "./sections/chart-filters";
 import { MonthlyChart, ParticipantsDonut } from "./sections/charts";
+import { ReferralOversight } from "./sections/referrals";
 import { ActivityFeed, CalendarPreview, FieldPreview, OverdueAlert } from "./sections/panels";
 
 /** "▲ 11%" against the quarter before, or the quarter's months when there is nothing to compare. */
@@ -20,7 +23,8 @@ function quarterTrend(current: number, previous: number | undefined, year: strin
 
 /**
  * MERL overview: overdue-report alert, headline totals, pillar reach, monthly
- * enrollments, participant mix, and previews of field work, reporting and audit.
+ * enrollments, participant mix, pipeline funnel, referral oversight, and previews
+ * of field work, reporting and audit.
  */
 export function DashboardContent({
   overview,
@@ -138,11 +142,34 @@ export function DashboardContent({
           year={year}
           pillar={chartPillar}
           pillars={overview.pillars}
+          funnel={overview.funnel?.pillar}
         />
         {overview.pillars.length !== 1 && (
           <ParticipantsDonut distribution={overview.participantDistribution} />
         )}
       </div>
+      {(overview.funnel || overview.referrals) && (
+        <div className="grid gap-5 xl:grid-cols-2">
+          {overview.funnel && (
+            <PipelineFunnel
+              title={`${overview.funnel.name} pipeline`}
+              subtitle={`${overview.funnel.enrollments.toLocaleString()} current enrollments · how many reached each stage`}
+              color={overview.funnel.color}
+              stages={overview.funnel.stages}
+              emptyMessage="No stages configured yet."
+              actions={
+                <FunnelPicker
+                  funnel={overview.funnel.pillar}
+                  options={overview.funnel.available}
+                  year={year}
+                  pillar={chartPillar ?? ""}
+                />
+              }
+            />
+          )}
+          {overview.referrals && <ReferralOversight referrals={overview.referrals} />}
+        </div>
+      )}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <FieldPreview submissions={overview.recentSubmissions} canView={canViewSubmissions} />
         <CalendarPreview reports={overview.upcomingReports} />
