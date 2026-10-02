@@ -102,6 +102,52 @@ describe("proxy", () => {
       expect(response.cookies.get(name)?.value).toBe("");
   });
 
+  it.each([
+    [429, "rate limited"],
+    [408, "timed out"],
+    [503, "down"],
+  ])("never signs the user out when refresh is %s (%s)", async (status) => {
+    vi.stubEnv("PORTAL_API_MODE", "live");
+    vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              resultCode: status,
+              success: false,
+              message: "Try later",
+              data: null,
+            }),
+            { status }
+          )
+        )
+    );
+    const response = await proxy(
+      requestWith({
+        creaw_session: "still-good",
+        creaw_refresh: "r",
+        creaw_session_meta: meta(Date.now() + 30_000),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.cookies.getAll()).toEqual([]);
+  });
+
+  it("keeps the refresh token when it cannot refresh an expired session", async () => {
+    vi.stubEnv("PORTAL_API_MODE", "live");
+    vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const response = await proxy(requestWith({ creaw_refresh: "still-valid" }));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/login?redirect=%2Fdashboard");
+    expect(response.cookies.getAll()).toEqual([]);
+  });
+
   it("keeps the current token when the auth service cannot be reached", async () => {
     vi.stubEnv("PORTAL_API_MODE", "live");
     vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");

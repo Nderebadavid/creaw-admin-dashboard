@@ -122,15 +122,24 @@ export type RefreshOutcome =
   /** The API could not be reached or failed; the session may still be good. */
   | { status: "unavailable" };
 
-/** Exchanges a refresh token for a new pair through `POST /auth/refresh`. */
+/** The API's answer for a refresh token that is expired, revoked or already used. */
+const REFRESH_REJECTED = 401;
+
+/**
+ * Exchanges a refresh token for a new pair through `POST /auth/refresh`. Only a 401 ends
+ * the session; rate limits, timeouts, server errors and off-contract answers are treated
+ * as temporary, so they never sign a user out.
+ */
 export async function refreshSession(refreshToken: string): Promise<RefreshOutcome> {
   try {
     const response = await postAuth("/auth/refresh", { refreshToken });
     if (response.success) {
       const pair = parseTokenPair(response.data);
-      return pair ? { status: "refreshed", pair } : { status: "rejected" };
+      return pair ? { status: "refreshed", pair } : { status: "unavailable" };
     }
-    return response.resultCode >= 500 ? { status: "unavailable" } : { status: "rejected" };
+    return response.resultCode === REFRESH_REJECTED
+      ? { status: "rejected" }
+      : { status: "unavailable" };
   } catch {
     return { status: "unavailable" };
   }

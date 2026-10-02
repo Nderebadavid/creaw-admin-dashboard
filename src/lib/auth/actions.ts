@@ -139,13 +139,19 @@ export async function verifyOtpAction(code: string): Promise<VerifyOtpActionResu
       cookieStore.delete(LOGIN_CHALLENGE_COOKIE_NAME);
       return { ...CHALLENGE_EXPIRED, error: response.message };
     }
+    // The code is spent from here on, so any failure ends the challenge and starts over.
     const pair = parseTokenPair(response.data);
-    if (!pair) return SIGN_IN_FAILED;
-    const me = await createPortalApiClient().request(
-      { method: "GET", path: "/auth/me", routeTemplate: "/auth/me", token: pair.token },
-      currentUser
-    );
-    if (!me.success || !me.data) return SIGN_IN_FAILED;
+    if (!pair) return abandonSignIn();
+    let me: z.infer<typeof currentUser>;
+    try {
+      me = await createPortalApiClient().request(
+        { method: "GET", path: "/auth/me", routeTemplate: "/auth/me", token: pair.token },
+        currentUser
+      );
+    } catch {
+      return abandonSignIn(pair);
+    }
+    if (!me.success || !me.data) return abandonSignIn(pair);
     cookieStore.delete(LOGIN_CHALLENGE_COOKIE_NAME);
     writeSessionCookies(cookieStore, pair, challenge.remember);
     const { firstName, initials } = toPortalSessionUser(me.data.user);
@@ -153,6 +159,25 @@ export async function verifyOtpAction(code: string): Promise<VerifyOtpActionResu
   } catch {
     return SERVICE_UNREACHABLE;
   }
+}
+
+/**
+ * Ends a sign-in whose code was accepted but whose session cannot be used: revokes the
+ * issued tokens, drops the spent challenge, and sends the user back to the password step.
+ */
+async function abandonSignIn(pair?: {
+  token: string;
+  refreshToken: string;
+}): Promise<VerifyOtpActionResult> {
+  if (pair) {
+    try {
+      await postAuth("/auth/logout", { refreshToken: pair.refreshToken }, pair.token);
+    } catch {
+      // Unused tokens still expire on their own; the user must not be left stuck.
+    }
+  }
+  (await cookies()).delete(LOGIN_CHALLENGE_COOKIE_NAME);
+  return { success: false, expired: true, error: "Sign in failed. Please sign in again." };
 }
 
 /** Asks for a fresh code for the open challenge and restarts its 10 minutes. */
