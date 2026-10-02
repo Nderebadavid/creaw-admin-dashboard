@@ -5,13 +5,14 @@ import { createPortalApiClient } from "@/lib/api/portal-client";
 import { getMockStore, issueMockToken, resetMockStore } from "@/lib/mock-api/store";
 
 beforeEach(() => resetMockStore());
+const YEAR_2026 = { from: "2026-01-01", to: "2026-12-31" };
 
 describe("dashboard API", () => {
   it("derives totals and the shown pillars' summaries (Leadership is hidden) from seed records", async () => {
     const overview = await createDashboardApi(
       createPortalApiClient(),
       issueMockToken(1)
-    ).getOverview("2026");
+    ).getOverview(YEAR_2026);
     const store = getMockStore();
     expect(overview.activeParticipants).toBe(
       store.participant.filter((row) => !row.is_deleted).length
@@ -41,7 +42,7 @@ describe("dashboard API", () => {
     const overview = await createDashboardApi(
       createPortalApiClient(),
       issueMockToken(5)
-    ).getOverview("2026");
+    ).getOverview(YEAR_2026);
     expect(overview.pillars.map((pillar) => pillar.code)).toEqual(["vawg"]);
     expect(overview.activeParticipants).toBeLessThan(getMockStore().participant.length);
   });
@@ -62,8 +63,8 @@ describe("dashboard API", () => {
     const overview = await createDashboardApi(
       createPortalApiClient(),
       issueMockToken(1)
-    ).getOverview("2026");
-    expect(overview.newThisQuarter).toBeGreaterThanOrEqual(110);
+    ).getOverview(YEAR_2026);
+    expect(overview.newInPeriod).toBeGreaterThanOrEqual(110);
     expect(overview.pendingSubmissions).toBeGreaterThanOrEqual(110);
     expect(overview.monthly[7].newCount).toBeGreaterThanOrEqual(110);
   });
@@ -72,7 +73,7 @@ describe("dashboard API", () => {
     const overview = await createDashboardApi(
       createPortalApiClient(),
       issueMockToken(1)
-    ).getOverview("2026", undefined, "srhr");
+    ).getOverview(YEAR_2026, undefined, "srhr");
     const open = getMockStore().referral.filter((row) => !row.is_deleted && row.status === "NEW");
     expect(overview.referrals?.open).toBe(open.length);
     expect(overview.referrals?.oldest[0]).toMatchObject({

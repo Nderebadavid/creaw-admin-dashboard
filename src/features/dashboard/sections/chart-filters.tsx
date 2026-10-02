@@ -1,110 +1,75 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { LocationFilter } from "@/components/data-table/location-filter";
-import { locationParams, type LocationQuery } from "@/lib/api/location";
+import { usePortalNavigation } from "@/components/portal/portal-navigation";
+import { cleanLocation } from "@/lib/api/location";
 
 const select =
-  "h-[34px] rounded-lg border border-creaw-line-strong bg-white px-2.5 text-[13px] font-semibold text-creaw-ink-soft";
+  "h-[34px] rounded-lg border border-creaw-line-strong bg-white px-2.5 text-[13px] font-semibold text-creaw-ink-soft disabled:opacity-60";
 
-/** The dashboard's filters, all kept in the URL so each picker preserves the others. */
-interface DashboardFilters {
-  year: string;
-  /** The monthly chart's pillar slug, or "" for all pillars. */
-  pillar: string;
-  /** The funnel's pillar slug, or "" to let the API choose. */
-  funnel?: string;
-  /** The area every people-based figure is narrowed to. */
-  location?: LocationQuery;
+/**
+ * The dashboard's filters all live in the URL (period, location, chart pillar, funnel
+ * pillar). Each control changes its own keys and keeps the rest, and the page reloads
+ * through the portal's navigation, which marks the page busy until the new figures arrive.
+ */
+function useDashboardFilters() {
+  const params = useSearchParams();
+  const { navigate, pending } = usePortalNavigation();
+  const change = (patch: Record<string, string | number | undefined>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(patch))
+      if (value === undefined || value === "") next.delete(key);
+      else next.set(key, String(value));
+    navigate(`/dashboard?${next}`);
+  };
+  return { params, change, pending };
 }
 
-function dashboardHref({ year, pillar, funnel, location = {} }: DashboardFilters) {
-  const query = new URLSearchParams({ year });
-  if (pillar) query.set("pillar", pillar);
-  if (funnel) query.set("funnel", funnel);
-  for (const [key, id] of Object.entries(locationParams(location))) query.set(key, String(id));
-  return `/dashboard?${query}`;
-}
-
-/** Pillar and year pickers for the monthly chart; a change reloads the dashboard with it applied. */
+/** The monthly chart's pillar picker. */
 export function ChartFilters({
-  year,
-  years,
   pillar,
   pillars,
-  funnel,
-  location,
 }: {
-  year: string;
-  years: readonly string[];
   /** The selected pillar slug, or "" for all pillars. */
   pillar: string;
   pillars: readonly { code: string; name: string }[];
-  /** The funnel's pillar slug, kept when the chart's filters change. */
-  funnel?: string;
-  /** The dashboard's location, kept when the chart's filters change. */
-  location?: LocationQuery;
 }) {
-  const router = useRouter();
-  const go = (next: Partial<DashboardFilters>) =>
-    router.push(dashboardHref({ year, pillar, funnel, location, ...next }), { scroll: false });
+  const { change, pending } = useDashboardFilters();
+  if (pillars.length < 2) return null;
   return (
-    <div className="flex flex-wrap gap-2">
-      {pillars.length > 1 && (
-        <select
-          aria-label="Pillar"
-          value={pillar}
-          onChange={(event) => go({ pillar: event.target.value })}
-          className={select}
-        >
-          <option value="">All pillars</option>
-          {pillars.map((item) => (
-            <option key={item.code} value={item.code}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      )}
-      <select
-        aria-label="Year"
-        value={year}
-        onChange={(event) => go({ year: event.target.value })}
-        className={select}
-      >
-        {years.map((item) => (
-          <option key={item}>{item}</option>
-        ))}
-      </select>
-    </div>
+    <select
+      aria-label="Pillar"
+      value={pillar}
+      disabled={pending}
+      onChange={(event) => change({ pillar: event.target.value })}
+      className={select}
+    >
+      <option value="">All pillars</option>
+      {pillars.map((item) => (
+        <option key={item.code} value={item.code}>
+          {item.name}
+        </option>
+      ))}
+    </select>
   );
 }
 
-/** Switches the pipeline funnel to another pillar, keeping the chart's filters. */
+/** Switches the pipeline funnel to another pillar. */
 export function FunnelPicker({
   funnel,
   options,
-  year,
-  pillar,
-  location,
 }: {
   funnel: string;
   options: readonly { slug: string; name: string }[];
-  year: string;
-  /** The monthly chart's pillar slug, or "" for all pillars. */
-  pillar: string;
-  /** The dashboard's location, kept when the funnel's pillar changes. */
-  location?: LocationQuery;
 }) {
-  const router = useRouter();
+  const { change, pending } = useDashboardFilters();
   if (options.length < 2) return null;
   return (
     <select
       aria-label="Pipeline pillar"
       value={funnel}
-      onChange={(event) =>
-        router.push(dashboardHref({ year, pillar, funnel: event.target.value, location }), {
-          scroll: false,
-        })
-      }
+      disabled={pending}
+      onChange={(event) => change({ funnel: event.target.value })}
       className={select}
     >
       {options.map((item) => (
@@ -116,17 +81,17 @@ export function FunnelPicker({
   );
 }
 
-/** County → sub-county → ward for the whole dashboard, kept in the URL with the other filters. */
-export function DashboardLocationFilter(filters: DashboardFilters) {
-  const router = useRouter();
+/** County → sub-county → ward for the whole dashboard. */
+export function DashboardLocationFilter() {
+  const { params, change, pending } = useDashboardFilters();
+  const location = cleanLocation({
+    countyId: Number(params.get("countyId")),
+    subCountyId: Number(params.get("subCountyId")),
+    wardId: Number(params.get("wardId")),
+  });
   return (
-    <div className="flex flex-wrap gap-2">
-      <LocationFilter
-        value={filters.location ?? {}}
-        onChange={(location) =>
-          router.push(dashboardHref({ ...filters, location }), { scroll: false })
-        }
-      />
+    <div className="flex flex-wrap gap-2" aria-busy={pending}>
+      <LocationFilter value={location} onChange={change} disabled={pending} />
     </div>
   );
 }

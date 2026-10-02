@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("server-only", () => ({}));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), notFound: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  notFound: vi.fn(),
+}));
 vi.mock("@/lib/auth/session-server", () => ({
   requireSession: vi.fn(async () => ({
     user: { firstName: "Lead" },
@@ -15,7 +19,8 @@ vi.mock("@/features/dashboard/api", () => ({
   dashboardApi: {
     getOverview: vi.fn(async () => ({
       activeParticipants: 1,
-      newThisQuarter: 1,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 1,
       pendingSubmissions: 1,
       overdueReports: 0,
       pillars: [],

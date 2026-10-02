@@ -5,28 +5,14 @@ import { CalendarRange, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePopover } from "./use-popover";
 
-/** Inclusive range of `YYYY-MM-DD` calendar days. */
-export interface DateRange {
-  from: string;
-  to: string;
-}
+import { defaultRange, isoDay, type DateRange } from "@/lib/dashboard-period";
 
-/** Local calendar day as `YYYY-MM-DD` (toISOString would shift to UTC). */
-function isoDay(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+export { defaultRange, type DateRange };
 
 /** e.g. "07 Sep 2026", with fixed month names so every runtime renders the same text. */
 export function formatRangeDate(day: string) {
   const [year, month, date] = day.split("-");
   return `${date} ${MONTHS_SHORT[Number(month) - 1]} ${year}`;
-}
-
-/** The current quarter so far, e.g. 1 Jul → today. */
-export function defaultRange(today: Date): DateRange {
-  const quarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
-  return { from: isoDay(quarterStart), to: isoDay(today) };
 }
 
 function presets(today: Date): [string, DateRange][] {
@@ -53,15 +39,24 @@ function spanDays({ from, to }: DateRange) {
   return Number.isNaN(days) ? 0 : days;
 }
 
-/** Header control for the portal-wide created-date range; edits apply on "Apply". */
+/** A date range picker with presets; edits apply on "Apply". */
 export function DateRangePicker({
   value,
   onChange,
   today = new Date(),
+  hint = "filters records by their created date",
+  maxDays,
+  busy = false,
 }: {
   value: DateRange;
   onChange: (range: DateRange) => void;
   today?: Date;
+  /** What the range filters, shown under the dates. */
+  hint?: string;
+  /** The longest range allowed, in days. */
+  maxDays?: number;
+  /** A change is loading; the picker waits for it. */
+  busy?: boolean;
 }) {
   const { ref, open, toggle, close } = usePopover();
   const [draft, setDraft] = useState(value);
@@ -69,6 +64,9 @@ export function DateRangePicker({
   let spanLabel = `${days} day${days === 1 ? "" : "s"}`;
   if (!draft.from || !draft.to) spanLabel = "Choose both dates";
   else if (days < 1) spanLabel = "End date is before start date";
+  else if (maxDays && days > maxDays)
+    spanLabel = `Choose at most ${Math.floor(maxDays / 365)} years`;
+  const valid = days >= 1 && (!maxDays || days <= maxDays);
 
   const openPanel = () => {
     setDraft(value);
@@ -81,8 +79,10 @@ export function DateRangePicker({
         type="button"
         aria-label={`Date range ${formatRangeDate(value.from)} – ${formatRangeDate(value.to)}`}
         aria-expanded={open}
+        aria-busy={busy}
+        disabled={busy}
         onClick={openPanel}
-        className="flex h-11 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm font-semibold text-creaw-ink-soft hover:border-[#E2C7B6]"
+        className="flex h-11 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm font-semibold text-creaw-ink-soft hover:border-[#E2C7B6] disabled:opacity-60"
       >
         <CalendarRange size={18} aria-hidden="true" className="shrink-0 text-primary" />
         <span className="truncate">
@@ -124,7 +124,7 @@ export function DateRangePicker({
             ))}
           </div>
           <p className="text-[12.5px] text-creaw-faint">
-            {spanLabel} · filters records by their created date
+            {spanLabel} · {hint}
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={close}>
@@ -132,7 +132,7 @@ export function DateRangePicker({
             </Button>
             <Button
               size="sm"
-              disabled={days < 1}
+              disabled={!valid}
               onClick={() => {
                 onChange(draft);
                 close();

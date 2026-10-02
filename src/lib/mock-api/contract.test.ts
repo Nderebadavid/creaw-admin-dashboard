@@ -233,18 +233,59 @@ describe("form options", () => {
 
 describe("dashboard overview", () => {
   it("computes every dashboard panel on the server", async () => {
-    const result = await get("/dashboard", "/dashboard", { view: "overview", year: "2026" });
+    const result = await get("/dashboard", "/dashboard", {
+      view: "overview",
+      from: "2026-01-01",
+      to: "2026-12-31",
+    });
     expect(result.data.pillars.length).toBe(6);
     expect(result.data.monthly).toHaveLength(12);
     expect(result.data.reports.total).toBeGreaterThan(0);
     expect(result.data.recent_activity.length).toBeLessThanOrEqual(5);
     const narrowed = await get("/dashboard", "/dashboard", {
       view: "overview",
-      year: "2026",
+      from: "2026-01-01",
+      to: "2026-12-31",
       pillar: "vawg",
     });
     const sum = (data: any) =>
       data.monthly.reduce((total: number, row: any) => total + row.new_count, 0);
     expect(sum(narrowed.data)).toBeLessThanOrEqual(sum(result.data));
+  });
+
+  it("counts the period's registrations against the period of the same length before it", async () => {
+    const store = (await import("./store")).getMockStore();
+    const person = store.participant[0];
+    store.participant.push(
+      { ...person, id: 901, created_at: "2026-08-10T09:00:00.000Z" },
+      { ...person, id: 902, created_at: "2026-08-20T09:00:00.000Z" },
+      { ...person, id: 903, created_at: "2026-07-05T09:00:00.000Z" }
+    );
+    // 1–31 Aug against 1–31 Jul.
+    const result = await get("/dashboard", "/dashboard", {
+      view: "overview",
+      from: "2026-08-01",
+      to: "2026-08-31",
+    });
+    expect(result.data.period).toEqual({ from: "2026-08-01", to: "2026-08-31" });
+    expect(result.data.new_in_period).toBeGreaterThanOrEqual(2);
+    expect(result.data.previous_period).toBeGreaterThanOrEqual(1);
+    expect(result.data.monthly.map((row: any) => row.month)).toEqual(["2026-08"]);
+  });
+
+  it("defaults to the current quarter and refuses a malformed period", async () => {
+    const result = await get("/dashboard", "/dashboard", { view: "overview" });
+    expect(result.data.period.to).toBe(new Date().toISOString().slice(0, 10));
+    expect(result.data.period.from.slice(8)).toBe("01");
+    for (const query of [
+      { from: "2026-09-01", to: "2026-08-01" },
+      { from: "2020-01-01", to: "2026-12-31" },
+      { from: "2026-02-30", to: "2026-03-01" },
+      { from: "2026-01-01" },
+      { year: "2026" },
+    ])
+      expect(
+        (await get("/dashboard", "/dashboard", { view: "overview", ...query })).resultCode
+      ).toBe(422);
   });
 });

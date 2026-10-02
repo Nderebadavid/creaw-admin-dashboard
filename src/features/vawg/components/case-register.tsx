@@ -125,6 +125,7 @@ export function CaseRegister({
   const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
+  const [openingId, setOpeningId] = useState<number | null>(null);
   const detail = useRecordDetail(selectedId, loadCaseDetailAction);
   const row = list.data.items.find((item) => item.id === selectedId) ?? null;
   const selected = row ? { ...row, ...detail.data } : null;
@@ -137,11 +138,18 @@ export function CaseRegister({
     router.refresh();
   };
   async function view(documentId: number) {
-    if (!selected) return;
+    if (!selected || openingId !== null) return;
     setError("");
-    const result = await viewCaseFileAction(selected.id, documentId);
-    if (result.success && result.document) setViewing(result.document);
-    else setError(result.message);
+    setOpeningId(documentId);
+    try {
+      const result = await viewCaseFileAction(selected.id, documentId);
+      if (result.success && result.document) setViewing(result.document);
+      else setError(result.message);
+    } catch {
+      setError("Could not open the file. Please try again.");
+    } finally {
+      setOpeningId(null);
+    }
   }
 
   return (
@@ -214,6 +222,7 @@ export function CaseRegister({
         onStatus={() => setModal({ kind: "status" })}
         onAttach={(type) => setModal({ kind: "attach", type })}
         onView={(documentId) => void view(documentId)}
+        openingId={openingId}
         onCounsel={
           workspace.counselling !== null ? () => setModal({ kind: "counselling" }) : undefined
         }

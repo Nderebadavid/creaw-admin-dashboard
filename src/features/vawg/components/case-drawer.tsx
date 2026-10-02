@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Gavel,
   HeartHandshake,
+  Loader2,
   Paperclip,
   Pencil,
   Scale,
@@ -35,6 +36,7 @@ export function CaseDrawer({
   onStatus,
   onAttach,
   onView,
+  openingId = null,
   onCounsel,
   detailLoading = false,
 }: {
@@ -50,6 +52,8 @@ export function CaseDrawer({
   /** Opens the attach dialog, preset to a missing form when given. */
   onAttach: (documentType?: string) => void;
   onView: (documentId: number) => void;
+  /** The file being opened; every file button waits while one opens. */
+  openingId?: number | null;
 }) {
   if (!legalCase) return null;
   const look = pillarLook(VAWG_PILLAR_ID);
@@ -200,20 +204,30 @@ export function CaseDrawer({
                       <button
                         type="button"
                         aria-label={`View ${file.name}`}
-                        disabled={!can.download}
+                        aria-busy={openingId === file.id}
+                        disabled={!can.download || openingId != null}
                         onClick={() => onView(file.id)}
                         className={iconButton}
                       >
-                        <Eye size={19} aria-hidden="true" />
+                        {openingId === file.id ? (
+                          <Loader2 size={19} aria-hidden="true" className="animate-spin" />
+                        ) : (
+                          <Eye size={19} aria-hidden="true" />
+                        )}
                       </button>
                       <button
                         type="button"
                         aria-label={`Download ${file.name}`}
-                        disabled={!can.download}
+                        aria-busy={openingId === file.id}
+                        disabled={!can.download || openingId != null}
                         onClick={() => onView(file.id)}
                         className={iconButton}
                       >
-                        <Download size={19} aria-hidden="true" />
+                        {openingId === file.id ? (
+                          <Loader2 size={19} aria-hidden="true" className="animate-spin" />
+                        ) : (
+                          <Download size={19} aria-hidden="true" />
+                        )}
                       </button>
                     </div>
                   }

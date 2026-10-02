@@ -1,5 +1,5 @@
 import { Accessibility, Activity, CalendarClock, Camera, Users } from "lucide-react";
-import type { LocationQuery } from "@/lib/api/location";
+import { MONTHS_SHORT } from "@/lib/format";
 import { MetricCard } from "@/components/ui/metric-card";
 import { PillarCard } from "@/components/ui/pillar-card";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
@@ -12,14 +12,23 @@ import { MonthlyChart, ParticipantsDonut } from "./sections/charts";
 import { ReferralOversight } from "./sections/referrals";
 import { ActivityFeed, CalendarPreview, FieldPreview, OverdueAlert } from "./sections/panels";
 
-/** "▲ 11%" against the quarter before, or the quarter's months when there is nothing to compare. */
-function quarterTrend(current: number, previous: number | undefined, year: string) {
-  if (!previous) return { label: `Jul–Sep ${year}`, tone: "neutral" as StatusTone };
+/** "▲ 11%" against the previous period of the same length. */
+function periodTrend(current: number, previous: number | undefined) {
+  if (!previous) return { label: "No earlier data", tone: "neutral" as StatusTone };
   const change = Math.round(((current - previous) / previous) * 100);
   if (change === 0) return { label: "No change", tone: "neutral" as StatusTone };
   return change > 0
-    ? { label: `▲ ${change}%`, tone: "success" as StatusTone }
-    : { label: `▼ ${-change}%`, tone: "danger" as StatusTone };
+    ? { label: `▲ ${change}% vs previous`, tone: "success" as StatusTone }
+    : { label: `▼ ${-change}% vs previous`, tone: "danger" as StatusTone };
+}
+
+/** "1 Jul – 2 Oct 2026", or "3 Nov 2025 – 2 Oct 2026" across years. */
+export function periodLabel({ from, to }: { from: string; to: string }) {
+  const day = (iso: string, withYear: boolean) => {
+    const date = new Date(`${iso}T00:00:00`);
+    return `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}${withYear ? ` ${date.getFullYear()}` : ""}`;
+  };
+  return `${day(from, from.slice(0, 4) !== to.slice(0, 4))} – ${day(to, true)}`;
 }
 
 /**
@@ -29,25 +38,21 @@ function quarterTrend(current: number, previous: number | undefined, year: strin
  */
 export function DashboardContent({
   overview,
-  year,
   chartPillar,
   canViewSubmissions = true,
   canViewParticipants = false,
   canViewAudit = false,
-  location,
 }: {
   overview: DashboardOverview;
-  year: string;
   /** The pillar slug the monthly chart is narrowed to; all pillars when omitted. */
   chartPillar?: string;
   /** Hides links into the submissions queue for users who cannot open it. */
   canViewSubmissions?: boolean;
   canViewParticipants?: boolean;
   canViewAudit?: boolean;
-  /** The area the figures are narrowed to; kept when the chart or funnel filters change. */
-  location?: LocationQuery;
 }) {
-  const trend = quarterTrend(overview.newThisQuarter, overview.previousQuarter, year);
+  const trend = periodTrend(overview.newInPeriod, overview.previousPeriod);
+  const year = overview.period.to.slice(0, 4);
   const participantsHref = canViewParticipants ? "/participants" : undefined;
   return (
     <div className="flex flex-col gap-[22px]">
@@ -86,8 +91,8 @@ export function DashboardContent({
           />
         )}
         <MetricCard
-          label="New this quarter"
-          value={overview.newThisQuarter.toLocaleString()}
+          label="New in period"
+          value={overview.newInPeriod.toLocaleString()}
           icon={<Activity />}
           tint="#FDF1DE"
           ink="#B26A12"
@@ -160,11 +165,9 @@ export function DashboardContent({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
         <MonthlyChart
           monthly={overview.monthly}
-          year={year}
+          periodLabel={periodLabel(overview.period)}
           pillar={chartPillar}
           pillars={overview.pillars}
-          funnel={overview.funnel?.pillar}
-          location={location}
         />
         {overview.pillars.length !== 1 && (
           <ParticipantsDonut distribution={overview.participantDistribution} />
@@ -180,13 +183,7 @@ export function DashboardContent({
               stages={overview.funnel.stages}
               emptyMessage="No stages configured yet."
               actions={
-                <FunnelPicker
-                  funnel={overview.funnel.pillar}
-                  options={overview.funnel.available}
-                  year={year}
-                  pillar={chartPillar ?? ""}
-                  location={location}
-                />
+                <FunnelPicker funnel={overview.funnel.pillar} options={overview.funnel.available} />
               }
             />
           )}

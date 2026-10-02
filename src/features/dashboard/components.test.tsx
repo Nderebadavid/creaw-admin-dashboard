@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-// The chart's pillar and year pickers navigate with the app router.
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// The chart and funnel pickers navigate with the app router.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 import { DashboardContent } from "./components";
 import type { DashboardOverview } from "./api";
 
@@ -9,7 +12,8 @@ describe("dashboard screen", () => {
   it("shows the four totals, pillar cards, and reporting alert", () => {
     const overview: DashboardOverview = {
       activeParticipants: 10,
-      newThisQuarter: 3,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 3,
       pendingSubmissions: 2,
       overdueReports: 1,
       pillars: [
@@ -23,7 +27,7 @@ describe("dashboard screen", () => {
           href: "/pillars/vawg",
         },
       ],
-      monthly: [{ month: "Jan", newCount: 2, completedCount: 1 }],
+      monthly: [{ key: "2026-01", month: "Jan", newCount: 2, completedCount: 1 }],
       participantDistribution: [{ name: "VAWG", count: 4, color: "#B4552E" }],
       projects: [],
       reportingAlerts: ["SRHR narrative report (Hewlett Foundation) is 12 days overdue"],
@@ -31,7 +35,7 @@ describe("dashboard screen", () => {
       upcomingReports: [],
       recentActivity: [],
     };
-    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} />);
     expect(html).toContain("Active participants");
     expect(html).toContain("Submissions to review");
     // A single pillar in scope is "your" pillar, and there is no mix to chart.
@@ -47,7 +51,8 @@ describe("dashboard screen", () => {
   it("marks Leadership as awaiting a configured target", () => {
     const overview: DashboardOverview = {
       activeParticipants: 0,
-      newThisQuarter: 0,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 0,
       pendingSubmissions: 0,
       overdueReports: 0,
       pillars: [
@@ -69,14 +74,15 @@ describe("dashboard screen", () => {
       upcomingReports: [],
       recentActivity: [],
     };
-    expect(renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />)).toContain(
+    expect(renderToStaticMarkup(<DashboardContent overview={overview} />)).toContain(
       "No target set"
     );
   });
   it("does not link to submissions without the viewing grant", () => {
     const overview: DashboardOverview = {
       activeParticipants: 0,
-      newThisQuarter: 0,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 0,
       pendingSubmissions: 0,
       overdueReports: 0,
       pillars: [],
@@ -89,20 +95,19 @@ describe("dashboard screen", () => {
       recentActivity: [],
     };
     expect(
-      renderToStaticMarkup(
-        <DashboardContent overview={overview} year="2026" canViewSubmissions={false} />
-      )
+      renderToStaticMarkup(<DashboardContent overview={overview} canViewSubmissions={false} />)
     ).not.toContain('href="/field-submissions"');
   });
 
   it("follows the design's dashboard sections", () => {
     const overview: DashboardOverview = {
       activeParticipants: 10,
-      newThisQuarter: 3,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 3,
       pendingSubmissions: 2,
       overdueReports: 2,
       pillars: [],
-      monthly: [{ month: "Jan", newCount: 2, completedCount: 1 }],
+      monthly: [{ key: "2026-01", month: "Jan", newCount: 2, completedCount: 1 }],
       participantDistribution: [
         { name: "VAWG", count: 4, color: "#B4552E" },
         { name: "WEE", count: 6, color: "#D9772B" },
@@ -134,7 +139,7 @@ describe("dashboard screen", () => {
         },
       ],
     };
-    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} />);
     expect(html).toContain("<strong>SRHR narrative report</strong> is 12 days overdue.");
     expect(html).toContain("1 more report is overdue.");
     expect(html).toContain("Open reporting calendar →");
@@ -156,7 +161,8 @@ describe("dashboard screen", () => {
   it("shows referral oversight and the pipeline funnel when the API returns them", () => {
     const overview: DashboardOverview = {
       activeParticipants: 0,
-      newThisQuarter: 0,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 0,
       pendingSubmissions: 0,
       overdueReports: 0,
       pillars: [],
@@ -171,7 +177,7 @@ describe("dashboard screen", () => {
         open: 3,
         overdue: 1,
         overdueAfterDays: 7,
-        decidedThisQuarter: 4,
+        decidedInPeriod: 4,
         acceptedRate: 75,
         byDestination: [{ pillarId: 2, pillar: "WEE", color: "#D9772B", open: 3, oldestDays: 9 }],
         oldest: [
@@ -201,7 +207,7 @@ describe("dashboard screen", () => {
         ],
       },
     };
-    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} />);
     expect(html).toContain("Referral oversight");
     expect(html).toContain("Waiting over 7 days");
     expect(html).toContain("75%");
@@ -217,7 +223,8 @@ describe("dashboard screen", () => {
   it("leaves both panels out when the user may see neither", () => {
     const overview: DashboardOverview = {
       activeParticipants: 0,
-      newThisQuarter: 0,
+      period: { from: "2026-07-01", to: "2026-09-30" },
+      newInPeriod: 0,
       pendingSubmissions: 0,
       overdueReports: 0,
       pillars: [],
@@ -231,7 +238,7 @@ describe("dashboard screen", () => {
       referrals: null,
       funnel: null,
     };
-    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} />);
     expect(html).not.toContain("Referral oversight");
     expect(html).not.toContain("pipeline");
   });
@@ -239,8 +246,9 @@ describe("dashboard screen", () => {
   it("shows persons with disability as a share of participants", () => {
     const overview: DashboardOverview = {
       activeParticipants: 40,
+      period: { from: "2026-07-01", to: "2026-09-30" },
       pwdParticipants: 6,
-      newThisQuarter: 0,
+      newInPeriod: 0,
       pendingSubmissions: 0,
       overdueReports: 0,
       pillars: [],
@@ -252,12 +260,12 @@ describe("dashboard screen", () => {
       upcomingReports: [],
       recentActivity: [],
     };
-    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} />);
     expect(html).toContain("Persons with disability");
     expect(html).toContain("15% of participants");
     // An API without the count leaves the card out instead of showing zero.
     const older = renderToStaticMarkup(
-      <DashboardContent overview={{ ...overview, pwdParticipants: undefined }} year="2026" />
+      <DashboardContent overview={{ ...overview, pwdParticipants: undefined }} />
     );
     expect(older).not.toContain("Persons with disability");
   });

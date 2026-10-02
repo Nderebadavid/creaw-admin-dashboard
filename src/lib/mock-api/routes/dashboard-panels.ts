@@ -1,6 +1,7 @@
 import { hasModulePermission, hasPermission, type EffectiveGrant } from "../../auth/permissions";
 import { allowed, type Row } from "../core";
 import { displayName } from "../references";
+import { inPeriod, type Period } from "../period";
 import type { MockStore, TableName } from "@/types/db";
 
 /** Keeps records inside the dashboard's location filter; every record when there is none. */
@@ -26,13 +27,15 @@ export const currentQuarterStart = (now: Date) =>
 
 /**
  * Referrals waiting on a response, where they are waiting, the five waiting longest, and
- * how many decided this quarter were accepted. Scoped to referrals the caller may view.
+ * how many decided in the period were accepted (the current quarter so far by default).
+ * Scoped to referrals the caller may view.
  */
 export function referralOversight(
   store: MockStore,
   grants: EffectiveGrant[],
   now = new Date(),
-  inArea: InArea = everywhere
+  inArea: InArea = everywhere,
+  period: Period = { from: currentQuarterStart(now), to: now.toISOString().slice(0, 10) }
 ) {
   if (!hasModulePermission(grants, "REFERRAL_VIEW")) return null;
   const visible = store.referral.filter(
@@ -56,9 +59,8 @@ export function referralOversight(
   }
 
   // A referral's last change is its decision: only NEW referrals are ever edited.
-  const since = currentQuarterStart(now);
   const decided = visible.filter(
-    (row) => ["ACCEPTED", "DECLINED"].includes(row.status) && row.updated_at.slice(0, 10) >= since
+    (row) => ["ACCEPTED", "DECLINED"].includes(row.status) && inPeriod(period, row.updated_at)
   );
   const accepted = decided.filter((row) => row.status === "ACCEPTED").length;
 
@@ -66,7 +68,7 @@ export function referralOversight(
     open: open.length,
     overdue: open.filter(({ age }) => age > REFERRAL_OVERDUE_DAYS).length,
     overdue_after_days: REFERRAL_OVERDUE_DAYS,
-    decided_this_quarter: decided.length,
+    decided_in_period: decided.length,
     accepted_rate: decided.length ? Math.round((accepted / decided.length) * 100) : null,
     by_destination: [...destinations.entries()]
       .map(([pillar_id, entry]) => ({ pillar_id, ...entry }))
