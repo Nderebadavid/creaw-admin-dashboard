@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
@@ -6,6 +7,13 @@ import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { registerParticipantAction, updateParticipantAction } from "../actions";
 import type { ParticipantCatalog, ParticipantView } from "../api";
+
+/** Wards labelled with their county, since ward names repeat across counties. */
+const wardOptions = (catalog: ParticipantCatalog) =>
+  catalog.wards.map((ward) => {
+    const county = catalog.counties.find((row) => row.id === ward.countyId)?.name;
+    return { value: ward.id, label: county ? `${ward.name} · ${county}` : ward.name };
+  });
 
 const optional = (form: FormData, name: string) => String(form.get(name) ?? "") || undefined;
 
@@ -98,14 +106,11 @@ export function RegisterParticipantDialog({
         </label>
         <label className="text-sm">
           Ward
-          <select name="wardId" className={fieldClass}>
-            <option value="">Not recorded</option>
-            {catalog.wards.map((ward) => (
-              <option key={ward.id} value={ward.id}>
-                {ward.name}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="wardId"
+            emptyLabel="Not recorded"
+            options={wardOptions(catalog)}
+          />
         </label>
         <label className="text-sm">
           Enrol into pillar
@@ -308,18 +313,12 @@ export function EditParticipantDialog({
               </label>
               <label className="text-sm sm:col-span-2">
                 Ward
-                <select
+                <SearchableSelect
                   name="wardId"
-                  defaultValue={participant.wardId ?? ""}
-                  className={fieldClass}
-                >
-                  <option value="">Not recorded</option>
-                  {catalog.wards.map((ward) => (
-                    <option key={ward.id} value={ward.id}>
-                      {ward.name}
-                    </option>
-                  ))}
-                </select>
+                  emptyLabel="Not recorded"
+                  options={wardOptions(catalog)}
+                  defaultValue={participant.wardId}
+                />
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="disability" defaultChecked={participant.disability} />

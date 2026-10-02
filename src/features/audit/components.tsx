@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { filterSelectClass } from "@/components/ui/form-styles";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
@@ -104,19 +105,17 @@ export function AuditContent({
         }}
         filters={
           <>
-            <select
-              aria-label="Module"
-              value={query.module ?? ""}
-              onChange={(event) => list.filter({ module: event.target.value || undefined })}
-              className={filterSelectClass}
-            >
-              <option value="">All modules</option>
-              {modules.map((module) => (
-                <option key={module} value={module}>
-                  {module.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              compact
+              label="Module"
+              emptyLabel="All modules"
+              value={query.module ?? null}
+              onChange={(module) => list.filter({ module: module || undefined })}
+              options={modules.map((module) => ({
+                value: module,
+                label: module.replaceAll("_", " "),
+              }))}
+            />
             <select
               aria-label="Action"
               value={query.action ?? ""}
@@ -128,19 +127,14 @@ export function AuditContent({
                 <option key={action}>{action}</option>
               ))}
             </select>
-            <select
-              aria-label="Performed by"
-              value={query.userId ?? ""}
-              onChange={(event) => list.filter({ userId: Number(event.target.value) || undefined })}
-              className={filterSelectClass}
-            >
-              <option value="">All users</option>
-              {actors.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              compact
+              label="Performed by"
+              emptyLabel="All users"
+              value={query.userId ?? null}
+              onChange={(id) => list.filter({ userId: Number(id) || undefined })}
+              options={actors.map(([id, name]) => ({ value: id, label: name }))}
+            />
             <input
               aria-label="From date"
               type="date"

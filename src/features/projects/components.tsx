@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
@@ -193,19 +194,16 @@ function ProjectDialog({
         </label>
         <label className="text-sm">
           Donor
-          <select
+          <SearchableSelect
             key={options.data ? "ready" : "loading"}
             name="donorId"
-            defaultValue={project?.donorId ?? ""}
-            className={fieldClass}
-          >
-            <option value="">No donor</option>
-            {(options.data?.donors ?? []).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+            emptyLabel="No donor"
+            defaultValue={project?.donorId}
+            options={(options.data?.donors ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+            }))}
+          />
         </label>
         <label className="text-sm">
           Start date

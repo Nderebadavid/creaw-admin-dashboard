@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { chooseOption, searchSelect, selectInput } from "@/test/searchable-select";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const push = vi.fn();
@@ -93,7 +94,7 @@ it("files a new application for a participant enrolled in the programme's pillar
   renderWithProgrammes();
   fireEvent.click(screen.getByRole("button", { name: "New application" }));
   const dialog = screen.getByRole("dialog");
-  await within(dialog).findByRole("option", { name: "Mwadi Kyende · Participant #12" });
+  await waitFor(() => expect(selectInput("Applicant", dialog)).toBeEnabled());
   expect(listParticipantsAction).toHaveBeenCalledWith({ pillarId: 2, page: 1, pageSize: 100 });
   expect(dialog).toHaveTextContent("Showing the first 1 of 140 participants in this pillar.");
   expect(
@@ -101,7 +102,7 @@ it("files a new application for a participant enrolled in the programme's pillar
       .getAllByRole("option")
       .map((option) => option.textContent)
   ).toEqual(expect.arrayContaining(["One off", "Staggered by milestone", "Asset grant"]));
-  fireEvent.change(within(dialog).getByLabelText("Applicant"), { target: { value: "12" } });
+  await chooseOption("Applicant", "mwadi", "Mwadi Kyende · Participant #12", dialog);
   fireEvent.change(within(dialog).getByLabelText("Amount requested (KES)"), {
     target: { value: "75000" },
   });
@@ -150,20 +151,22 @@ it("leads with Skilling's recommended graduates and pre-fills their notes", asyn
   renderWithProgrammes();
   fireEvent.click(screen.getByRole("button", { name: "New application" }));
   const dialog = screen.getByRole("dialog");
-  const group = await within(dialog).findByRole("group", { name: "Recommended by Skilling" });
+  await waitFor(() => expect(selectInput("Applicant", dialog)).toBeEnabled());
+  await searchSelect("Applicant", "", dialog);
+  const group = await screen.findByRole("group", { name: "Recommended by Skilling" });
   expect(within(group).getByRole("option")).toHaveTextContent(
     "Wanjiru Achieng · Tailoring & design"
   );
   // The recommended graduate is not listed twice.
-  expect(within(dialog).queryByRole("option", { name: /Participant #4/ })).toBeNull();
-  fireEvent.change(within(dialog).getByLabelText("Applicant"), { target: { value: "4" } });
+  expect(screen.queryByRole("option", { name: /Participant #4/ })).toBeNull();
+  await chooseOption("Applicant", "wanjiru", "Wanjiru Achieng · Tailoring & design", dialog);
   expect(within(dialog).getByLabelText("Business or purpose")).toHaveValue(
     "Skilling graduate · Tailoring & design · Self-employed"
   );
-  fireEvent.change(screen.getByLabelText("Programme"), { target: { value: "5" } });
-  await waitFor(() =>
-    expect(within(dialog).queryByRole("group", { name: "Recommended by Skilling" })).toBeNull()
-  );
+  await chooseOption("Programme", "wro", "WRO sub-grants", dialog);
+  await waitFor(() => expect(selectInput("Applicant", dialog)).toBeEnabled());
+  await searchSelect("Applicant", "", dialog);
+  expect(screen.queryByRole("group", { name: "Recommended by Skilling" })).toBeNull();
 });
 
 it("reloads the applicants when another programme is chosen", async () => {
@@ -173,7 +176,7 @@ it("reloads the applicants when another programme is chosen", async () => {
   } as never);
   renderWithProgrammes();
   fireEvent.click(screen.getByRole("button", { name: "New application" }));
-  fireEvent.change(screen.getByLabelText("Programme"), { target: { value: "5" } });
+  await chooseOption("Programme", "wro", "WRO sub-grants");
   await waitFor(() =>
     expect(listParticipantsAction).toHaveBeenLastCalledWith({ pillarId: 5, page: 1, pageSize: 100 })
   );

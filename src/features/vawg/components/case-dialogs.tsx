@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -330,16 +331,18 @@ export function OpenCaseDialog({
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={send}>
         <label className="text-sm sm:col-span-2">
           Survivor (participant)
-          <select name="enrollmentId" required defaultValue="" className={fieldClass}>
-            <option value="" disabled>
-              {options.loading ? "Loading survivors…" : "Choose a survivor enrolled in VAWG"}
-            </option>
-            {(options.data?.survivors ?? []).map((survivor) => (
-              <option key={survivor.enrollmentId} value={survivor.enrollmentId}>
-                {survivor.label}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            key={options.data ? "ready" : "loading"}
+            name="enrollmentId"
+            required
+            emptyLabel={
+              options.loading ? "Loading survivors…" : "Choose a survivor enrolled in VAWG"
+            }
+            options={(options.data?.survivors ?? []).map((survivor) => ({
+              value: survivor.enrollmentId,
+              label: survivor.label,
+            }))}
+          />
         </label>
         <label className="text-sm">
           Case type

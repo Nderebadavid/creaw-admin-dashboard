@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useEffect, useState, type FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
@@ -118,19 +119,16 @@ export function NewReferralDialog({
         </label>
         <label className="block text-sm">
           Participant and origin enrollment
-          <select
-            aria-busy={loading}
-            value={origin?.enrollmentId ?? 0}
-            onChange={(event) => setOriginId(Number(event.target.value))}
-            className={fieldClass}
-          >
-            {origins.map((item) => (
-              <option key={item.enrollmentId} value={item.enrollmentId}>
-                {item.participant} · {pillars.find((p) => p.id === item.pillarId)?.name} ·{" "}
-                {item.category}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            required
+            emptyLabel={loading ? "Loading participants…" : "Choose a participant"}
+            value={origin?.enrollmentId ?? null}
+            onChange={(id) => setOriginId(Number(id) || 0)}
+            options={origins.map((item) => ({
+              value: item.enrollmentId,
+              label: `${item.participant} · ${pillars.find((p) => p.id === item.pillarId)?.name} · ${item.category}`,
+            }))}
+          />
         </label>
         <label className="block text-sm">
           Destination type
@@ -156,13 +154,15 @@ export function NewReferralDialog({
         {kind === "external" && (
           <label className="block text-sm">
             Partner institution
-            <select name="partnerInstitutionId" required className={fieldClass}>
-              {catalog.partnerInstitutions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              name="partnerInstitutionId"
+              required
+              emptyLabel="Choose a partner institution"
+              options={catalog.partnerInstitutions.map((item) => ({
+                value: item.id,
+                label: item.name,
+              }))}
+            />
           </label>
         )}
         <label className="block text-sm">

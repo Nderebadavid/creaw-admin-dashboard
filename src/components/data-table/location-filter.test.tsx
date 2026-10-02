@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { loadGeographyAction } from "@/components/portal/geography-actions";
+import { chooseOption, searchSelect } from "@/test/searchable-select";
 import { LocationFilter } from "./location-filter";
 
 vi.mocked(loadGeographyAction).mockResolvedValue({
@@ -25,9 +26,8 @@ describe("location filter", () => {
   it("offers lower levels only once the parent is chosen", async () => {
     const onChange = vi.fn();
     const { rerender } = render(<LocationFilter value={{}} onChange={onChange} />);
-    fireEvent.change(await screen.findByRole("combobox", { name: "County" }), {
-      target: { value: "2" },
-    });
+    await screen.findByRole("combobox", { name: "County" });
+    await chooseOption("County", "nai", "Nairobi");
     expect(onChange).toHaveBeenLastCalledWith({
       countyId: 2,
       subCountyId: undefined,
@@ -36,15 +36,16 @@ describe("location filter", () => {
     expect(screen.queryByRole("combobox", { name: "Sub-county" })).toBeNull();
 
     rerender(<LocationFilter value={{ countyId: 2 }} onChange={onChange} />);
-    const subCounty = screen.getByRole("combobox", { name: "Sub-county" });
     // Only the county's own sub-counties are offered.
-    expect(subCounty.textContent).toContain("Westlands");
-    expect(subCounty.textContent).not.toContain("Kisumu East");
-    fireEvent.change(subCounty, { target: { value: "10" } });
+    await searchSelect("Sub-county", "");
+    expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual([
+      "Westlands",
+    ]);
+    await chooseOption("Sub-county", "west", "Westlands");
     expect(onChange).toHaveBeenLastCalledWith({ countyId: 2, subCountyId: 10, wardId: undefined });
 
     rerender(<LocationFilter value={{ countyId: 2, subCountyId: 10 }} onChange={onChange} />);
-    fireEvent.change(screen.getByRole("combobox", { name: "Ward" }), { target: { value: "100" } });
+    await chooseOption("Ward", "park", "Parklands");
     expect(onChange).toHaveBeenLastCalledWith({ countyId: 2, subCountyId: 10, wardId: 100 });
   });
 
@@ -53,9 +54,8 @@ describe("location filter", () => {
     render(
       <LocationFilter value={{ countyId: 2, subCountyId: 10, wardId: 100 }} onChange={onChange} />
     );
-    fireEvent.change(await screen.findByRole("combobox", { name: "County" }), {
-      target: { value: "1" },
-    });
+    await screen.findByRole("combobox", { name: "County" });
+    await chooseOption("County", "kis", "Kisumu");
     expect(onChange).toHaveBeenLastCalledWith({
       countyId: 1,
       subCountyId: undefined,

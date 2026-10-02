@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useEffect, useState, type FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -124,61 +125,42 @@ export function NewApplicationDialog({
       <form className="space-y-4" onSubmit={send}>
         <label className="block text-sm">
           Programme
-          <select
+          <SearchableSelect
             name="projectId"
             required
+            emptyLabel="Choose a programme"
             value={programmeId}
-            onChange={(event) => {
-              setProgrammeId(Number(event.target.value));
+            onChange={(id) => {
+              setProgrammeId(Number(id));
               setApplicant("");
             }}
-            className={fieldClass}
-          >
-            {programmes.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+            options={programmes.map((item) => ({ value: item.id, label: item.name }))}
+          />
         </label>
         <label className="block text-sm">
           Applicant
-          <select
+          <SearchableSelect
             name="participantId"
             required
             value={applicant}
-            onChange={(event) => chooseApplicant(event.target.value)}
+            onChange={(id) => chooseApplicant(id ?? "")}
             disabled={!current}
-            className={fieldClass}
-          >
-            <option value="" disabled>
-              {current ? "Choose a participant" : "Loading participants…"}
-            </option>
-            {current && recommended.length > 0 && (
-              <optgroup label="Recommended by Skilling">
-                {recommended.map((item) => (
-                  <option key={item.participantId} value={item.participantId}>
-                    {item.course ? `${item.name} · ${item.course}` : item.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {current && recommended.length > 0 ? (
-              <optgroup label="Enrolled participants">
-                {others.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} · Participant #{item.id}
-                  </option>
-                ))}
-              </optgroup>
-            ) : (
-              others.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · Participant #{item.id}
-                </option>
-              ))
-            )}
-          </select>
+            emptyLabel={current ? "Choose a participant" : "Loading participants…"}
+            options={[
+              ...(current
+                ? recommended.map((item) => ({
+                    value: item.participantId,
+                    label: item.course ? `${item.name} · ${item.course}` : item.name,
+                    group: "Recommended by Skilling",
+                  }))
+                : []),
+              ...others.map((item) => ({
+                value: item.id,
+                label: `${item.name} · Participant #${item.id}`,
+                group: current && recommended.length > 0 ? "Enrolled participants" : undefined,
+              })),
+            ]}
+          />
         </label>
         {current && current.total > current.items.length && (
           <p className="-mt-2 text-xs text-creaw-faint">

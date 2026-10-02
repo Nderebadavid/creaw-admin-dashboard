@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { FormEvent, ReactNode } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -153,19 +154,14 @@ export function ProviderFormDialog({
           />
         </Field>
         <Field label="Affiliated institution" className="sm:col-span-2">
-          <select
+          <SearchableSelect
             name="institutionId"
-            defaultValue={provider?.institutionId == null ? "" : String(provider.institutionId)}
-            className={fieldClass}
-          >
-            <option value="">None</option>
-            {keptInstitution && <option value={keptInstitution.id}>{keptInstitution.name}</option>}
-            {institutions.map((institution) => (
-              <option key={institution.id} value={institution.id}>
-                {institution.name}
-              </option>
-            ))}
-          </select>
+            emptyLabel="None"
+            defaultValue={provider?.institutionId}
+            options={[...(keptInstitution ? [keptInstitution] : []), ...institutions].map(
+              (institution) => ({ value: institution.id, label: institution.name })
+            )}
+          />
         </Field>
         <Field label="Phone" hint={provider ? KEEP_HINT : undefined}>
           <input name="phone" type="tel" maxLength={30} defaultValue="" className={fieldClass} />

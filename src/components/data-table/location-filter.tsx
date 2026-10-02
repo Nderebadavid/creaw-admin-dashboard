@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { filterSelectClass } from "@/components/ui/form-styles";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { loadGeographyAction, type Geography } from "@/components/portal/geography-actions";
 import type { LocationQuery } from "@/lib/api/location";
 
@@ -21,7 +21,7 @@ function loadGeography() {
 const idOf = (value: string) => Number(value) || undefined;
 
 /**
- * County → sub-county → ward pickers. Choosing a level clears the levels below it, and a
+ * County → sub-county → ward pickers, each searchable as the user types. Choosing a level clears the levels below it, and a
  * lower level is offered only once its parent is chosen. Renders nothing until the
  * locations have loaded.
  */
@@ -54,50 +54,38 @@ export function LocationFilter({
   const set = (countyId?: number, subCountyId?: number, wardId?: number) =>
     onChange({ countyId, subCountyId, wardId });
 
+  const options = (rows: readonly { id: number; name: string }[]) =>
+    rows.map((row) => ({ value: row.id, label: row.name }));
+
   return (
     <>
-      <select
-        aria-label="County"
-        value={value.countyId ?? ""}
-        onChange={(event) => set(idOf(event.target.value))}
-        className={filterSelectClass}
-      >
-        <option value="">All counties</option>
-        {geography.counties.map((row) => (
-          <option key={row.id} value={row.id}>
-            {row.name}
-          </option>
-        ))}
-      </select>
+      <SearchableSelect
+        compact
+        label="County"
+        emptyLabel="All counties"
+        options={options(geography.counties)}
+        value={value.countyId ?? null}
+        onChange={(id) => set(idOf(id ?? ""))}
+      />
       {value.countyId !== undefined && subCounties.length > 0 && (
-        <select
-          aria-label="Sub-county"
-          value={value.subCountyId ?? ""}
-          onChange={(event) => set(value.countyId, idOf(event.target.value))}
-          className={filterSelectClass}
-        >
-          <option value="">All sub-counties</option>
-          {subCounties.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-        </select>
+        <SearchableSelect
+          compact
+          label="Sub-county"
+          emptyLabel="All sub-counties"
+          options={options(subCounties)}
+          value={value.subCountyId ?? null}
+          onChange={(id) => set(value.countyId, idOf(id ?? ""))}
+        />
       )}
       {value.subCountyId !== undefined && wards.length > 0 && (
-        <select
-          aria-label="Ward"
-          value={value.wardId ?? ""}
-          onChange={(event) => set(value.countyId, value.subCountyId, idOf(event.target.value))}
-          className={filterSelectClass}
-        >
-          <option value="">All wards</option>
-          {wards.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-        </select>
+        <SearchableSelect
+          compact
+          label="Ward"
+          emptyLabel="All wards"
+          options={options(wards)}
+          value={value.wardId ?? null}
+          onChange={(id) => set(value.countyId, value.subCountyId, idOf(id ?? ""))}
+        />
       )}
     </>
   );

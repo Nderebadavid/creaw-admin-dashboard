@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { HeartHandshake } from "lucide-react";
@@ -116,21 +117,15 @@ export function CounsellingFormDialog({
         {!session && (
           <label className="text-sm sm:col-span-2">
             Survivor
-            <select
+            <SearchableSelect
               required
+              emptyLabel={
+                options.loading ? "Loading survivors…" : "Choose a survivor enrolled in VAWG"
+              }
               value={survivor}
-              onChange={(event) => setSurvivor(event.target.value)}
-              className={fieldClass}
-            >
-              <option value="" disabled>
-                {options.loading ? "Loading survivors…" : "Choose a survivor enrolled in VAWG"}
-              </option>
-              {survivors.map((row) => (
-                <option key={row.enrollmentId} value={row.enrollmentId}>
-                  {row.label}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setSurvivor(id ?? "")}
+              options={survivors.map((row) => ({ value: row.enrollmentId, label: row.label }))}
+            />
           </label>
         )}
         {!session && survivor !== "" && (
@@ -170,39 +165,31 @@ export function CounsellingFormDialog({
         </label>
         <label className="text-sm sm:col-span-2">
           Counsellor
-          <select
+          <SearchableSelect
             name="counsellor"
             required
+            emptyLabel={
+              counsellors.length || keptCurrent
+                ? "Choose a counsellor"
+                : "The counsellor list could not be loaded"
+            }
             defaultValue={defaultCounsellor}
-            className={fieldClass}
-          >
-            {defaultCounsellor === "" && (
-              <option value="" disabled>
-                {counsellors.length || keptCurrent
-                  ? "Choose a counsellor"
-                  : "The counsellor list could not be loaded"}
-              </option>
-            )}
-            {keptCurrent && <option value={keptCurrent.value}>{keptCurrent.label}</option>}
-            {staff.length > 0 && (
-              <optgroup label="CREAW counsellors">
-                {staff.map((item) => (
-                  <option key={item.id} value={`staff:${item.id}`}>
-                    {item.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {providers.length > 0 && (
-              <optgroup label="External counsellors">
-                {providers.map((item) => (
-                  <option key={item.id} value={`provider:${item.id}`}>
-                    {`${item.name} · ${item.detail}`}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+            options={[
+              ...[keptCurrent]
+                .filter((item): item is { value: string; label: string } => Boolean(item))
+                .map((item) => ({ value: item.value, label: item.label })),
+              ...staff.map((item) => ({
+                value: `staff:${item.id}`,
+                label: item.name,
+                group: "CREAW counsellors",
+              })),
+              ...providers.map((item) => ({
+                value: `provider:${item.id}`,
+                label: `${item.name} · ${item.detail}`,
+                group: "External counsellors",
+              })),
+            ]}
+          />
         </label>
         <label className="text-sm sm:col-span-2">
           Notes
