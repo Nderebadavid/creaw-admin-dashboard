@@ -88,6 +88,12 @@ export const dashboardOverviewSchema = createEnvelopeSchema(
   z.union([
     z.object({
       participant_count: z.number().int(),
+      /** Participants living with a disability, in the same scope and area. */
+      pwd_count: z
+        .number()
+        .int()
+        .nullish()
+        .transform((value) => value ?? null),
       enrollment_count: z.number().int(),
       new_this_quarter: z.number().int(),
       previous_quarter: z.number().int(),

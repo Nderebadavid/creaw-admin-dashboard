@@ -4,6 +4,18 @@ import { envelope, permissionCodes, type Row, readableAsReference } from "../cor
 import { signoffActors } from "../reporting";
 import { type ApiEnvelope } from "@/types/api";
 
+/** Participant fields set at registration that only `PARTICIPANT_RECORD_MANAGE` may change. */
+export const PARTICIPANT_IDENTITY_FIELDS = [
+  "middle_name",
+  "id_number",
+  "id_number_type",
+  "date_of_birth",
+  "gender",
+  "ward_id",
+  "is_person_with_disability",
+  "is_refugee",
+];
+
 /** Grant sign-off statuses in order. DECLINED sits outside the chain and is final. */
 const GRANT_CHAIN = ["ACTIVE", "PREPARED", "REVIEWED", "APPROVED"];
 
@@ -24,6 +36,15 @@ export function resolvePermission(
   if (family === "assessments" && table === "organisation" && request.method === "GET")
     permission = "ORG_ASSESSMENT_VIEW";
   if (table === "referral" && request.method === "POST") permission = "REFERRAL_CREATE";
+  // Identity details recorded at registration are corrected only by record managers.
+  if (
+    table === "participant" &&
+    request.method === "PATCH" &&
+    request.body &&
+    typeof request.body === "object" &&
+    Object.keys(request.body).some((key) => PARTICIPANT_IDENTITY_FIELDS.includes(key))
+  )
+    permission = "PARTICIPANT_RECORD_MANAGE";
   // Deleting (soft) is its own, stricter action: it needs the configuration or lookup
   // permission, and is refused while other records still depend on the row.
   if (

@@ -235,4 +235,30 @@ describe("dashboard screen", () => {
     expect(html).not.toContain("Referral oversight");
     expect(html).not.toContain("pipeline");
   });
+
+  it("shows persons with disability as a share of participants", () => {
+    const overview: DashboardOverview = {
+      activeParticipants: 40,
+      pwdParticipants: 6,
+      newThisQuarter: 0,
+      pendingSubmissions: 0,
+      overdueReports: 0,
+      pillars: [],
+      monthly: [],
+      participantDistribution: [],
+      projects: [],
+      reportingAlerts: [],
+      recentSubmissions: [],
+      upcomingReports: [],
+      recentActivity: [],
+    };
+    const html = renderToStaticMarkup(<DashboardContent overview={overview} year="2026" />);
+    expect(html).toContain("Persons with disability");
+    expect(html).toContain("15% of participants");
+    // An API without the count leaves the card out instead of showing zero.
+    const older = renderToStaticMarkup(
+      <DashboardContent overview={{ ...overview, pwdParticipants: undefined }} year="2026" />
+    );
+    expect(older).not.toContain("Persons with disability");
+  });
 });

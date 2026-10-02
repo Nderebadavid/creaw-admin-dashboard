@@ -21,6 +21,7 @@ import { parseIncludes, withIncludes, type IncludeRequest } from "../includes";
 import { DERIVED_COLUMNS, derivedFields } from "../derived";
 import type { EffectiveGrant } from "../../auth/permissions";
 import { displayName, referenceNameColumns, withReferenceNames } from "../references";
+import { inLocation, LOCATED_TABLES, parseLocation, type LocationFilter } from "../location";
 import { filterSubmissionRows } from "@/features/submissions/filter";
 import { type ApiEnvelope, type PaginatedData } from "@/types/api";
 import type { MockStore, TableName } from "@/types/db";
@@ -33,6 +34,8 @@ const RESERVED_KEYS = new Set([
   "pageSize",
   "pillarId",
   "countyId",
+  "subCountyId",
+  "wardId",
   "table",
   "search",
   "q",
@@ -292,7 +295,8 @@ interface ListParams {
   pageSize: number;
   pillarFilter: number | undefined;
   search: string;
-  countyId: number | undefined;
+  /** County, sub-county or ward the records' people or organisations live in. */
+  location: LocationFilter | undefined;
   /** Rows chosen by `ids=` (a batch read, or a lookup CSV export selection); null for all. */
   exportIds: number[] | null;
   sort: { key: string; direction: 1 | -1 }[];
@@ -314,12 +318,8 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   if (pillarFilter !== undefined && (!Number.isInteger(pillarFilter) || pillarFilter < 1))
     return envelope(422);
 
-  const countyId = query.has("countyId") ? Number(query.get("countyId")) : undefined;
-  if (
-    countyId !== undefined &&
-    (table !== "participant" || !Number.isSafeInteger(countyId) || countyId < 1)
-  )
-    return envelope(422);
+  const location = parseLocation(query);
+  if (location === null || (location && !LOCATED_TABLES.includes(table))) return envelope(422);
 
   // `ids` reads a batch of rows in one call (at most 100), or selects up to 5000
   // rows for a lookup CSV export.
@@ -368,7 +368,7 @@ function parseListQuery(ctx: ResourceContext): ListParams | Envelope {
   if (facets.length > 3 || facets.some((key) => !usable(key))) return envelope(422);
 
   const search = (query.get("search") ?? query.get("q") ?? "").toLowerCase();
-  return { page, pageSize, pillarFilter, search, countyId, exportIds, sort, includes, facets };
+  return { page, pageSize, pillarFilter, search, location, exportIds, sort, includes, facets };
 }
 
 /**
@@ -393,13 +393,10 @@ function filterRows(
       allowed(store, grants, permission, table, row) &&
       (params.pillarFilter === undefined || scopes(store, table, row).includes(params.pillarFilter))
   );
-  if (params.countyId !== undefined)
-    result = result.filter((row) => {
-      const ward = store.ward.find((item) => item.id === row.ward_id);
-      return store.sub_county.some(
-        (item) => item.id === ward?.sub_county_id && item.county_id === params.countyId
-      );
-    });
+  if (params.location) {
+    const inArea = inLocation(store, params.location);
+    result = result.filter((row) => inArea(table, row));
+  }
   if (params.exportIds) {
     const selected = new Set(params.exportIds);
     result = result.filter((row) => selected.has(row.id));

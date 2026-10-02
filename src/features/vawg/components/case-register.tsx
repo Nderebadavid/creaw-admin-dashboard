@@ -1,4 +1,6 @@
 "use client";
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { hasLocation, locationParams, type LocationQuery } from "@/lib/api/location";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
@@ -25,11 +27,12 @@ import { courtStatusLabel, courtStatusTone } from "./status";
 const text = "font-medium text-creaw-ink-soft";
 
 /** The register as an audited CSV export. */
-export const exportCases = () =>
+/** Exports the case register, narrowed to the given location when there is one. */
+export const exportCases = (location: LocationQuery = {}) =>
   auditedExportAction({
     path: "/pillars/vawg",
     routeTemplate: "/pillars/:pillar",
-    query: { table: "legal_case" },
+    query: { table: "legal_case", ...locationParams(location) },
   });
 const columns: DataColumn<LegalCaseView>[] = [
   {
@@ -150,6 +153,9 @@ export function CaseRegister({
         title="Legal case register"
         subtitle="Open a case for the full record"
         chipsLabel="Court status"
+        filters={
+          <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
+        }
         chips={["All", ...courtStatuses].map((value) => ({
           label: value === "All" ? value : courtStatusLabel(value),
           active: status === value,
@@ -167,7 +173,9 @@ export function CaseRegister({
         actions={
           <>
             {toolbar}
-            {can.export && <ExportButton label="CSV" exportAction={exportCases} />}
+            {can.export && (
+              <ExportButton label="CSV" exportAction={() => exportCases(list.query)} />
+            )}
           </>
         }
         footer={
@@ -187,7 +195,10 @@ export function CaseRegister({
           columns={columns}
           rows={list.data.items}
           getRowId={(item) => item.id}
-          filtered={list.data.items.length === 0 && (status !== "All" || search.length > 0)}
+          filtered={
+            list.data.items.length === 0 &&
+            (status !== "All" || search.length > 0 || hasLocation(list.query))
+          }
           onRowOpen={(item) => setSelectedId(item.id)}
           rowOpenLabel={(item) => `Open ${item.number}`}
           sort={list.query.sort}

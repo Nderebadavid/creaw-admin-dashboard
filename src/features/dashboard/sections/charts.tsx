@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { DashboardOverview } from "../api";
+import type { LocationQuery } from "@/lib/api/location";
 import { ChartFilters } from "./chart-filters";
 
 const card = "flex flex-col gap-[18px] rounded-2xl border border-creaw-line bg-white p-6";
@@ -15,6 +16,7 @@ export function MonthlyChart({
   pillar,
   pillars = [],
   funnel,
+  location,
 }: {
   monthly: DashboardOverview["monthly"];
   year: string;
@@ -23,6 +25,8 @@ export function MonthlyChart({
   pillars?: DashboardOverview["pillars"];
   /** The funnel's pillar slug, kept when the chart's filters change. */
   funnel?: string;
+  /** The dashboard's location, kept when the chart's filters change. */
+  location?: LocationQuery;
 }) {
   const max = Math.max(1, ...monthly.flatMap((row) => [row.newCount, row.completedCount]));
   const yMax = Math.ceil((max * 1.15) / 10) * 10 || 10;
@@ -44,6 +48,7 @@ export function MonthlyChart({
           pillar={selected?.code ?? ""}
           pillars={pillars}
           funnel={funnel}
+          location={location}
         />
       </div>
       <div className="flex gap-[18px] text-[13px] text-creaw-body">

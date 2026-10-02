@@ -38,6 +38,12 @@ export function ParticipantDrawer({
   const fields: [string, React.ReactNode][] = [
     ["Full name", participant.name],
     ["Gender", participant.gender ? titleCase(participant.gender) : "Not recorded"],
+    [
+      "Date of birth",
+      participant.dateOfBirth ? formatDate(participant.dateOfBirth) : "Not recorded",
+    ],
+    ["Person with disability", participant.disability ? "Yes" : "No"],
+    ["Refugee", participant.refugee ? "Yes" : "No"],
     ["County", participant.county],
     ["Ward / location", participant.ward],
     ["National ID number", participant.idNumber ?? "—"],
@@ -73,12 +79,15 @@ export function ParticipantDrawer({
       accent={firstPillar?.color}
       tint={firstPillar?.tint}
       status={
-        <StatusBadge tone={participant.status === "ACTIVE" ? "success" : "neutral"}>
-          {titleCase(participant.status)}
-        </StatusBadge>
+        <span className="flex gap-1.5">
+          <StatusBadge tone={participant.status === "ACTIVE" ? "success" : "neutral"}>
+            {titleCase(participant.status)}
+          </StatusBadge>
+          {participant.disability && <StatusBadge tone="info">PWD</StatusBadge>}
+        </span>
       }
       actions={
-        inAnyPillar("PARTICIPANT_EDIT") && (
+        (inAnyPillar("PARTICIPANT_EDIT") || inAnyPillar("PARTICIPANT_RECORD_MANAGE")) && (
           <Button variant="outline" size="sm" aria-label="Edit participant" onClick={onEdit}>
             <Pencil aria-hidden="true" />
             Edit

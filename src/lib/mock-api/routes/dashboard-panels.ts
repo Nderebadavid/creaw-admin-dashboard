@@ -1,7 +1,11 @@
 import { hasModulePermission, hasPermission, type EffectiveGrant } from "../../auth/permissions";
 import { allowed, type Row } from "../core";
 import { displayName } from "../references";
-import type { MockStore } from "@/types/db";
+import type { MockStore, TableName } from "@/types/db";
+
+/** Keeps records inside the dashboard's location filter; every record when there is none. */
+type InArea = (table: TableName, row: Row) => boolean;
+const everywhere: InArea = () => true;
 
 // The cross-pillar panels of `GET /dashboard?view=overview`: referral oversight and the
 // pipeline funnel. Each returns null when the caller may see none of it.
@@ -24,11 +28,18 @@ export const currentQuarterStart = (now: Date) =>
  * Referrals waiting on a response, where they are waiting, the five waiting longest, and
  * how many decided this quarter were accepted. Scoped to referrals the caller may view.
  */
-export function referralOversight(store: MockStore, grants: EffectiveGrant[], now = new Date()) {
+export function referralOversight(
+  store: MockStore,
+  grants: EffectiveGrant[],
+  now = new Date(),
+  inArea: InArea = everywhere
+) {
   if (!hasModulePermission(grants, "REFERRAL_VIEW")) return null;
   const visible = store.referral.filter(
     (row) =>
-      !row.is_deleted && allowed(store, grants, "REFERRAL_VIEW", "referral", row as unknown as Row)
+      !row.is_deleted &&
+      allowed(store, grants, "REFERRAL_VIEW", "referral", row as unknown as Row) &&
+      inArea("referral", row as unknown as Row)
   );
   const at = now.getTime();
   const open = visible
@@ -91,7 +102,8 @@ export function pipelineFunnel(
   store: MockStore,
   grants: EffectiveGrant[],
   pillarIds: number[],
-  requested: string | null
+  requested: string | null,
+  inArea: InArea = everywhere
 ) {
   const options = funnelPillars(store, grants, pillarIds);
   const pillar =
@@ -106,7 +118,12 @@ export function pipelineFunnel(
   const stepOf = new Map(stages.map((stage) => [stage.id, stage.step_no]));
   const enrollmentIds = new Set(
     store.enrollment
-      .filter((row) => !row.is_deleted && row.pillar_id === pillar.id)
+      .filter(
+        (row) =>
+          !row.is_deleted &&
+          row.pillar_id === pillar.id &&
+          inArea("enrollment", row as unknown as Row)
+      )
       .map((row) => row.id)
   );
   // The furthest stage each enrollment has reached.

@@ -1,4 +1,5 @@
-import { Activity, CalendarClock, Camera, Users } from "lucide-react";
+import { Accessibility, Activity, CalendarClock, Camera, Users } from "lucide-react";
+import type { LocationQuery } from "@/lib/api/location";
 import { MetricCard } from "@/components/ui/metric-card";
 import { PillarCard } from "@/components/ui/pillar-card";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
@@ -33,6 +34,7 @@ export function DashboardContent({
   canViewSubmissions = true,
   canViewParticipants = false,
   canViewAudit = false,
+  location,
 }: {
   overview: DashboardOverview;
   year: string;
@@ -42,13 +44,15 @@ export function DashboardContent({
   canViewSubmissions?: boolean;
   canViewParticipants?: boolean;
   canViewAudit?: boolean;
+  /** The area the figures are narrowed to; kept when the chart or funnel filters change. */
+  location?: LocationQuery;
 }) {
   const trend = quarterTrend(overview.newThisQuarter, overview.previousQuarter, year);
   const participantsHref = canViewParticipants ? "/participants" : undefined;
   return (
     <div className="flex flex-col gap-[22px]">
       <OverdueAlert alerts={overview.reportingAlerts} />
-      <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <MetricCard
           label="Active participants"
           value={overview.activeParticipants.toLocaleString()}
@@ -64,6 +68,23 @@ export function DashboardContent({
             </StatusBadge>
           }
         />
+        {overview.pwdParticipants != null && (
+          <MetricCard
+            label="Persons with disability"
+            value={overview.pwdParticipants.toLocaleString()}
+            icon={<Accessibility />}
+            tint="#EAF0F7"
+            ink="#2F5B8A"
+            href={participantsHref}
+            detail={
+              <StatusBadge tone="info">
+                {overview.activeParticipants
+                  ? `${Math.round((overview.pwdParticipants / overview.activeParticipants) * 100)}% of participants`
+                  : "No participants"}
+              </StatusBadge>
+            }
+          />
+        )}
         <MetricCard
           label="New this quarter"
           value={overview.newThisQuarter.toLocaleString()}
@@ -143,6 +164,7 @@ export function DashboardContent({
           pillar={chartPillar}
           pillars={overview.pillars}
           funnel={overview.funnel?.pillar}
+          location={location}
         />
         {overview.pillars.length !== 1 && (
           <ParticipantsDonut distribution={overview.participantDistribution} />
@@ -163,6 +185,7 @@ export function DashboardContent({
                   options={overview.funnel.available}
                   year={year}
                   pillar={chartPillar ?? ""}
+                  location={location}
                 />
               }
             />

@@ -1,5 +1,7 @@
 "use client";
 
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { hasLocation } from "@/lib/api/location";
 import { filterSelectClass } from "@/components/ui/form-styles";
 import { FormBanner } from "@/components/ui/form-banner";
 import { titleCase } from "@/lib/format";
@@ -107,19 +109,24 @@ export function ReferralsContent({
           })),
         ]}
         filters={
-          <select
-            aria-label="Pillar"
-            value={list.query.pillarId ?? ""}
-            onChange={(event) => list.filter({ pillarId: Number(event.target.value) || undefined })}
-            className={filterSelectClass}
-          >
-            <option value="">All pillars</option>
-            {pillars.map((pillar) => (
-              <option key={pillar.id} value={pillar.id}>
-                {pillar.name}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              aria-label="Pillar"
+              value={list.query.pillarId ?? ""}
+              onChange={(event) =>
+                list.filter({ pillarId: Number(event.target.value) || undefined })
+              }
+              className={filterSelectClass}
+            >
+              <option value="">All pillars</option>
+              {pillars.map((pillar) => (
+                <option key={pillar.id} value={pillar.id}>
+                  {pillar.name}
+                </option>
+              ))}
+            </select>
+            <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
+          </>
         }
         search={{
           value: search,
@@ -149,7 +156,9 @@ export function ReferralsContent({
           rows={list.data.items}
           getRowId={(row) => row.id}
           loading={list.loading}
-          filtered={Boolean(list.query.status || list.query.pillarId || list.query.search)}
+          filtered={Boolean(
+            list.query.status || list.query.pillarId || list.query.search || hasLocation(list.query)
+          )}
           // A new referral opens its decision; others fall back to editing when allowed.
           onRowOpen={(referral) => {
             if (referral.canRespond) setModal({ kind: "decide", referral });

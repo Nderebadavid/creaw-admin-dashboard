@@ -15,6 +15,7 @@ import { curriculumMilestones, curriculumProgress, isBehind } from "../curriculu
 import { presentRow } from "../resources/read";
 import { displayName } from "../references";
 import { grantHandoff } from "../training";
+import { inLocation, LOCATION_KEYS, parseLocation } from "../location";
 import { pipelineFunnel, referralOversight } from "./dashboard-panels";
 import { peopleOptions } from "./facilitators";
 import { buildCoverage } from "@/features/sessions/coverage";
@@ -456,16 +457,25 @@ export function handleFormOptions(ctx: MockContext) {
  * the server: reach per pillar, quarter counts, the monthly chart (optionally for one
  * pillar), pending submissions, reporting alerts, recent activity, referral oversight and
  * one pillar's pipeline funnel. Each panel is scoped to what the caller may see, and null
- * when they may see none of it.
+ * when they may see none of it. `countyId`, `subCountyId` or `wardId` narrow every
+ * people-based figure to that area; projects, reports and activity are not located.
  */
 export function handleDashboardOverview(ctx: MockContext) {
   const { request, store, url, query, grants } = ctx;
   if (url.pathname !== "/dashboard" || query.get("view") !== "overview") return undefined;
   if (
     request.method !== "GET" ||
-    [...query.keys()].some((key) => !["view", "year", "pillar", "funnel"].includes(key))
+    [...query.keys()].some(
+      (key) =>
+        !["view", "year", "pillar", "funnel", ...LOCATION_KEYS].includes(
+          key as (typeof LOCATION_KEYS)[number]
+        )
+    )
   )
     return envelope(422);
+  const location = parseLocation(query);
+  if (location === null) return envelope(422);
+  const inArea = inLocation(store, location);
   const pillars = store.pillar.filter(
     (pillar) =>
       !pillar.is_deleted && hasPermission(grants, "DASHBOARD_VIEW", { pillarId: pillar.id })
@@ -475,11 +485,17 @@ export function handleDashboardOverview(ctx: MockContext) {
   const participants = store.participant.filter(
     (row) =>
       !row.is_deleted &&
-      allowed(store, grants, "PARTICIPANT_VIEW", "participant", row as unknown as Row)
+      allowed(store, grants, "PARTICIPANT_VIEW", "participant", row as unknown as Row) &&
+      inArea("participant", row as unknown as Row)
   );
   const enrollmentsOf = (pillarId: number) =>
     hasPermission(grants, "PARTICIPANT_VIEW", { pillarId })
-      ? store.enrollment.filter((row) => !row.is_deleted && row.pillar_id === pillarId)
+      ? store.enrollment.filter(
+          (row) =>
+            !row.is_deleted &&
+            row.pillar_id === pillarId &&
+            inArea("enrollment", row as unknown as Row)
+        )
       : [];
   const canSubmissions = hasModulePermission(grants, "FIELD_SUBMISSION_VIEW");
   const submissions = canSubmissions
@@ -492,7 +508,8 @@ export function handleDashboardOverview(ctx: MockContext) {
             "FIELD_SUBMISSION_VIEW",
             "participant_stage_event",
             row as unknown as Row
-          )
+          ) &&
+          inArea("participant_stage_event", row as unknown as Row)
       )
     : [];
   // The chart's pillar filter keeps only that pillar's participants and field updates.
@@ -519,6 +536,7 @@ export function handleDashboardOverview(ctx: MockContext) {
   const enrollmentPillar = new Map(store.enrollment.map((row) => [row.id, row]));
   return envelope(200, {
     participant_count: participants.length,
+    pwd_count: participants.filter((row) => row.is_person_with_disability).length,
     enrollment_count: pillars.reduce((sum, pillar) => sum + enrollmentsOf(pillar.id).length, 0),
     new_this_quarter: between(`${year}-07-01`, `${year}-10-01`),
     previous_quarter: between(`${year}-04-01`, `${year}-07-01`),
@@ -582,12 +600,13 @@ export function handleDashboardOverview(ctx: MockContext) {
           due_date: row.dueDate,
         })),
     },
-    referrals: referralOversight(store, grants),
+    referrals: referralOversight(store, grants, new Date(), inArea),
     funnel: pipelineFunnel(
       store,
       grants,
       pillars.map((pillar) => pillar.id),
-      query.get("funnel")
+      query.get("funnel"),
+      inArea
     ),
     recent_activity: hasPermission(grants, "AUDIT_LOG_VIEW")
       ? [...store.audit_logs]

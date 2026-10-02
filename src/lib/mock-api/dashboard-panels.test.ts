@@ -72,6 +72,17 @@ describe("referral oversight", () => {
     expect(referralOversight(getMockStore(), everywhere("DASHBOARD_VIEW"), NOW)).toBeNull();
   });
 
+  it("only counts referrals inside the dashboard's location", () => {
+    referrals([
+      { status: "NEW", created: 1 },
+      { status: "NEW", created: 2 },
+    ]);
+    const firstOnly = (_table: string, row: { id: number }) => row.id === 1;
+    const panel = referralOversight(getMockStore(), everywhere("REFERRAL_VIEW"), NOW, firstOnly)!;
+    expect(panel.open).toBe(1);
+    expect(panel.oldest.map((row) => row.id)).toEqual([1]);
+  });
+
   it("only counts referrals touching the caller's pillars", () => {
     referrals([
       { status: "NEW", created: 1, to: 2 },

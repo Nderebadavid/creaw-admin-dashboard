@@ -11,6 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { actionResult } from "@/lib/api/action-result";
 import { cleanListQuery } from "@/lib/api/list";
+import { cleanLocation } from "@/lib/api/location";
 import { withSessionApi } from "@/lib/api/session-api";
 import { requireSession } from "@/lib/auth/session-server";
 import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
@@ -40,6 +41,7 @@ export async function listReferralsAction(query: ReferralQuery) {
           ...clean,
           pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
           status: typeof query.status === "string" ? query.status.slice(0, 20) : undefined,
+          ...cleanLocation(query),
         },
         session.grants
       ),
@@ -135,7 +137,12 @@ export async function exportReferralsAction(query: ReferralQuery) {
   return auditedExportAction({
     path: "/referrals",
     routeTemplate: "/referrals",
-    query: { pillarId: query.pillarId, status: query.status, search: query.search },
+    query: {
+      pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
+      status: typeof query.status === "string" ? query.status.slice(0, 20) : undefined,
+      search: typeof query.search === "string" ? query.search.slice(0, 120) : undefined,
+      ...cleanLocation(query),
+    },
   });
 }
 

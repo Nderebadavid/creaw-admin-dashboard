@@ -140,9 +140,11 @@ const invariants: Partial<Record<TableName, Invariant>> = {
   participant(store, next, existing) {
     const idNumber = typeof next.id_number === "string" ? next.id_number.toLowerCase() : "";
     if (
-      !existing &&
       idNumber &&
-      store.participant.some((row) => row.id_number?.toLowerCase() === idNumber)
+      idNumber !== String(existing?.id_number ?? "").toLowerCase() &&
+      store.participant.some(
+        (row) => row.id !== next.id && row.id_number?.toLowerCase() === idNumber
+      )
     )
       return envelope(422, null, "A participant with this ID number is already registered");
   },

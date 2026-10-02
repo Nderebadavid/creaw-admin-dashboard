@@ -30,7 +30,7 @@ export function VawgHeadingActions({
   const [feedback, setFeedback] = useState("");
   return (
     <>
-      {canExport && <ExportButton exportAction={exportCases} />}
+      {canExport && <ExportButton exportAction={() => exportCases()} />}
       {children}
       {canLogCounselling && <LogCounsellingButton currentUserId={currentUserId} />}
       {canOpenCase && (

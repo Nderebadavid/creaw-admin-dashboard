@@ -25,11 +25,14 @@ export const participantDtoSchema = z.object({
   middle_name: z.string().nullable(),
   last_name: z.string(),
   id_number: z.string().nullable(),
+  id_number_type: optionalText,
   phone_number: z.string().nullable(),
   date_of_birth: z.string().nullable(),
   gender: z.string().nullable(),
   ward_id: positive.nullable(),
   is_consent_given: z.boolean(),
+  is_person_with_disability: z.boolean().default(false),
+  is_refugee: z.boolean().default(false),
   remarks: z.string().nullable(),
   status: z.string(),
   status_description: optionalText,
@@ -141,6 +144,8 @@ export const participantRegistrationSchema = z.object({
   wardId: positive.optional(),
   pillarId: positive,
   consentGiven: z.boolean(),
+  disability: z.boolean().default(false),
+  refugee: z.boolean().default(false),
   remarks: z.string().trim().optional(),
 });
 export const participantUpdateSchema = z.object({
@@ -150,8 +155,27 @@ export const participantUpdateSchema = z.object({
   phoneNumber: z.string().trim().max(30).nullable().optional(),
   remarks: z.string().trim().nullable().optional(),
   consentGiven: z.boolean().optional(),
+  // Identity details: changing any of these needs PARTICIPANT_RECORD_MANAGE.
+  middleName: z.string().trim().max(80).nullable().optional(),
+  idNumber: z.string().trim().max(40).nullable().optional(),
+  dateOfBirth: z.iso.date().nullable().optional(),
+  gender: z.string().trim().max(20).nullable().optional(),
+  wardId: positive.nullable().optional(),
+  disability: z.boolean().optional(),
+  refugee: z.boolean().optional(),
 });
-export type ParticipantRegistration = z.infer<typeof participantRegistrationSchema>;
+/** Update fields that correct identity details recorded at registration. */
+export const PARTICIPANT_IDENTITY_KEYS = [
+  "middleName",
+  "idNumber",
+  "dateOfBirth",
+  "gender",
+  "wardId",
+  "disability",
+  "refugee",
+] as const;
+/** Disability and refugee status default to false when left out. */
+export type ParticipantRegistration = z.input<typeof participantRegistrationSchema>;
 export type ParticipantUpdate = z.infer<typeof participantUpdateSchema>;
 export type ParticipantDto = z.infer<typeof participantDtoSchema>;
 export type EnrollmentDto = z.infer<typeof enrollmentReadDtoSchema>;

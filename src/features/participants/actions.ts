@@ -16,7 +16,12 @@ import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { auditedExportAction } from "@/components/portal/data-actions";
 import { createParticipantsApi, type ParticipantQuery } from "./api";
 import { cleanListQuery } from "@/lib/api/list";
-import { participantRegistrationSchema, participantUpdateSchema } from "./schemas";
+import { cleanLocation } from "@/lib/api/location";
+import {
+  participantRegistrationSchema,
+  participantUpdateSchema,
+  PARTICIPANT_IDENTITY_KEYS,
+} from "./schemas";
 
 function api() {
   return withSessionApi(createParticipantsApi);
@@ -49,8 +54,9 @@ export async function listParticipantsAction(query: ParticipantQuery) {
       ).list({
         ...clean,
         pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
-        countyId: Number.isInteger(query.countyId) ? query.countyId : undefined,
+        ...cleanLocation(query),
         behind: query.behind === true ? true : undefined,
+        pwd: query.pwd === true ? true : undefined,
       }),
     };
   } catch {
@@ -101,12 +107,20 @@ export async function updateParticipantAction(input: unknown) {
     const client = await api();
     const participant = await client.get(parsed.data.id);
     if (!participant) return actionResult(404, "Participant not found");
+    // Identity corrections need the record-manager permission; other edits need edit access.
+    const correctsIdentity = PARTICIPANT_IDENTITY_KEYS.some(
+      (key) => parsed.data[key] !== undefined
+    );
+    const needed = correctsIdentity ? "PARTICIPANT_RECORD_MANAGE" : "PARTICIPANT_EDIT";
     if (
-      !participant.pillarIds.some((pillarId) =>
-        hasPermission(session.grants, "PARTICIPANT_EDIT", { pillarId })
-      )
+      !participant.pillarIds.some((pillarId) => hasPermission(session.grants, needed, { pillarId }))
     )
-      return actionResult(403, "You cannot edit this participant");
+      return actionResult(
+        403,
+        correctsIdentity
+          ? "Your role cannot correct identity details for this participant"
+          : "You cannot edit this participant"
+      );
     const response = await client.update(parsed.data);
     if (response.success) revalidatePath("/participants");
     return actionResult(response.resultCode, response.message);
@@ -125,6 +139,12 @@ export async function exportParticipantsAction(query: ParticipantQuery) {
   return auditedExportAction({
     path: "/participants",
     routeTemplate: "/participants",
-    query: { pillarId: query.pillarId, countyId: query.countyId, search: query.search },
+    query: {
+      pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
+      ...cleanLocation(query),
+      search: typeof query.search === "string" ? query.search.slice(0, 120) : undefined,
+      ...(query.behind === true ? { curriculum_behind: "true" } : {}),
+      ...(query.pwd === true ? { is_person_with_disability: "true" } : {}),
+    },
   });
 }

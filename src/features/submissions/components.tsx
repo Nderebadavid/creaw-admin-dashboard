@@ -1,5 +1,7 @@
 "use client";
 
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { locationParams } from "@/lib/api/location";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
@@ -105,6 +107,7 @@ export function SubmissionsContent({
           routeTemplate: "/field-submissions",
           query: {
             stage_event_status: active === "All" ? undefined : stageStatusOf[active],
+            ...locationParams(list.query),
           },
         })
       }
@@ -130,6 +133,9 @@ export function SubmissionsContent({
               </span>
             </button>
           ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
         </div>
       </div>
       <FormBanner tone="success">{feedback}</FormBanner>

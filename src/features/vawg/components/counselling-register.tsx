@@ -1,4 +1,6 @@
 "use client";
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { hasLocation } from "@/lib/api/location";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { HeartHandshake, Pencil, Scale } from "lucide-react";
@@ -274,6 +276,9 @@ export function CounsellingRegister({
                   : { has_legal_case: label === "With a legal case" ? "true" : "false" },
             }),
         }))}
+        filters={
+          <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
+        }
         search={{
           value: search,
           label: "Search counselling register",
@@ -299,7 +304,10 @@ export function CounsellingRegister({
           columns={columns}
           rows={list.data.items}
           getRowId={(row) => row.enrollmentId}
-          filtered={list.data.items.length === 0 && (active !== "All" || search.length > 0)}
+          filtered={
+            list.data.items.length === 0 &&
+            (active !== "All" || search.length > 0 || hasLocation(list.query))
+          }
           onRowOpen={(row) => setSelectedId(row.enrollmentId)}
           rowOpenLabel={(row) => `Open counselling for ${row.name}`}
           sort={list.query.sort}
