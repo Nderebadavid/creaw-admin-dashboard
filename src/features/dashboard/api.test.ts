@@ -67,4 +67,24 @@ describe("dashboard API", () => {
     expect(overview.pendingSubmissions).toBeGreaterThanOrEqual(110);
     expect(overview.monthly[7].newCount).toBeGreaterThanOrEqual(110);
   });
+
+  it("maps referral oversight and the requested pillar's funnel to view models", async () => {
+    const overview = await createDashboardApi(
+      createPortalApiClient(),
+      issueMockToken(1)
+    ).getOverview("2026", undefined, "srhr");
+    const open = getMockStore().referral.filter((row) => !row.is_deleted && row.status === "NEW");
+    expect(overview.referrals?.open).toBe(open.length);
+    expect(overview.referrals?.oldest[0]).toMatchObject({
+      participant: expect.any(String),
+      from: expect.any(String),
+      to: expect.any(String),
+    });
+    expect(overview.referrals?.byDestination.every((row) => row.color.startsWith("#"))).toBe(true);
+    expect(overview.funnel).toMatchObject({ pillar: "srhr", name: "SRHR" });
+    expect(overview.funnel?.available.map((row) => row.slug)).toContain("vawg");
+    // Reaching a later stage means having passed the earlier ones.
+    const counts = overview.funnel!.stages.map((row) => row.count);
+    expect(counts).toEqual([...counts].sort((a, b) => b - a));
+  });
 });

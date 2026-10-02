@@ -143,6 +143,53 @@ export const dashboardOverviewSchema = createEnvelopeSchema(
           ),
         })
         .nullable(),
+      // Absent from an API that predates these panels; null when the caller may not see them.
+      referrals: z
+        .object({
+          open: z.number().int(),
+          overdue: z.number().int(),
+          overdue_after_days: z.number().int(),
+          decided_this_quarter: z.number().int(),
+          accepted_rate: z.number().nullable(),
+          by_destination: z.array(
+            z.object({
+              pillar_id: z.number().int(),
+              open: z.number().int(),
+              oldest_days: z.number().int(),
+            })
+          ),
+          oldest: z.array(
+            z.object({
+              id: z.number().int(),
+              participant_name: text,
+              from_pillar_id: z.number().int(),
+              to_pillar_id: z.number().int(),
+              destination_name: text,
+              raised_on: z.string(),
+              age_days: z.number().int(),
+            })
+          ),
+        })
+        .nullish()
+        .transform((value) => value ?? null),
+      funnel: z
+        .object({
+          pillar_id: z.number().int(),
+          code: z.string(),
+          pipeline_name: z.string(),
+          enrollments: z.number().int(),
+          stages: z.array(
+            z.object({
+              id: z.number().int(),
+              step_no: z.number().int(),
+              name: z.string(),
+              reached: z.number().int(),
+            })
+          ),
+          available: z.array(z.string()),
+        })
+        .nullish()
+        .transform((value) => value ?? null),
       recent_activity: z
         .array(
           z.object({
