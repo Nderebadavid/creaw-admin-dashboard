@@ -77,10 +77,11 @@ export function ParticipantsContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={actions} /> : actions}
+      {heading && <PageHeading {...heading} />}
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
+        actions={actions}
         title="Participant registry"
         subtitle="One registry across every pillar"
         chipsLabel="Pillar filter"

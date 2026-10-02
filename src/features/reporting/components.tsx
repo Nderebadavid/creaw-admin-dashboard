@@ -111,7 +111,7 @@ export function ReportingContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={actions} /> : actions}
+      {heading && <PageHeading {...heading} />}
       <ReportSummaryCards counts={list.data.facets?.status} />
       {overdue > 0 && (
         <AlertBanner tone="danger">
@@ -124,6 +124,7 @@ export function ReportingContent({
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{error}</FormBanner>}
       <TableCard
+        actions={actions}
         title="Reports due"
         subtitle="Click a report to upload the submission or view what was sent"
         chipsLabel="Report status"

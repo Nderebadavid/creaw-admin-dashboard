@@ -122,11 +122,12 @@ export function GrantsContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
+      {heading && <PageHeading {...heading} />}
       <GrantSummaryCards counts={list.data.facets?.status} />
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{list.error}</FormBanner>
       <TableCard
+        actions={actions}
         title="Applications queue"
         subtitle="Click an application to work its sign-off chain"
         chipsLabel="Grant stage"

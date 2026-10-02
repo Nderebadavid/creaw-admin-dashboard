@@ -55,7 +55,9 @@ it("frames applications in the design's queue card", () => {
   const header = screen
     .getByRole("heading", { level: 1, name: "Grants" })
     .closest("[data-page-heading]") as HTMLElement;
-  expect(within(header).getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
+  // Page headers carry no buttons; a list\'s actions sit beside the list.
+  expect(within(header).queryAllByRole("button")).toHaveLength(0);
+  expect(screen.getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Applications queue" })).toBeInTheDocument();
   expect(screen.getByText("Click an application to work its sign-off chain")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Prepared" })).toHaveAttribute("aria-pressed", "false");

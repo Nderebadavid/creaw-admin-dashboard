@@ -108,7 +108,7 @@ export function UsersContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={addButton} /> : addButton}
+      {heading && <PageHeading {...heading} />}
       <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
         {stats.map(({ icon: Icon, value, label }) => (
           <div
@@ -128,6 +128,7 @@ export function UsersContent({
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
+        actions={addButton}
         title="Staff accounts"
         subtitle="Multiple roles combine their permitted modules and pillar scopes."
         chipsLabel="Staff status"

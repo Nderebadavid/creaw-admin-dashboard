@@ -99,7 +99,9 @@ describe("reporting calendar", () => {
     const header = screen
       .getByRole("heading", { level: 1, name: "Reporting calendar" })
       .closest("[data-page-heading]") as HTMLElement;
-    expect(within(header).getByRole("button", { name: "Add deadline" })).toBeInTheDocument();
+    // Page headers carry no buttons; a list\'s actions sit beside the list.
+    expect(within(header).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Add deadline" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Reports due" })).toBeInTheDocument();
     expect(
       screen.getByText("Click a report to upload the submission or view what was sent")

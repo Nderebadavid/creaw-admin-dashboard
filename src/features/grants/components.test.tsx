@@ -156,9 +156,9 @@ describe("grant detail", () => {
     const header = screen
       .getByRole("heading", { level: 1, name: "Grant application" })
       .closest("[data-page-heading]") as HTMLElement;
-    expect(
-      within(header).getByRole("button", { name: "Download application pack" })
-    ).toBeInTheDocument();
+    // Page headers carry no buttons; a list\'s actions sit beside the list.
+    expect(within(header).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Download application pack" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Documents & photos" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Compliance reports" })).toBeInTheDocument();
     expect(screen.getByText("KES 60,000")).toBeInTheDocument();

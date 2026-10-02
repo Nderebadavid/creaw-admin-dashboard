@@ -80,9 +80,10 @@ export function AssessmentsContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={newButton} /> : newButton}
+      {heading && <PageHeading {...heading} />}
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{error}</FormBanner>
+      {newButton && <div className="flex justify-end">{newButton}</div>}
       {list.loading && <p role="status">Loading assessments…</p>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data.items.map((item) => (
