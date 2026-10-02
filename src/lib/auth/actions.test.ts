@@ -32,6 +32,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const liveEnvelope = (status: number, data: unknown, message = "OK") =>
+  new Response(JSON.stringify({ resultCode: status, success: status < 400, message, data }), {
+    status,
+  });
+
 function stubLiveResponse(status: number, body: unknown) {
   vi.stubEnv("PORTAL_API_MODE", "live");
   vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");
@@ -201,7 +206,7 @@ describe("verification step", () => {
     );
   });
 
-  it("refuses a token pair without readable expiry", async () => {
+  it("starts over when the token pair has no readable expiry", async () => {
     await loginAction("judy.mwangi", "creaw-demo", true);
     stubLiveResponse(200, {
       resultCode: 200,
@@ -211,9 +216,49 @@ describe("verification step", () => {
     });
     expect(await verifyOtpAction(OTP)).toEqual({
       success: false,
-      error: "Sign in failed. Please try again.",
+      expired: true,
+      error: "Sign in failed. Please sign in again.",
     });
     expect(jar.has("creaw_session")).toBe(false);
+    expect(jar.has("creaw_login_challenge")).toBe(false);
+  });
+
+  it.each([
+    [
+      "refuses the new session",
+      () => Promise.resolve(liveEnvelope(403, null, "Permission denied")),
+    ],
+    ["cannot be reached", () => Promise.reject(new Error("offline"))],
+  ])("revokes the issued tokens and starts over when /auth/me %s", async (_, meResponse) => {
+    await loginAction("judy.mwangi", "creaw-demo", true);
+    vi.stubEnv("PORTAL_API_MODE", "live");
+    vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        liveEnvelope(200, {
+          token: "issued-access",
+          expireAt: "2026-09-26 17:37:27",
+          refreshToken: "issued-refresh",
+          refreshExpireAt: "2026-10-03 17:07:27",
+        })
+      )
+      .mockImplementationOnce(meResponse)
+      .mockResolvedValueOnce(liveEnvelope(200, null));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    expect(await verifyOtpAction(OTP)).toEqual({
+      success: false,
+      expired: true,
+      error: "Sign in failed. Please sign in again.",
+    });
+    const [logoutUrl, logout] = fetchSpy.mock.calls[2];
+    expect(String(logoutUrl)).toBe("https://example.test/auth/logout");
+    expect(logout.headers.Authorization).toBe("Bearer issued-access");
+    expect(JSON.parse(logout.body)).toEqual({ refreshToken: "issued-refresh" });
+    expect(jar.has("creaw_session")).toBe(false);
+    expect(jar.has("creaw_refresh")).toBe(false);
+    expect(jar.has("creaw_login_challenge")).toBe(false);
   });
 
   it("keeps the challenge after a wrong code and creates no session", async () => {

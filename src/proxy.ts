@@ -21,14 +21,17 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-function redirectToLogin(request: NextRequest): NextResponse {
+/**
+ * Sends the user to sign in. Stale or rejected cookies are cleared so the login page
+ * doesn't inherit them; `keepCookies` leaves a refresh token that may still be good.
+ */
+function redirectToLogin(request: NextRequest, { keepCookies = false } = {}): NextResponse {
   const url = new URL("/login", request.url);
   if (request.nextUrl.pathname !== "/") {
     url.searchParams.set("redirect", request.nextUrl.pathname);
   }
   const response = NextResponse.redirect(url);
-  // Clears anything stale/invalid so the login page doesn't inherit it.
-  clearSessionCookies(response.cookies);
+  if (!keepCookies) clearSessionCookies(response.cookies);
   return response;
 }
 
@@ -51,9 +54,10 @@ export async function proxy(request: NextRequest) {
 
   const outcome = await refreshSession(refreshToken);
   if (outcome.status === "rejected") return redirectToLogin(request);
-  // An unreachable API leaves the current token to stand or fall on its own.
+  // An unreachable API leaves the current token to stand or fall on its own, and keeps
+  // the refresh token for the next request to try again.
   if (outcome.status === "unavailable") {
-    return token ? NextResponse.next() : redirectToLogin(request);
+    return token ? NextResponse.next() : redirectToLogin(request, { keepCookies: true });
   }
 
   // The request carries the new cookies on to the page or Server Action, and the
