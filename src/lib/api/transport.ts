@@ -4,6 +4,7 @@ export const API_ROUTE_TEMPLATES = [
   "/auth/login",
   "/auth/otp/verify",
   "/auth/otp/resend",
+  "/auth/refresh",
   "/auth/password/forgot",
   "/auth/password/reset",
   "/auth/logout",

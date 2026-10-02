@@ -9,7 +9,7 @@ import { resolveTarget } from "./resources/target";
 import { writeResource } from "./resources/write";
 import { handleAdminCommands } from "./routes/admin";
 import { handleAuditLogs } from "./routes/audit-logs";
-import { handleCurrentUser, handleSessionRoutes } from "./routes/auth";
+import { handleCurrentUser, handleSessionRoutes, SESSION_EXPIRED } from "./routes/auth";
 import { handleDashboard } from "./routes/dashboard";
 import { handleFacilitatorOptions } from "./routes/facilitators";
 import { handleGrantRecommendations } from "./routes/grant-recommendations";
@@ -47,7 +47,9 @@ export async function handleMockRequest(
   const session = { request, store, url, query, parts, userId: 0, grants: [] };
   const sessionResponse = handleSessionRoutes(session);
   if (sessionResponse) return sessionResponse;
-  const userId = resolveMockToken(request.token) ?? 0;
+  // A missing, expired or revoked token is 401, so the portal refreshes; 403 means no access.
+  const userId = resolveMockToken(request.token);
+  if (userId === undefined) return envelope(401, null, SESSION_EXPIRED);
   const grants = getEffectiveGrants(userId);
   if (!grants.length) return envelope(403);
   const ctx: MockContext = { ...session, userId, grants };

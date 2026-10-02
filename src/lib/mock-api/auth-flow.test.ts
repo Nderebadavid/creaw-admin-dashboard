@@ -84,19 +84,28 @@ describe("password step", () => {
 });
 
 describe("verification step", () => {
-  it("issues a session only for the right code, and only once", async () => {
+  it("issues a token pair only for the right code, and only once", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-26T14:07:27Z"));
     const challengeId = await challengeFor();
     const response = await verify(challengeId, MOCK_OTP_CODE);
-    expect(response).toMatchObject({
+    expect(response).toEqual({
       resultCode: 200,
+      success: true,
+      message: "Login successful",
       data: {
         token: expect.stringMatching(/^[0-9a-f-]{36}$/i),
-        user: { first_name: "Judy", last_name: "Mwangi" },
-        roles: ["System Administrator"],
+        // 30 minutes and 7 days, on the API's East Africa clock.
+        expireAt: "2026-09-26 17:37:27",
+        refreshToken: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+        refreshExpireAt: "2026-10-03 17:07:27",
       },
     });
     const { token } = response.data as { token: string };
-    expect((await call("GET", "/auth/me", undefined, token)).resultCode).toBe(200);
+    expect(await call("GET", "/auth/me", undefined, token)).toMatchObject({
+      resultCode: 200,
+      data: { user: { first_name: "Judy", last_name: "Mwangi" }, roles: ["System Administrator"] },
+    });
     expect((await verify(challengeId, MOCK_OTP_CODE)).resultCode).toBe(410);
   });
 
@@ -147,11 +156,16 @@ describe("password reset", () => {
   });
 
   it("replaces the password, ends existing sessions and works once", async () => {
-    const session = ((await verify(await challengeFor(), MOCK_OTP_CODE)).data as { token: string })
-      .token;
+    const session = (await verify(await challengeFor(), MOCK_OTP_CODE)).data as {
+      token: string;
+      refreshToken: string;
+    };
     const token = await previewToken("judy.mwangi@creaw.org");
     expect((await reset(token, "Str0ng!Passw0rd")).resultCode).toBe(200);
-    expect((await call("GET", "/auth/me", undefined, session)).resultCode).toBe(403);
+    expect((await call("GET", "/auth/me", undefined, session.token)).resultCode).toBe(401);
+    expect(
+      (await call("POST", "/auth/refresh", { refreshToken: session.refreshToken })).resultCode
+    ).toBe(401);
     expect((await signIn("judy.mwangi", "creaw-demo")).resultCode).toBe(403);
     expect((await signIn("judy.mwangi", "Str0ng!Passw0rd")).resultCode).toBe(200);
     expect((await reset(token, "An0ther!Passw0rd")).resultCode).toBe(410);

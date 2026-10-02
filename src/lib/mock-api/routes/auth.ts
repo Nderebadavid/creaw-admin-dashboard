@@ -1,8 +1,12 @@
-import { getEffectiveGrants } from "../../auth/permissions";
 import { type MockContext } from "../context";
 import { envelope, safeRow, type Row } from "../core";
 import { MOCK_OTP_CODE, MOCK_PASSWORD } from "../seed";
-import { issueMockToken, revokeMockToken } from "../store";
+import {
+  issueMockSession,
+  refreshMockSession,
+  revokeMockRefreshToken,
+  revokeMockToken,
+} from "../store";
 import { findAccount, stringFields } from "./accounts";
 import { forgotPassword, resetPassword } from "./password-reset";
 import { type ApiEnvelope } from "@/types/api";
@@ -12,6 +16,7 @@ const CHALLENGE_TTL_MS = 10 * 60_000;
 const LOCK_MS = 15 * 60_000;
 const MAX_FAILED_LOGINS = 5;
 const MAX_WRONG_CODES = 5;
+export const SESSION_EXPIRED = "Your session has expired. Sign in again.";
 const LOCKED =
   "Account locked for 15 minutes after 5 failed attempts. Reset your password to unlock it now.";
 
@@ -20,6 +25,7 @@ const publicRoutes: Record<string, PublicRoute> = {
   "/auth/login": login,
   "/auth/otp/verify": verifyOtp,
   "/auth/otp/resend": resendOtp,
+  "/auth/refresh": refresh,
   "/auth/password/forgot": forgotPassword,
   "/auth/password/reset": resetPassword,
   "/auth/logout": logout,
@@ -109,13 +115,16 @@ function verifyOtp({ request, store }: MockContext): ApiEnvelope<unknown> {
     return envelope(410, null, "Too many incorrect codes. Sign in again to get a new one.");
   }
   store.loginChallenges.delete(body.challengeId);
-  const user = store.user.find((row) => row.id === challenge.userId)!;
-  return envelope(200, {
-    token: issueMockToken(user.id),
-    user: safeRow("user", user as unknown as Row),
-    grants: getEffectiveGrants(user.id),
-    roles: activeRoleNames(store, user.id),
-  });
+  // Only the token pair: the user, grants and roles come from `/auth/me`.
+  return envelope(200, issueMockSession(challenge.userId), "Login successful");
+}
+
+/** `POST /auth/refresh`: rotates a refresh token into a new token pair. */
+function refresh({ request }: MockContext): ApiEnvelope<unknown> {
+  const body = stringFields(request.body, "refreshToken");
+  if (!body) return envelope(422);
+  const pair = refreshMockSession(body.refreshToken);
+  return pair ? envelope(200, pair) : envelope(401, null, SESSION_EXPIRED);
 }
 
 /** `POST /auth/otp/resend`: restarts the challenge's 10 minutes and its wrong-code count. */
@@ -130,8 +139,11 @@ function resendOtp({ request, store }: MockContext): ApiEnvelope<unknown> {
   return envelope(200);
 }
 
+/** `POST /auth/logout`: ends the access token and its refresh token; always succeeds. */
 function logout({ request }: MockContext): ApiEnvelope<unknown> {
-  if (!request.token || !revokeMockToken(request.token)) return envelope(403);
+  if (request.token) revokeMockToken(request.token);
+  const body = stringFields(request.body, "refreshToken");
+  if (body) revokeMockRefreshToken(body.refreshToken);
   return envelope(200);
 }
 

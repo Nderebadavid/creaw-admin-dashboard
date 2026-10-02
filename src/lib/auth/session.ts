@@ -1,4 +1,9 @@
+/** The short-lived API access token. */
 export const SESSION_COOKIE_NAME = "creaw_session";
+/** The refresh token that renews the access token. */
+export const REFRESH_COOKIE_NAME = "creaw_refresh";
+/** When the access token expires and whether the user chose to stay signed in. */
+export const SESSION_META_COOKIE_NAME = "creaw_session_meta";
 /** Holds the open login challenge between the password step and the one-time code. */
 export const LOGIN_CHALLENGE_COOKIE_NAME = "creaw_login_challenge";
 
