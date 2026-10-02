@@ -116,7 +116,7 @@ export function SubmissionsContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
+      {heading && <PageHeading {...heading} />}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Submission status">
           {tabs.map((tab) => (
@@ -137,6 +137,7 @@ export function SubmissionsContent({
         <div className="flex flex-wrap gap-2">
           <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
         </div>
+        {actions && <div className="ml-auto">{actions}</div>}
       </div>
       <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{list.error}</FormBanner>

@@ -106,8 +106,10 @@ it("puts the page actions beside the heading, like the design", () => {
   renderRegistry();
   const heading = screen.getByRole("heading", { level: 1, name: "Participants" });
   const header = heading.closest("[data-page-heading]") as HTMLElement;
-  expect(within(header).getByRole("button", { name: "Register participant" })).toBeInTheDocument();
-  expect(within(header).getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
+  // Page headers carry no buttons; a list\'s actions sit beside the list.
+  expect(within(header).queryAllByRole("button")).toHaveLength(0);
+  expect(screen.getByRole("button", { name: "Register participant" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
 });
 
 it("frames the registry in the design's list card", () => {

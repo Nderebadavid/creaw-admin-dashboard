@@ -88,11 +88,12 @@ export function ReferralsContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={actions} /> : actions}
+      {heading && <PageHeading {...heading} />}
       <ReferralSummaryCards counts={list.data.facets?.status} />
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
+        actions={actions}
         title="All referrals"
         subtitle="Click a new referral to decide, edit or withdraw it"
         chipsLabel="Referral status"

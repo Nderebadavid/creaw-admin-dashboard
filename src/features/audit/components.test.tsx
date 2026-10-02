@@ -80,7 +80,9 @@ describe("audit screen", () => {
     const header = screen
       .getByRole("heading", { level: 1, name: "Audit log" })
       .closest("[data-page-heading]") as HTMLElement;
-    expect(within(header).getByRole("button", { name: /export csv/i })).toBeInTheDocument();
+    // Page headers carry no buttons; a list\'s actions sit beside the list.
+    expect(within(header).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: /export csv/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kafka (system)" })).toHaveAttribute(
       "aria-pressed",
       "false"

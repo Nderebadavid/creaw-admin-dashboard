@@ -180,7 +180,9 @@ describe("administration screens", () => {
     const header = screen
       .getByRole("heading", { level: 1, name: "Users & roles" })
       .closest("[data-page-heading]") as HTMLElement;
-    expect(within(header).getByRole("button", { name: "Add user" })).toBeInTheDocument();
+    // Page headers carry no buttons; a list\'s actions sit beside the list.
+    expect(within(header).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Add user" })).toBeInTheDocument();
     for (const label of ["Staff accounts", "Roles configured", "Multi-role users", "Permissions"])
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     expect(screen.getByText("42")).toBeInTheDocument();
@@ -295,7 +297,7 @@ describe("administration screens", () => {
     fireEvent.click(screen.getByRole("button", { name: /manage users/i }));
     expect(screen.getByText("Will be granted")).toBeInTheDocument();
   });
-  it("puts role and permission creation beside the heading and explains the matrix", () => {
+  it("keeps role creation in its tab and explains the matrix", () => {
     render(
       <PermissionsContent
         heading={{
@@ -313,8 +315,9 @@ describe("administration screens", () => {
     const header = screen
       .getByRole("heading", { level: 1, name: "Roles & permissions" })
       .closest("[data-page-heading]") as HTMLElement;
-    expect(within(header).getByRole("button", { name: "New permission" })).toBeInTheDocument();
-    expect(within(header).getByRole("button", { name: "New role" })).toBeInTheDocument();
+    // Page headers carry no buttons; a list\'s actions sit beside the list.
+    expect(within(header).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "New role" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Matrix overview/ }));
     for (const label of ["Granted", "Not granted", "Unsaved"])
       expect(screen.getByText(label)).toBeInTheDocument();

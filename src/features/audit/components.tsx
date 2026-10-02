@@ -73,7 +73,7 @@ export function AuditContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={exportButton} /> : exportButton}
+      {heading && <PageHeading {...heading} />}
       {query.targetId && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-creaw-orange-soft px-3 py-1 font-semibold text-creaw-orange">
@@ -90,6 +90,7 @@ export function AuditContent({
       )}
       <FormBanner tone="error">{list.error}</FormBanner>
       <TableCard
+        actions={exportButton}
         title="Activity trail"
         subtitle="Portal, integration and background activity. Records are immutable."
         chipsLabel="Source"

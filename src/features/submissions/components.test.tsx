@@ -116,7 +116,9 @@ describe("field submissions screen", () => {
     const header = screen
       .getByRole("heading", { level: 1, name: "Field submissions" })
       .closest("[data-page-heading]") as HTMLElement;
-    expect(within(header).getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+    // Page headers carry no buttons; a list\'s actions sit beside the list.
+    expect(within(header).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
     expect(screen.getByText("photo · outreach")).toBeInTheDocument();
     expect(screen.getByText("SRHR · Outreach")).toBeInTheDocument();
   });

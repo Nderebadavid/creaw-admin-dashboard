@@ -2,7 +2,7 @@
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Grid2X2, KeyRound, Plus, ShieldCheck } from "lucide-react";
+import { Grid2X2, KeyRound, ShieldCheck } from "lucide-react";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
 import { Button } from "@/components/ui/button";
 import { setRolePermissionAction } from "./actions";
@@ -107,27 +107,7 @@ export function PermissionsContent({
 
   return (
     <div className="space-y-5">
-      {heading && (
-        <PageHeading
-          {...heading}
-          actions={
-            <>
-              <Button
-                variant="outline"
-                disabled={!canManagePermissions}
-                onClick={() => open("new-permission")}
-              >
-                <KeyRound size={16} />
-                New permission
-              </Button>
-              <Button disabled={!canManageRoles} onClick={() => open("new-role")}>
-                <Plus size={16} />
-                New role
-              </Button>
-            </>
-          }
-        />
-      )}
+      {heading && <PageHeading {...heading} />}
       <div
         role="tablist"
         aria-label="Roles and permissions"

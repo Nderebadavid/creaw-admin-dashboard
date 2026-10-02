@@ -210,8 +210,10 @@ it("lays out the queue like the design", () => {
   const header = screen
     .getByRole("heading", { level: 1, name: "Referral queue" })
     .closest("[data-page-heading]") as HTMLElement;
-  expect(within(header).getByRole("button", { name: "New referral" })).toBeInTheDocument();
-  expect(within(header).getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
+  // Page headers carry no buttons; a list\'s actions sit beside the list.
+  expect(within(header).queryAllByRole("button")).toHaveLength(0);
+  expect(screen.getByRole("button", { name: "New referral" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "All referrals" })).toBeInTheDocument();
   expect(
     screen.getByText("Click a new referral to decide, edit or withdraw it")

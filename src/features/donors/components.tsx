@@ -308,10 +308,11 @@ export function DonorsContent({
 
   return (
     <div className="space-y-5">
-      {heading ? <PageHeading {...heading} actions={actions || undefined} /> : actions}
+      {heading && <PageHeading {...heading} />}
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
       <TableCard
+        actions={actions}
         title="Donors"
         subtitle="Funding partners — projects point at a donor"
         filters={

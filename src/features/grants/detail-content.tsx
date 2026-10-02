@@ -112,7 +112,7 @@ export function GrantDetailContent({
 
   return (
     <div className="space-y-5">
-      {heading && <PageHeading {...heading} actions={packButton} />}
+      {heading && <PageHeading {...heading} />}
       <Link
         href="/grants"
         className="inline-flex items-center gap-2 text-sm font-semibold text-creaw-body"
@@ -138,7 +138,7 @@ export function GrantDetailContent({
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <StatusBadge tone={grantTone(detail.status)}>{stageLabel(detail.status)}</StatusBadge>
-          {!heading && packButton}
+          {packButton}
           {detail.previousStatus && (
             <Button
               variant="outline"
