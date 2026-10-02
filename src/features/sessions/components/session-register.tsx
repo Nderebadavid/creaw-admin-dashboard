@@ -118,6 +118,7 @@ export function SessionRegister({
   const [viewing, setViewing] = useState<ViewedDocument | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
+  const [openingId, setOpeningId] = useState<number | null>(null);
   const detail = useRecordDetail(selectedId, (id) => loadSessionDetailAction(pillar, id));
   const selected = list.data.items.find((row) => row.id === selectedId) ?? null;
 
@@ -139,11 +140,18 @@ export function SessionRegister({
     router.refresh();
   };
   async function view(documentId: number) {
-    if (!selected) return;
+    if (!selected || openingId !== null) return;
     setError("");
-    const result = await viewSessionFileAction(workspace.pillar, selected.id, documentId);
-    if (result.success && result.document) setViewing(result.document);
-    else setError(result.message);
+    setOpeningId(documentId);
+    try {
+      const result = await viewSessionFileAction(workspace.pillar, selected.id, documentId);
+      if (result.success && result.document) setViewing(result.document);
+      else setError(result.message);
+    } catch {
+      setError("Could not open the file. Please try again.");
+    } finally {
+      setOpeningId(null);
+    }
   }
 
   return (
@@ -239,6 +247,7 @@ export function SessionRegister({
         onAddAttendee={() => setModal({ kind: "add" })}
         onRemoveAttendee={(attendee) => setModal({ kind: "remove", attendee })}
         onView={(documentId) => void view(documentId)}
+        openingId={openingId}
       />
       <SessionFormDialog
         key={modal?.kind === "edit" ? `edit-${selectedId}` : "edit-closed"}

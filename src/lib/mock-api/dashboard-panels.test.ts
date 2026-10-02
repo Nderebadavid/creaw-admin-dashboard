@@ -60,7 +60,7 @@ describe("referral oversight", () => {
       { status: "DECLINED", created: 200, updated: Math.ceil(sinceQuarter) + 1 },
     ]);
     const panel = referralOversight(getMockStore(), everywhere("REFERRAL_VIEW"), NOW)!;
-    expect(panel.decided_this_quarter).toBe(3);
+    expect(panel.decided_in_period).toBe(3);
     expect(panel.accepted_rate).toBe(67);
   });
 
@@ -157,7 +157,7 @@ describe("overview route", () => {
       routeTemplate: "/dashboard",
       correlationId: "panels",
       token: issueMockToken(1),
-      query: { view: "overview", year: "2026", funnel: "srhr" },
+      query: { view: "overview", from: "2026-01-01", to: "2026-12-31", funnel: "srhr" },
     });
     expect(response.resultCode).toBe(200);
     expect(response.data).toMatchObject({

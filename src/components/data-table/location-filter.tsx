@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { filterSelectClass } from "@/components/ui/form-styles";
 import { loadGeographyAction, type Geography } from "@/components/portal/geography-actions";
 import type { LocationQuery } from "@/lib/api/location";
 
@@ -28,8 +29,11 @@ const idOf = (value: string) => Number(value) || undefined;
 export function LocationFilter({
   value,
   onChange,
+  disabled = false,
 }: {
   value: LocationQuery;
+  /** A change is loading; the pickers wait for it. */
+  disabled?: boolean;
   /** Receives every level, unset ones as undefined, so a list filter can merge it as is. */
   onChange: (next: {
     countyId: number | undefined;
@@ -37,7 +41,8 @@ export function LocationFilter({
     wardId: number | undefined;
   }) => void;
 }) {
-  const [geography, setGeography] = useState<Geography | null>(null);
+  // undefined while loading; null when the locations could not be loaded.
+  const [geography, setGeography] = useState<Geography | null | undefined>(undefined);
   useEffect(() => {
     let active = true;
     void loadGeography().then((data) => {
@@ -47,6 +52,12 @@ export function LocationFilter({
       active = false;
     };
   }, []);
+  if (geography === undefined)
+    return (
+      <select aria-label="County" disabled className={filterSelectClass}>
+        <option>Loading locations…</option>
+      </select>
+    );
   if (!geography || !geography.counties.length) return null;
 
   const subCounties = geography.subCounties.filter((row) => row.countyId === value.countyId);
@@ -61,6 +72,7 @@ export function LocationFilter({
     <>
       <SearchableSelect
         compact
+        disabled={disabled}
         label="County"
         emptyLabel="All counties"
         options={options(geography.counties)}
@@ -70,6 +82,7 @@ export function LocationFilter({
       {value.countyId !== undefined && subCounties.length > 0 && (
         <SearchableSelect
           compact
+          disabled={disabled}
           label="Sub-county"
           emptyLabel="All sub-counties"
           options={options(subCounties)}
@@ -80,6 +93,7 @@ export function LocationFilter({
       {value.subCountyId !== undefined && wards.length > 0 && (
         <SearchableSelect
           compact
+          disabled={disabled}
           label="Ward"
           emptyLabel="All wards"
           options={options(wards)}

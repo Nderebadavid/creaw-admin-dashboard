@@ -95,8 +95,11 @@ export const dashboardOverviewSchema = createEnvelopeSchema(
         .nullish()
         .transform((value) => value ?? null),
       enrollment_count: z.number().int(),
-      new_this_quarter: z.number().int(),
-      previous_quarter: z.number().int(),
+      /** The period the activity figures cover, inclusive. */
+      period: z.object({ from: z.string(), to: z.string() }),
+      /** Participants registered in the period, and in the equal-length period before it. */
+      new_in_period: z.number().int(),
+      previous_period: z.number().int(),
       pending_submissions: z.number().int().nullable(),
       pillars: z.array(
         z.object({
@@ -109,7 +112,8 @@ export const dashboardOverviewSchema = createEnvelopeSchema(
       ),
       monthly: z.array(
         z.object({
-          month: z.number().int().min(1).max(12),
+          /** YYYY-MM, one entry per month the period touches. */
+          month: z.string().regex(/^\d{4}-\d{2}$/),
           new_count: z.number().int(),
           completed_count: z.number().int(),
         })
@@ -155,7 +159,7 @@ export const dashboardOverviewSchema = createEnvelopeSchema(
           open: z.number().int(),
           overdue: z.number().int(),
           overdue_after_days: z.number().int(),
-          decided_this_quarter: z.number().int(),
+          decided_in_period: z.number().int(),
           accepted_rate: z.number().nullable(),
           by_destination: z.array(
             z.object({

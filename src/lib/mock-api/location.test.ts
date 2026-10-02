@@ -126,13 +126,23 @@ describe("dashboard location and disability", () => {
     const { countyId } = placedParticipant();
     const store = getMockStore();
     store.participant[0].is_person_with_disability = true;
-    const all = (await call("/dashboard", "/dashboard", { view: "overview", year: "2026" }))
-      .data as { participant_count: number; pwd_count: number };
+    const all = (
+      await call("/dashboard", "/dashboard", {
+        view: "overview",
+        from: "2026-01-01",
+        to: "2026-12-31",
+      })
+    ).data as { participant_count: number; pwd_count: number };
     expect(all.pwd_count).toBe(
       store.participant.filter((row) => !row.is_deleted && row.is_person_with_disability).length
     );
     const area = (
-      await call("/dashboard", "/dashboard", { view: "overview", year: "2026", countyId })
+      await call("/dashboard", "/dashboard", {
+        view: "overview",
+        from: "2026-01-01",
+        to: "2026-12-31",
+        countyId,
+      })
     ).data as { participant_count: number; pwd_count: number };
     expect(area.participant_count).toBeGreaterThan(0);
     expect(area.participant_count).toBeLessThanOrEqual(all.participant_count);

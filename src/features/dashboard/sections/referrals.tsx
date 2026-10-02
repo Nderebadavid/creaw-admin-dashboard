@@ -18,7 +18,7 @@ function Stat({ label, value, detail }: { label: string; value: string; detail: 
 
 /**
  * Cross-pillar referrals waiting on a response: how many, how many are overdue, how
- * this quarter's decisions went, where the open ones are waiting, and the oldest five.
+ * the period's decisions went, where the open ones are waiting, and the oldest five.
  */
 export function ReferralOversight({ referrals }: { referrals: DashboardReferrals }) {
   const { overdueAfterDays } = referrals;
@@ -38,12 +38,10 @@ export function ReferralOversight({ referrals }: { referrals: DashboardReferrals
           detail={referrals.overdue ? "need follow-up" : "none overdue"}
         />
         <Stat
-          label="Accepted this quarter"
+          label="Accepted in period"
           value={referrals.acceptedRate === null ? "—" : `${referrals.acceptedRate}%`}
           detail={
-            referrals.decidedThisQuarter
-              ? `of ${referrals.decidedThisQuarter} decided`
-              : "none decided yet"
+            referrals.decidedInPeriod ? `of ${referrals.decidedInPeriod} decided` : "none decided"
           }
         />
       </div>

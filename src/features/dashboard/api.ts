@@ -31,9 +31,12 @@ export interface DashboardOverview {
   activeParticipants: number;
   /** Participants living with a disability; absent from an API that predates it. */
   pwdParticipants?: number | null;
-  newThisQuarter: number;
-  /** Registrations in the quarter before, for the "New this quarter" trend. */
-  previousQuarter?: number;
+  /** The period the activity figures cover. */
+  period: { from: string; to: string };
+  /** Participants registered in the period. */
+  newInPeriod: number;
+  /** Registrations in the equal-length period before, for the trend. */
+  previousPeriod?: number;
   /** Current enrollments across the pillars in scope. */
   enrollmentCount?: number;
   pendingSubmissions: number;
@@ -41,7 +44,8 @@ export interface DashboardOverview {
   /** Every report on the calendar, submitted or not. */
   totalReports?: number;
   pillars: DashboardPillar[];
-  monthly: { month: string; newCount: number; completedCount: number }[];
+  /** One entry per month of the period; `month` is a short label, e.g. "Jul" or "Jul 25". */
+  monthly: { key: string; month: string; newCount: number; completedCount: number }[];
   participantDistribution: { name: string; count: number; color: string; href?: string }[];
   reportingAlerts: string[];
   /** Active projects across the pillars in scope, soonest to end first. */
@@ -89,8 +93,8 @@ export interface DashboardReferrals {
   /** Open longer than `overdueAfterDays`. */
   overdue: number;
   overdueAfterDays: number;
-  decidedThisQuarter: number;
-  /** Share of this quarter's decisions that were acceptances, or null with none decided. */
+  decidedInPeriod: number;
+  /** Share of the period's decisions that were acceptances, or null with none decided. */
   acceptedRate: number | null;
   byDestination: {
     pillarId: number;
@@ -155,18 +159,17 @@ export function createDashboardApi(client: ApiClient, token: string) {
   return {
     /**
      * Every panel of the overview from one call: the API counts, groups and scopes them.
-     * @param period The year charted in "Monthly enrollments".
-     * @param chartPillar A pillar slug narrowing that chart; every pillar when omitted.
+     * @param period What happened is counted between these days (inclusive).
+     * @param chartPillar A pillar slug narrowing the monthly chart; every pillar when omitted.
      * @param funnelPillar The pillar slug whose funnel to show; the API picks one when omitted.
      * @param location The area every people-based figure is narrowed to.
      */
     async getOverview(
-      period: string,
+      period: { from: string; to: string },
       chartPillar?: string,
       funnelPillar?: string,
       location: LocationQuery = {}
     ): Promise<DashboardOverview> {
-      const year = /^20\d{2}$/.test(period) ? period : "2026";
       const result = await client.request(
         {
           method: "GET",
@@ -175,7 +178,8 @@ export function createDashboardApi(client: ApiClient, token: string) {
           token,
           query: {
             view: "overview",
-            year,
+            from: period.from,
+            to: period.to,
             ...(chartPillar ? { pillar: chartPillar } : {}),
             ...(funnelPillar ? { funnel: funnelPillar } : {}),
             ...locationParams(location),
@@ -212,18 +216,25 @@ export function createDashboardApi(client: ApiClient, token: string) {
       return {
         activeParticipants: dto.participant_count,
         pwdParticipants: dto.pwd_count,
-        newThisQuarter: dto.new_this_quarter,
-        previousQuarter: dto.previous_quarter,
+        period: dto.period,
+        newInPeriod: dto.new_in_period,
+        previousPeriod: dto.previous_period,
         enrollmentCount: dto.enrollment_count,
         pendingSubmissions: dto.pending_submissions ?? 0,
         overdueReports: reportingAlerts.length,
         totalReports: dto.reports?.total ?? 0,
         pillars,
-        monthly: dto.monthly.map((row) => ({
-          month: MONTHS_SHORT[row.month - 1],
-          newCount: row.new_count,
-          completedCount: row.completed_count,
-        })),
+        monthly: dto.monthly.map((row) => {
+          // Months carry their year only when the period spans more than one.
+          const [year, month] = row.month.split("-");
+          const spansYears = dto.monthly.some((item) => !item.month.startsWith(year));
+          return {
+            key: row.month,
+            month: `${MONTHS_SHORT[Number(month) - 1]}${spansYears ? ` ${year.slice(2)}` : ""}`,
+            newCount: row.new_count,
+            completedCount: row.completed_count,
+          };
+        }),
         participantDistribution: pillars.map(({ name, reached, color, href }) => ({
           name: pillarLookBySlug(href.split("/").pop() ?? "")?.fullName ?? name,
           count: reached,
@@ -257,7 +268,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
           open: dto.referrals.open,
           overdue: dto.referrals.overdue,
           overdueAfterDays: dto.referrals.overdue_after_days,
-          decidedThisQuarter: dto.referrals.decided_this_quarter,
+          decidedInPeriod: dto.referrals.decided_in_period,
           acceptedRate: dto.referrals.accepted_rate,
           byDestination: dto.referrals.by_destination.map((row) => {
             const pillar = pillarById(row.pillar_id);
@@ -306,7 +317,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
 
 export const dashboardApi = {
   async getOverview(
-    period: string,
+    period: { from: string; to: string },
     chartPillar?: string,
     funnelPillar?: string,
     location?: LocationQuery

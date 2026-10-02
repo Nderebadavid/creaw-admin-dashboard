@@ -1,13 +1,19 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+const navigation = vi.hoisted(() => ({ pathname: "/dashboard", push: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard",
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => navigation.pathname,
+  useRouter: () => ({ push: navigation.push, refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams("countyId=4"),
 }));
 vi.mock("@/lib/auth/actions", () => ({ logoutAction: vi.fn() }));
-import { PortalShell, usePortalDateRange } from "./portal-shell";
+import { PortalShell } from "./portal-shell";
 import { PageHeading } from "./page-heading";
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  navigation.pathname = "/dashboard";
+  navigation.push.mockClear();
+});
 const session = {
   user: {
     id: 1,
@@ -20,14 +26,10 @@ const session = {
   },
   grants: [{ permissionCode: "DASHBOARD_VIEW", pillarId: null }],
 };
-function Content() {
-  const { range } = usePortalDateRange();
-  return <p>{`${range.from}..${range.to}`}</p>;
-}
-it("shows the signed-in identity and shares the applied date range with pages", () => {
+it("puts the dashboard's period in the URL, keeping its other filters", () => {
   render(
     <PortalShell session={session}>
-      <Content />
+      <p>Content</p>
     </PortalShell>
   );
   expect(screen.getByText("Judy Mwangi")).toBeInTheDocument();
@@ -35,9 +37,21 @@ it("shows the signed-in identity and shares the applied date range with pages", 
   fireEvent.click(screen.getByRole("button", { name: "Last year" }));
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   const lastYear = new Date().getFullYear() - 1;
-  expect(screen.getByText(`${lastYear}-01-01..${lastYear}-12-31`)).toBeInTheDocument();
+  expect(navigation.push).toHaveBeenCalledWith(
+    `/dashboard?countyId=4&from=${lastYear}-01-01&to=${lastYear}-12-31`,
+    { scroll: false }
+  );
   fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
   expect(screen.getByText("Dashboard")).toHaveClass("sr-only");
+});
+it("shows the period picker only on the dashboard", () => {
+  navigation.pathname = "/participants";
+  render(
+    <PortalShell session={session}>
+      <p>Content</p>
+    </PortalShell>
+  );
+  expect(screen.queryByRole("button", { name: /Date range/ })).toBeNull();
 });
 it("opens a labelled mobile drawer and the notifications panel", async () => {
   render(

@@ -16,6 +16,7 @@ import { presentRow } from "../resources/read";
 import { displayName } from "../references";
 import { grantHandoff } from "../training";
 import { inLocation, LOCATION_KEYS, parseLocation } from "../location";
+import { inPeriod, monthsOf, parsePeriod as parseDashboardPeriod, previousPeriod } from "../period";
 import { pipelineFunnel, referralOversight } from "./dashboard-panels";
 import { peopleOptions } from "./facilitators";
 import { buildCoverage } from "@/features/sessions/coverage";
@@ -453,8 +454,8 @@ export function handleFormOptions(ctx: MockContext) {
 }
 
 /**
- * `GET /dashboard?view=overview&year=&pillar=&funnel=`: every dashboard panel computed on
- * the server: reach per pillar, quarter counts, the monthly chart (optionally for one
+ * `GET /dashboard?view=overview&from=&to=&pillar=&funnel=`: every dashboard panel computed
+ * on the server: reach per pillar, the period's counts, the monthly chart (optionally for one
  * pillar), pending submissions, reporting alerts, recent activity, referral oversight and
  * one pillar's pipeline funnel. Each panel is scoped to what the caller may see, and null
  * when they may see none of it. `countyId`, `subCountyId` or `wardId` narrow every
@@ -467,7 +468,7 @@ export function handleDashboardOverview(ctx: MockContext) {
     request.method !== "GET" ||
     [...query.keys()].some(
       (key) =>
-        !["view", "year", "pillar", "funnel", ...LOCATION_KEYS].includes(
+        !["view", "from", "to", "pillar", "funnel", ...LOCATION_KEYS].includes(
           key as (typeof LOCATION_KEYS)[number]
         )
     )
@@ -475,13 +476,16 @@ export function handleDashboardOverview(ctx: MockContext) {
     return envelope(422);
   const location = parseLocation(query);
   if (location === null) return envelope(422);
+  // What happened is counted in the period; current totals are as of today.
+  const period = parseDashboardPeriod(query);
+  if (period === null) return envelope(422);
+  const before = previousPeriod(period);
   const inArea = inLocation(store, location);
   const pillars = store.pillar.filter(
     (pillar) =>
       !pillar.is_deleted && hasPermission(grants, "DASHBOARD_VIEW", { pillarId: pillar.id })
   );
   if (!pillars.length) return envelope(403);
-  const year = /^20\d{2}$/.test(query.get("year") ?? "") ? query.get("year")! : "2026";
   const participants = store.participant.filter(
     (row) =>
       !row.is_deleted &&
@@ -527,8 +531,8 @@ export function handleDashboardOverview(ctx: MockContext) {
         row.stage_event_status === "verified" && (!chartedIds || chartedIds.has(row.enrollment_id))
     )
     .map((row) => row.event_date);
-  const between = (from: string, to: string) =>
-    participants.filter((row) => row.created_at >= from && row.created_at < to).length;
+  const registeredIn = (range: typeof period) =>
+    participants.filter((row) => inPeriod(range, row.created_at)).length;
   const canReports = ["NARRATIVE_REPORT_MANAGE", "GRANT_REPORT_VIEW", "GRANT_REPORT_MANAGE"].some(
     (code) => hasModulePermission(grants, code)
   );
@@ -538,8 +542,9 @@ export function handleDashboardOverview(ctx: MockContext) {
     participant_count: participants.length,
     pwd_count: participants.filter((row) => row.is_person_with_disability).length,
     enrollment_count: pillars.reduce((sum, pillar) => sum + enrollmentsOf(pillar.id).length, 0),
-    new_this_quarter: between(`${year}-07-01`, `${year}-10-01`),
-    previous_quarter: between(`${year}-04-01`, `${year}-07-01`),
+    period,
+    new_in_period: registeredIn(period),
+    previous_period: registeredIn(before),
     pending_submissions: canSubmissions
       ? submissions.filter((row) => row.stage_event_status !== "verified").length
       : null,
@@ -553,14 +558,13 @@ export function handleDashboardOverview(ctx: MockContext) {
         active: rows.filter((row) => row.status === "ACTIVE").length,
       };
     }),
-    monthly: Array.from({ length: 12 }, (_, index) => {
-      const prefix = `${year}-${String(index + 1).padStart(2, "0")}`;
-      return {
-        month: index + 1,
-        new_count: registered.filter((date) => date.startsWith(prefix)).length,
-        completed_count: verified.filter((date) => date.startsWith(prefix)).length,
-      };
-    }),
+    monthly: monthsOf(period).map((month) => ({
+      month,
+      new_count: registered.filter((date) => date.startsWith(month) && inPeriod(period, date))
+        .length,
+      completed_count: verified.filter((date) => date.startsWith(month) && inPeriod(period, date))
+        .length,
+    })),
     recent_submissions: canSubmissions
       ? submissions
           .filter((row) => row.stage_event_status !== "verified")
@@ -600,7 +604,7 @@ export function handleDashboardOverview(ctx: MockContext) {
           due_date: row.dueDate,
         })),
     },
-    referrals: referralOversight(store, grants, new Date(), inArea),
+    referrals: referralOversight(store, grants, new Date(), inArea, period),
     funnel: pipelineFunnel(
       store,
       grants,

@@ -1,33 +1,26 @@
 import Link from "next/link";
 import type { DashboardOverview } from "../api";
-import type { LocationQuery } from "@/lib/api/location";
 import { ChartFilters } from "./chart-filters";
 
 const card = "flex flex-col gap-[18px] rounded-2xl border border-creaw-line bg-white p-6";
 
-/** The years the chart can show: this one and the six before it. */
-const chartYears = (latest: number) =>
-  Array.from({ length: 7 }, (_, back) => String(latest - back));
-
 /** Paired monthly bars: new enrollments against completions. */
 export function MonthlyChart({
   monthly,
-  year,
+  periodLabel,
   pillar,
   pillars = [],
-  funnel,
-  location,
 }: {
+  /** One entry per month of the dashboard's period. */
   monthly: DashboardOverview["monthly"];
-  year: string;
+  /** The period in words, e.g. "1 Jul – 2 Oct 2026". */
+  periodLabel: string;
   /** The pillar slug the chart is narrowed to; every pillar when omitted. */
   pillar?: string;
   pillars?: DashboardOverview["pillars"];
-  /** The funnel's pillar slug, kept when the chart's filters change. */
-  funnel?: string;
-  /** The dashboard's location, kept when the chart's filters change. */
-  location?: LocationQuery;
 }) {
+  // Long periods label every few months so the axis stays readable.
+  const labelEvery = Math.ceil(monthly.length / 12);
   const max = Math.max(1, ...monthly.flatMap((row) => [row.newCount, row.completedCount]));
   const yMax = Math.ceil((max * 1.15) / 10) * 10 || 10;
   const selected = pillars.find((item) => item.code === pillar);
@@ -39,17 +32,10 @@ export function MonthlyChart({
             Monthly enrollments
           </h2>
           <p className="mt-0.5 text-[13.5px] text-creaw-faint">
-            New vs. completed, all pillars · {selected?.name ?? "all pillars"}
+            New vs. completed · {selected?.name ?? "all pillars"} · {periodLabel}
           </p>
         </div>
-        <ChartFilters
-          year={year}
-          years={chartYears(new Date().getFullYear())}
-          pillar={selected?.code ?? ""}
-          pillars={pillars}
-          funnel={funnel}
-          location={location}
-        />
+        <ChartFilters pillar={selected?.code ?? ""} pillars={pillars} />
       </div>
       <div className="flex gap-[18px] text-[13px] text-creaw-body">
         <span className="flex items-center gap-1.5">
@@ -69,14 +55,15 @@ export function MonthlyChart({
           <span>0</span>
         </div>
         <div
-          className="grid flex-1 grid-cols-12 items-end gap-1.5"
+          className="grid flex-1 items-end gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${Math.max(1, monthly.length)}, minmax(0, 1fr))` }}
           role="img"
-          aria-label={`Monthly enrollments for ${year}: ${monthly.map((row) => `${row.month} ${row.newCount} new, ${row.completedCount} completed`).join("; ")}`}
+          aria-label={`Monthly enrollments, ${periodLabel}: ${monthly.map((row) => `${row.month} ${row.newCount} new, ${row.completedCount} completed`).join("; ")}`}
         >
-          {monthly.map((row) => (
+          {monthly.map((row, index) => (
             <div
-              key={row.month}
-              title={`${row.month} ${year}: ${row.newCount} new, ${row.completedCount} completed`}
+              key={row.key}
+              title={`${row.month}: ${row.newCount} new, ${row.completedCount} completed`}
               className="flex h-full min-w-0 flex-col items-center justify-end gap-1.5"
             >
               <div className="flex h-full w-full items-end justify-center gap-[3px]">
@@ -89,7 +76,9 @@ export function MonthlyChart({
                   style={{ height: `${(row.completedCount / yMax) * 100}%` }}
                 />
               </div>
-              <span className="h-4 text-xs text-creaw-faint">{row.month}</span>
+              <span className="h-4 whitespace-nowrap text-xs text-creaw-faint">
+                {index % labelEvery === 0 ? row.month : ""}
+              </span>
             </div>
           ))}
         </div>

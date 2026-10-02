@@ -5,6 +5,7 @@ import {
   Download,
   Eye,
   FileText,
+  Loader2,
   Paperclip,
   Pencil,
   Trash2,
@@ -62,6 +63,7 @@ export function SessionDrawer({
   onAddAttendee,
   onRemoveAttendee,
   onView,
+  openingId = null,
 }: {
   session: SessionView | null;
   /** Attendance and files, once loaded. */
@@ -75,6 +77,8 @@ export function SessionDrawer({
   onAddAttendee: () => void;
   onRemoveAttendee: (attendee: AttendeeView) => void;
   onView: (documentId: number) => void;
+  /** The file being opened; every file button waits while one opens. */
+  openingId?: number | null;
 }) {
   if (!session) return null;
   const look = pillarLook(SESSION_PILLAR_IDS[pillar]);
@@ -209,20 +213,30 @@ export function SessionDrawer({
                       <button
                         type="button"
                         aria-label={`View ${file.name}`}
-                        disabled={!can.download}
+                        aria-busy={openingId === file.id}
+                        disabled={!can.download || openingId != null}
                         onClick={() => onView(file.id)}
                         className={iconButton}
                       >
-                        <Eye size={19} aria-hidden="true" />
+                        {openingId === file.id ? (
+                          <Loader2 size={19} aria-hidden="true" className="animate-spin" />
+                        ) : (
+                          <Eye size={19} aria-hidden="true" />
+                        )}
                       </button>
                       <button
                         type="button"
                         aria-label={`Download ${file.name}`}
-                        disabled={!can.download}
+                        aria-busy={openingId === file.id}
+                        disabled={!can.download || openingId != null}
                         onClick={() => onView(file.id)}
                         className={iconButton}
                       >
-                        <Download size={19} aria-hidden="true" />
+                        {openingId === file.id ? (
+                          <Loader2 size={19} aria-hidden="true" className="animate-spin" />
+                        ) : (
+                          <Download size={19} aria-hidden="true" />
+                        )}
                       </button>
                     </div>
                   }
