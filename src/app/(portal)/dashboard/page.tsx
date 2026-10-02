@@ -5,7 +5,7 @@ import { hasModulePermission, hasPermission } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/auth/session-server";
 import { dashboardApi } from "@/features/dashboard/api";
 import { DashboardContent } from "@/features/dashboard/components";
-import { DashboardLocationFilter } from "@/features/dashboard/sections/chart-filters";
+import { DashboardFilters } from "@/features/dashboard/sections/chart-filters";
 import { cleanLocation } from "@/lib/api/location";
 import { periodFromParams } from "@/lib/dashboard-period";
 
@@ -45,7 +45,7 @@ export default async function DashboardPage({
   );
   return (
     <>
-      <PageHeading title="MERL overview" section="Overview" actions={<DashboardLocationFilter />} />
+      <PageHeading title="MERL overview" section="Overview" actions={<DashboardFilters />} />
       <DashboardContent
         overview={overview}
         chartPillar={chartPillar}

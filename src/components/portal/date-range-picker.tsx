@@ -47,6 +47,7 @@ export function DateRangePicker({
   hint = "filters records by their created date",
   maxDays,
   busy = false,
+  compact = false,
 }: {
   value: DateRange;
   onChange: (range: DateRange) => void;
@@ -57,6 +58,8 @@ export function DateRangePicker({
   maxDays?: number;
   /** A change is loading; the picker waits for it. */
   busy?: boolean;
+  /** Toolbar-filter size, matching the filter dropdowns beside it. */
+  compact?: boolean;
 }) {
   const { ref, open, toggle, close } = usePopover();
   const [draft, setDraft] = useState(value);
@@ -82,7 +85,7 @@ export function DateRangePicker({
         aria-busy={busy}
         disabled={busy}
         onClick={openPanel}
-        className="flex h-11 max-w-full items-center gap-2 rounded-[10px] border border-creaw-line bg-white px-3 text-sm font-semibold text-creaw-ink-soft hover:border-[#E2C7B6] disabled:opacity-60"
+        className={`flex max-w-full items-center gap-2 rounded-[10px] border bg-white px-3 font-semibold text-creaw-ink-soft hover:border-[#E2C7B6] disabled:opacity-60 ${compact ? "h-10 border-creaw-line-strong text-[13.5px]" : "h-11 border-creaw-line text-sm"}`}
       >
         <CalendarRange size={18} aria-hidden="true" className="shrink-0 text-primary" />
         <span className="truncate">
@@ -91,7 +94,7 @@ export function DateRangePicker({
         <ChevronDown size={18} aria-hidden="true" className="shrink-0 text-creaw-faint" />
       </button>
       {open && (
-        <div className="absolute right-0 top-[54px] z-30 flex w-[min(340px,calc(100vw-2rem))] flex-col gap-3.5 rounded-[14px] border border-creaw-line bg-white p-4 shadow-[0_16px_40px_-12px_rgba(34,28,24,.25)]">
+        <div className="absolute right-0 top-full z-30 mt-2 flex w-[min(340px,calc(100vw-2rem))] flex-col gap-3.5 rounded-[14px] border border-creaw-line bg-white p-4 shadow-[0_16px_40px_-12px_rgba(34,28,24,.25)]">
           <div className="flex flex-wrap gap-1.5">
             {presets(today).map(([label, range]) => {
               const on = draft.from === range.from && draft.to === range.to;

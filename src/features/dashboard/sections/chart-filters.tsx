@@ -1,6 +1,7 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import { LocationFilter } from "@/components/data-table/location-filter";
+import { DashboardRange } from "@/components/portal/dashboard-range";
 import { usePortalNavigation } from "@/components/portal/portal-navigation";
 import { cleanLocation } from "@/lib/api/location";
 
@@ -81,8 +82,8 @@ export function FunnelPicker({
   );
 }
 
-/** County → sub-county → ward for the whole dashboard. */
-export function DashboardLocationFilter() {
+/** The dashboard's own filters: the period, then county → sub-county → ward. */
+export function DashboardFilters() {
   const { params, change, pending } = useDashboardFilters();
   const location = cleanLocation({
     countyId: Number(params.get("countyId")),
@@ -90,7 +91,8 @@ export function DashboardLocationFilter() {
     wardId: Number(params.get("wardId")),
   });
   return (
-    <div className="flex flex-wrap gap-2" aria-busy={pending}>
+    <div className="flex flex-wrap items-center gap-2" aria-busy={pending}>
+      <DashboardRange />
       <LocationFilter value={location} onChange={change} disabled={pending} />
     </div>
   );

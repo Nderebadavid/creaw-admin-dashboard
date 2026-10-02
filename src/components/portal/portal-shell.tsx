@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { Session } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,6 @@ import { PortalSidebar } from "./portal-sidebar";
 import { PortalHeader } from "./portal-header";
 import { PageTitleProvider } from "./page-title";
 import type { NavigationStatus } from "./navigation";
-import { DashboardRange } from "./dashboard-range";
 import { PortalNavigationProvider } from "./portal-navigation";
 
 export function PortalShell({
@@ -52,14 +51,6 @@ export function PortalShell({
                 collapsed={collapsed}
                 onToggleSidebar={() => setCollapsed((value) => !value)}
                 onOpenMobile={() => setMobileOpen(true)}
-                // The period picker applies to the dashboard only; other pages have no period.
-                range={
-                  pathname === "/dashboard" ? (
-                    <Suspense fallback={null}>
-                      <DashboardRange />
-                    </Suspense>
-                  ) : null
-                }
                 grants={session.grants}
                 status={status}
               />
