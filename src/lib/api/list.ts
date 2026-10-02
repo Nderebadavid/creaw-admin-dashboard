@@ -1,7 +1,11 @@
 import type { SortState } from "@/components/data-table/sorting";
+import { cleanLocation, locationParams, type LocationQuery } from "./location";
 
-/** What a server-paged register asks of the API: one page, already filtered and sorted. */
-export interface ListQuery {
+/**
+ * What a server-paged register asks of the API: one page, already filtered and sorted.
+ * The location filter applies only to registers of people or organisations.
+ */
+export interface ListQuery extends LocationQuery {
   page?: number;
   pageSize?: number;
   search?: string;
@@ -28,7 +32,8 @@ export interface ListResult<T> {
 
 /**
  * Query parameters for the API's list conventions: `page`, `pageSize`, `search`,
- * `sort=field:asc|desc` and exact-match filters. `sortKeys` maps a table column id to
+ * `sort=field:asc|desc`, exact-match filters and the location (`countyId`, `subCountyId`,
+ * `wardId`). `sortKeys` maps a table column id to
  * the API field it sorts by; an unmapped column id is sent as is.
  */
 export function listParams(
@@ -49,6 +54,7 @@ export function listParams(
       .join(",");
   else if (defaults.sort) params.sort = defaults.sort;
   if (query.include) params.include = query.include;
+  Object.assign(params, locationParams(query));
   for (const [key, value] of Object.entries(query.filters ?? {}))
     if (value !== undefined && value !== null && value !== "") params[key] = String(value);
   return params;
@@ -94,5 +100,6 @@ export function cleanListQuery(
     search: typeof input?.search === "string" ? input.search.slice(0, 120) : undefined,
     sort: sortedColumn(input?.sort, allowed.sort),
     filters: Object.keys(filters).length ? filters : undefined,
+    ...cleanLocation(input),
   };
 }

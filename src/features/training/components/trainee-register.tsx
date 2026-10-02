@@ -1,4 +1,6 @@
 "use client";
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { hasLocation, locationParams } from "@/lib/api/location";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataColumn } from "@/components/data-table/data-table";
@@ -141,21 +143,24 @@ export function TraineeRegister({
           onSelect: () => setFilter("pathway", value),
         }))}
         filters={
-          <label className="flex items-center gap-2 text-sm">
-            Status
-            <select
-              value={status}
-              onChange={(event) => setFilter("training_status", event.target.value)}
-              className="rounded-lg border border-creaw-line-strong bg-white px-2.5 py-1.5"
-            >
-              <option value="All">All</option>
-              {trainingStatuses.map((value) => (
-                <option key={value} value={value}>
-                  {trainingStatusLabels[value]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label className="flex items-center gap-2 text-sm">
+              Status
+              <select
+                value={status}
+                onChange={(event) => setFilter("training_status", event.target.value)}
+                className="rounded-lg border border-creaw-line-strong bg-white px-2.5 py-1.5"
+              >
+                <option value="All">All</option>
+                {trainingStatuses.map((value) => (
+                  <option key={value} value={value}>
+                    {trainingStatusLabels[value]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
+          </>
         }
         search={{
           value: search,
@@ -175,7 +180,7 @@ export function TraineeRegister({
                   auditedExportAction({
                     path: "/pillars/skilling",
                     routeTemplate: "/pillars/:pillar",
-                    query: { table: "training_enrollment" },
+                    query: { table: "training_enrollment", ...locationParams(list.query) },
                   })
                 }
               />
@@ -201,7 +206,7 @@ export function TraineeRegister({
           getRowId={(row) => row.id}
           filtered={
             list.data.items.length === 0 &&
-            (pathway !== "All" || status !== "All" || search.length > 0)
+            (pathway !== "All" || status !== "All" || search.length > 0 || hasLocation(list.query))
           }
           onRowOpen={(row) => setSelectedId(row.id)}
           rowOpenLabel={(row) => `Open ${row.name}, ${row.course ?? "course not recorded"}`}

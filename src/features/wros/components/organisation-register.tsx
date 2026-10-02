@@ -1,4 +1,6 @@
 "use client";
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { hasLocation } from "@/lib/api/location";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2 } from "lucide-react";
@@ -199,6 +201,9 @@ export function OrganisationRegister({
           active: active === label,
           onSelect: () => list.filter({ filters: filters[label] }),
         }))}
+        filters={
+          <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
+        }
         search={{
           value: search,
           label: "Search organisations",
@@ -232,7 +237,10 @@ export function OrganisationRegister({
           columns={columns}
           rows={list.data.items}
           getRowId={(row) => row.id}
-          filtered={list.data.items.length === 0 && (active !== "All" || search.length > 0)}
+          filtered={
+            list.data.items.length === 0 &&
+            (active !== "All" || search.length > 0 || hasLocation(list.query))
+          }
           onRowOpen={(row) => setSelectedId(row.id)}
           rowOpenLabel={(row) => `Open ${row.name}`}
           sort={list.query.sort}

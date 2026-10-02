@@ -164,4 +164,39 @@ describe("curriculum through the participants API", () => {
     const some = page.items[0];
     expect((await apiFor(5).curriculum(some.id))?.topics).toEqual([]);
   });
+
+  it("records disability and refugee status at registration and filters on disability", async () => {
+    const api = apiFor(1);
+    const created = await api.register({
+      firstName: "Amina",
+      lastName: "Yusuf",
+      pillarId: 1,
+      consentGiven: true,
+      disability: true,
+      refugee: true,
+    });
+    expect(created.success).toBe(true);
+    const pwd = await api.list({ pwd: true, pageSize: 100 });
+    const amina = pwd.items.find((row) => row.name === "Amina Yusuf");
+    expect(amina).toMatchObject({ disability: true, refugee: true });
+    expect(pwd.items.every((row) => row.disability)).toBe(true);
+  });
+
+  it("lets only record managers correct identity details", async () => {
+    const person = getMockStore().participant.find((row) => !row.is_deleted)!;
+    // Head of MERL edits participants everywhere but cannot correct identity details.
+    expect((await apiFor(2).update({ id: person.id, remarks: "Visited" })).resultCode).toBe(200);
+    expect((await apiFor(2).update({ id: person.id, disability: true })).resultCode).toBe(403);
+    const corrected = await apiFor(1).update({
+      id: person.id,
+      disability: true,
+      dateOfBirth: "1999-02-01",
+      idNumber: "",
+    });
+    expect(corrected.success).toBe(true);
+    const view = (await apiFor(1).list({ pwd: true, pageSize: 100 })).items.find(
+      (row) => row.id === person.id
+    );
+    expect(view).toMatchObject({ disability: true, dateOfBirth: "1999-02-01", idNumber: null });
+  });
 });

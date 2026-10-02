@@ -103,6 +103,13 @@ export function createSeed(): MockStore {
     (code) =>
       add("permission", { code, name: code.replaceAll("_", " "), module: code.split("_")[0] })
   );
+  add("permission", {
+    code: "PARTICIPANT_RECORD_MANAGE",
+    name: "Correct participant identity details",
+    module: "PARTICIPANT",
+    description:
+      "Edit identity fields set at registration: ID, date of birth, gender, ward, disability and refugee status.",
+  });
   const roleCodes: Record<number, string[]> = {
     3: [
       "DASHBOARD_VIEW",
@@ -184,7 +191,9 @@ export function createSeed(): MockStore {
     for (const permission of store.permission) {
       const granted =
         role.id === 1 ||
-        (role.id === 2 && permission.module !== "ADMIN" && permission.code !== "LOOKUP_MANAGE") ||
+        (role.id === 2 &&
+          permission.module !== "ADMIN" &&
+          !["LOOKUP_MANAGE", "PARTICIPANT_RECORD_MANAGE"].includes(permission.code)) ||
         roleCodes[role.id]?.includes(permission.code);
       if (granted) add("role_permission", { role_id: role.id, permission_id: permission.id });
     }

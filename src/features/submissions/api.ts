@@ -7,6 +7,7 @@
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
 import type { ApiClient } from "@/lib/api/client";
+import { locationParams, type LocationQuery } from "@/lib/api/location";
 import { clampPageSize, listParams } from "@/lib/api/list";
 import { withSessionApi } from "@/lib/api/session-api";
 import type { PaginatedData } from "@/types/api";
@@ -36,7 +37,7 @@ export interface SubmissionRow {
   /** Photos captured with the submission, e.g. "group photo". */
   photos?: { id: number; name: string }[];
 }
-export interface SubmissionQuery {
+export interface SubmissionQuery extends LocationQuery {
   page?: number;
   pageSize?: number;
   status?: SubmissionStatus | "All";
@@ -125,6 +126,7 @@ export function createSubmissionsApi(client: ApiClient, token: string) {
               {},
               { sort: "event_date:desc" }
             ),
+            ...locationParams(query),
             facet: "review_status",
           },
         },

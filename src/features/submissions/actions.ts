@@ -9,6 +9,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { cleanLocation } from "@/lib/api/location";
 import { readSessionToken } from "@/lib/api/session-api";
 import { createPortalApiClient } from "@/lib/api/portal-client";
 import { requireSession } from "@/lib/auth/session-server";
@@ -115,6 +116,7 @@ export async function listSubmissionsAction(query: SubmissionQuery) {
           ? (query.status as SubmissionStatus)
           : undefined,
         search: typeof query.search === "string" ? query.search.slice(0, 120) : undefined,
+        ...cleanLocation(query),
       }),
     };
   } catch {

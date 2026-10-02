@@ -19,6 +19,8 @@ import { participantColumns } from "./registry/columns";
 import { ParticipantDrawer } from "./registry/participant-drawer";
 import { EditParticipantDialog, RegisterParticipantDialog } from "./registry/participant-dialogs";
 import { usePagedList } from "@/components/data-table/use-paged-list";
+import { LocationFilter } from "@/components/data-table/location-filter";
+import { hasLocation } from "@/lib/api/location";
 
 /**
  * Participant registry: one record per person across every pillar. Rows open a
@@ -112,26 +114,21 @@ export function ParticipantsContent({
                 </select>
               </label>
             )}
-            {catalog.counties.length > 0 && (
-              <label className="flex items-center gap-2 text-sm">
-                <span className="sr-only">County</span>
-                <select
-                  aria-label="County"
-                  value={list.query.countyId ?? ""}
-                  onChange={(event) =>
-                    list.filter({ countyId: Number(event.target.value) || undefined })
-                  }
-                  className={filterSelectClass}
-                >
-                  <option value="">All counties</option>
-                  {catalog.counties.map((county) => (
-                    <option key={county.id} value={county.id}>
-                      {county.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+            <label className="flex items-center gap-2 text-sm">
+              <span className="sr-only">Disability</span>
+              <select
+                aria-label="Disability"
+                value={list.query.pwd ? "pwd" : ""}
+                onChange={(event) =>
+                  list.filter({ pwd: event.target.value === "pwd" ? true : undefined })
+                }
+                className={filterSelectClass}
+              >
+                <option value="">All participants</option>
+                <option value="pwd">Persons with disability</option>
+              </select>
+            </label>
+            <LocationFilter value={list.query} onChange={(location) => list.filter(location)} />
           </>
         }
         search={{
@@ -163,7 +160,11 @@ export function ParticipantsContent({
           getRowId={(row) => row.id}
           loading={list.loading}
           filtered={Boolean(
-            list.query.pillarId || list.query.countyId || list.query.search || list.query.behind
+            list.query.pillarId ||
+            hasLocation(list.query) ||
+            list.query.search ||
+            list.query.behind ||
+            list.query.pwd
           )}
           onRowOpen={setSelected}
           rowOpenLabel={(row) => `Open participant ${row.name}`}
@@ -185,6 +186,17 @@ export function ParticipantsContent({
       />
       <EditParticipantDialog
         participant={modal === "edit" ? selected : null}
+        catalog={catalog}
+        canEdit={Boolean(
+          selected?.pillarIds.some((pillarId) =>
+            hasPermission(grants, "PARTICIPANT_EDIT", { pillarId })
+          )
+        )}
+        canCorrectIdentity={Boolean(
+          selected?.pillarIds.some((pillarId) =>
+            hasPermission(grants, "PARTICIPANT_RECORD_MANAGE", { pillarId })
+          )
+        )}
         onClose={() => setModal(null)}
         onDone={done}
       />

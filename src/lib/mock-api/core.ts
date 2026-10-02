@@ -308,9 +308,12 @@ export const isStrictGet = (
 ) => request.method === "GET" && [...query.keys()].every((key) => allowed.includes(key));
 
 /**
- * Pillar and geography tables back the participant and referral forms, so
- * anyone who can view participants or referrals may read them.
+ * Geography backs every register's location filter, so any signed-in user may read it.
+ * Pillars back the participant and referral forms, so anyone who can view participants
+ * or referrals may read them.
  */
 export const readableAsReference = (grants: readonly EffectiveGrant[], table: TableName) =>
-  ["pillar", "county", "sub_county", "ward"].includes(table) &&
-  (hasModulePermission(grants, "PARTICIPANT_VIEW") || hasModulePermission(grants, "REFERRAL_VIEW"));
+  (["county", "sub_county", "ward"].includes(table) && grants.length > 0) ||
+  (table === "pillar" &&
+    (hasModulePermission(grants, "PARTICIPANT_VIEW") ||
+      hasModulePermission(grants, "REFERRAL_VIEW")));

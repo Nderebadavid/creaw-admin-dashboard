@@ -1,5 +1,6 @@
 "use server";
 import type { ViewedDocument } from "@/components/ui/document-viewer";
+import { cleanLocation } from "@/lib/api/location";
 /**
  * Server Actions for grant sign-off, disbursements, reporting periods and document access.
  *
@@ -49,6 +50,7 @@ export async function listGrantsAction(query: GrantQuery) {
         ...clean,
         pillarId: Number.isInteger(query.pillarId) ? query.pillarId : undefined,
         status: typeof query.status === "string" ? query.status.slice(0, 20) : undefined,
+        ...cleanLocation(query),
       }),
     };
   } catch {

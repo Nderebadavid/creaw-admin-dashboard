@@ -7,6 +7,7 @@
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
 import { shownPillars } from "@/components/portal/pillars";
+import { locationParams, type LocationQuery } from "@/lib/api/location";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { withSessionApi } from "@/lib/api/session-api";
@@ -56,7 +57,7 @@ export interface ReferralOriginOption {
   category: string;
 }
 
-export interface ReferralQuery {
+export interface ReferralQuery extends LocationQuery {
   /** A displayed column to sort by, mapped to an API field by the list. */
   sort?: SortState;
   page?: number;
@@ -229,6 +230,7 @@ export function createReferralsApi(client: ApiClient, token: string) {
               REFERRAL_SORT_KEYS
             ),
             ...(query.pillarId ? { pillarId: query.pillarId } : {}),
+            ...locationParams(query),
             facet: "status",
           },
         },

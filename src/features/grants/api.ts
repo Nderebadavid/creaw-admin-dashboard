@@ -7,6 +7,7 @@
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
 import { shownPillars } from "@/components/portal/pillars";
+import { locationParams, type LocationQuery } from "@/lib/api/location";
 import { z } from "zod";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
@@ -27,7 +28,7 @@ import {
   type ApplicationDto,
 } from "./schemas";
 
-export interface GrantQuery {
+export interface GrantQuery extends LocationQuery {
   /** A displayed column to sort by, mapped to an API field by the list. */
   sort?: SortState;
   page?: number;
@@ -325,6 +326,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
               GRANT_SORT_KEYS
             ),
             ...(query.pillarId ? { pillarId: query.pillarId } : {}),
+            ...locationParams(query),
             facet: "status",
           },
         },
@@ -560,6 +562,7 @@ export function createGrantsApi(client: ApiClient, token: string) {
             pillarId: query.pillarId,
             status: query.status,
             search: query.search,
+            ...locationParams(query),
             format: "csv",
           },
         },

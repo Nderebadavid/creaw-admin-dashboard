@@ -7,6 +7,7 @@
  * applies permission and pillar-scope filtering and masks sensitive fields.
  */
 import { shownPillars } from "@/components/portal/pillars";
+import { locationParams, type LocationQuery } from "@/lib/api/location";
 import type { SortState } from "@/components/data-table/sorting";
 import type { ApiClient } from "@/lib/api/client";
 import { listParams } from "@/lib/api/list";
@@ -35,21 +36,30 @@ export const PARTICIPANT_SORT_KEYS: Record<string, string> = {
   curriculum: "curriculum_done",
 };
 
-export interface ParticipantQuery {
+export interface ParticipantQuery extends LocationQuery {
   /** A displayed column to sort by, mapped to an API field by the list. */
   sort?: SortState;
   page?: number;
   pageSize?: number;
   pillarId?: number;
-  countyId?: number;
   search?: string;
   /** Only SRHR participants who are behind on the curriculum. */
   behind?: boolean;
+  /** Only persons with a disability. */
+  pwd?: boolean;
 }
 export interface ParticipantView {
   id: number;
   name: string;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
   idNumber: string | null;
+  dateOfBirth: string | null;
+  /** Person living with a disability. */
+  disability: boolean;
+  refugee: boolean;
+  wardId: number | null;
   phoneNumber: string | null;
   gender: string | null;
   county: string;
@@ -163,7 +173,14 @@ export function createParticipantsApi(client: ApiClient, token: string) {
     return {
       id: row.id,
       name: [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(" "),
+      firstName: row.first_name,
+      middleName: row.middle_name,
+      lastName: row.last_name,
       idNumber: row.id_number,
+      dateOfBirth: row.date_of_birth,
+      disability: row.is_person_with_disability,
+      refugee: row.is_refugee,
+      wardId: row.ward_id,
       phoneNumber: row.phone_number,
       gender: row.gender,
       county: row.county_name ?? "Not recorded",
@@ -219,8 +236,9 @@ export function createParticipantsApi(client: ApiClient, token: string) {
               PARTICIPANT_SORT_KEYS
             ),
             ...(query.pillarId ? { pillarId: query.pillarId } : {}),
-            ...(query.countyId ? { countyId: query.countyId } : {}),
+            ...locationParams(query),
             ...(query.behind ? { curriculum_behind: "true" } : {}),
+            ...(query.pwd ? { is_person_with_disability: "true" } : {}),
           },
         },
         participantListSchema
@@ -289,6 +307,8 @@ export function createParticipantsApi(client: ApiClient, token: string) {
             gender: input.gender || null,
             ward_id: input.wardId ?? null,
             is_consent_given: input.consentGiven,
+            is_person_with_disability: input.disability ?? false,
+            is_refugee: input.refugee ?? false,
             remarks: input.remarks || null,
           },
         },
@@ -308,6 +328,20 @@ export function createParticipantsApi(client: ApiClient, token: string) {
             ...(input.phoneNumber !== undefined ? { phone_number: input.phoneNumber } : {}),
             ...(input.remarks !== undefined ? { remarks: input.remarks } : {}),
             ...(input.consentGiven !== undefined ? { is_consent_given: input.consentGiven } : {}),
+            ...(input.middleName !== undefined ? { middle_name: input.middleName || null } : {}),
+            ...(input.idNumber !== undefined
+              ? {
+                  id_number: input.idNumber || null,
+                  id_number_type: input.idNumber ? "national_id" : "none",
+                }
+              : {}),
+            ...(input.dateOfBirth !== undefined ? { date_of_birth: input.dateOfBirth } : {}),
+            ...(input.gender !== undefined ? { gender: input.gender || null } : {}),
+            ...(input.wardId !== undefined ? { ward_id: input.wardId } : {}),
+            ...(input.disability !== undefined
+              ? { is_person_with_disability: input.disability }
+              : {}),
+            ...(input.refugee !== undefined ? { is_refugee: input.refugee } : {}),
           },
         },
         participantMutationSchema

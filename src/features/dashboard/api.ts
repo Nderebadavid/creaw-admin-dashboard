@@ -11,6 +11,7 @@ import { withSessionApi } from "@/lib/api/session-api";
 import { MONTHS_SHORT } from "@/lib/format";
 import { pillarLookBySlug, shownPillars } from "@/components/portal/pillars";
 import { daysUntil } from "@/features/reporting/status";
+import { locationParams, type LocationQuery } from "@/lib/api/location";
 import { dashboardOverviewSchema } from "./schemas";
 
 export interface DashboardPillar {
@@ -28,6 +29,8 @@ export interface DashboardPillar {
 }
 export interface DashboardOverview {
   activeParticipants: number;
+  /** Participants living with a disability; absent from an API that predates it. */
+  pwdParticipants?: number | null;
   newThisQuarter: number;
   /** Registrations in the quarter before, for the "New this quarter" trend. */
   previousQuarter?: number;
@@ -155,11 +158,13 @@ export function createDashboardApi(client: ApiClient, token: string) {
      * @param period The year charted in "Monthly enrollments".
      * @param chartPillar A pillar slug narrowing that chart; every pillar when omitted.
      * @param funnelPillar The pillar slug whose funnel to show; the API picks one when omitted.
+     * @param location The area every people-based figure is narrowed to.
      */
     async getOverview(
       period: string,
       chartPillar?: string,
-      funnelPillar?: string
+      funnelPillar?: string,
+      location: LocationQuery = {}
     ): Promise<DashboardOverview> {
       const year = /^20\d{2}$/.test(period) ? period : "2026";
       const result = await client.request(
@@ -173,6 +178,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
             year,
             ...(chartPillar ? { pillar: chartPillar } : {}),
             ...(funnelPillar ? { funnel: funnelPillar } : {}),
+            ...locationParams(location),
           },
         },
         dashboardOverviewSchema
@@ -205,6 +211,7 @@ export function createDashboardApi(client: ApiClient, token: string) {
         pillarPresentation[slug.toUpperCase()] ?? unknownPillar(slug);
       return {
         activeParticipants: dto.participant_count,
+        pwdParticipants: dto.pwd_count,
         newThisQuarter: dto.new_this_quarter,
         previousQuarter: dto.previous_quarter,
         enrollmentCount: dto.enrollment_count,
@@ -298,11 +305,17 @@ export function createDashboardApi(client: ApiClient, token: string) {
 }
 
 export const dashboardApi = {
-  async getOverview(period: string, chartPillar?: string, funnelPillar?: string) {
+  async getOverview(
+    period: string,
+    chartPillar?: string,
+    funnelPillar?: string,
+    location?: LocationQuery
+  ) {
     return (await withSessionApi(createDashboardApi)).getOverview(
       period,
       chartPillar,
-      funnelPillar
+      funnelPillar,
+      location
     );
   },
 };

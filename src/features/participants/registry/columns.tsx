@@ -28,7 +28,14 @@ export function participantColumns(
               {initials(row.name)}
             </span>
             <div>
-              <span className="whitespace-nowrap font-semibold">{row.name}</span>
+              <span className="flex items-center gap-2 whitespace-nowrap font-semibold">
+                {row.name}
+                {row.disability && (
+                  <span title="Person living with a disability">
+                    <StatusBadge tone="info">PWD</StatusBadge>
+                  </span>
+                )}
+              </span>
               <p className="whitespace-nowrap text-[12.5px] text-creaw-faint">
                 {row.idNumber ? `ID ${row.idNumber}` : "No ID recorded"}
               </p>
