@@ -16,6 +16,8 @@ import { usePopover } from "./use-popover";
 
 interface Notice {
   icon: LucideIcon;
+  /** How many items are waiting behind this notice. */
+  count: number;
   title: string;
   detail: string;
   href: string;
@@ -29,6 +31,7 @@ function noticesFor(status: NavigationStatus | undefined): Notice[] {
   if (!status) return [];
   const notices: (Notice | false)[] = [
     status.overdueReports > 0 && {
+      count: status.overdueReports,
       icon: CalendarClock,
       title: `${plural(status.overdueReports, "donor report")} overdue`,
       detail: "Reporting calendar",
@@ -36,6 +39,7 @@ function noticesFor(status: NavigationStatus | undefined): Notice[] {
       tone: "crit",
     },
     status.pendingSubmissions > 0 && {
+      count: status.pendingSubmissions,
       icon: Camera,
       title: `${plural(status.pendingSubmissions, "field submission")} awaiting review`,
       detail: "Synced from mobile app",
@@ -43,6 +47,7 @@ function noticesFor(status: NavigationStatus | undefined): Notice[] {
       tone: "warn",
     },
     status.newReferrals > 0 && {
+      count: status.newReferrals,
       icon: ArrowLeftRight,
       title: `${plural(status.newReferrals, "new referral")} to decide`,
       detail: "Referral queue",
@@ -50,6 +55,7 @@ function noticesFor(status: NavigationStatus | undefined): Notice[] {
       tone: "warn",
     },
     status.grantsAwaiting > 0 && {
+      count: status.grantsAwaiting,
       icon: Receipt,
       title: `${plural(status.grantsAwaiting, "grant application")} awaiting sign-off`,
       detail: "Grants",
@@ -66,20 +72,29 @@ const toneClass = {
   info: "bg-[#E9EEF9] text-[#36548e]",
 };
 
-/** Bell button with an unread dot and a dropdown of waiting work. */
+/** Up to 99, then "99+", so the badge stays a small pill. */
+const badgeText = (count: number) => (count > 99 ? "99+" : String(count));
+
+/** Bell button with a count of waiting items and a dropdown of the work behind it. */
 export function NotificationsMenu({ status }: { status?: NavigationStatus }) {
   const notices = noticesFor(status);
   const [read, setRead] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const { ref: popoverRef, open: menuOpen, toggle: toggleMenu, close: closeMenu } = usePopover();
-  const unread = read ? 0 : notices.length;
+  // The badge counts waiting items, not notices: 6 overdue reports and 5 referrals show 11.
+  const unread = read ? 0 : notices.reduce((sum, notice) => sum + notice.count, 0);
+  const urgent = notices.some((notice) => notice.tone === "crit");
 
   return (
     <div ref={popoverRef} className="relative">
       <Button
         variant="outline"
         size="icon"
-        aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+        aria-label={
+          unread
+            ? `Notifications, ${unread} item${unread === 1 ? "" : "s"} waiting`
+            : "Notifications"
+        }
         aria-expanded={menuOpen}
         onClick={toggleMenu}
         className="relative rounded-full border-creaw-line text-creaw-body"
@@ -88,8 +103,10 @@ export function NotificationsMenu({ status }: { status?: NavigationStatus }) {
         {unread > 0 && (
           <span
             aria-hidden="true"
-            className="absolute right-[11px] top-[9px] size-3 rounded-full border-2 border-white bg-[#E0822F]"
-          />
+            className={`absolute -right-1.5 -top-1.5 flex h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-white px-1 text-[11px] font-bold leading-none text-white tabular-nums ${urgent ? "bg-creaw-danger" : "bg-[#E0822F]"}`}
+          >
+            {badgeText(unread)}
+          </span>
         )}
       </Button>
       {menuOpen && (

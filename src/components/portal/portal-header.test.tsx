@@ -19,9 +19,11 @@ afterEach(() => {
 const status = { pendingSubmissions: 5, newReferrals: 0, grantsAwaiting: 2, overdueReports: 1 };
 
 describe("NotificationsMenu", () => {
-  it("lists waiting work as links and flags unread items on the bell", () => {
+  it("lists waiting work as links and counts the waiting items on the bell", () => {
     render(<NotificationsMenu status={status} />);
-    const bell = screen.getByRole("button", { name: "Notifications, 3 unread" });
+    // 1 overdue report + 5 submissions + 2 grants.
+    const bell = screen.getByRole("button", { name: "Notifications, 8 items waiting" });
+    expect(bell).toHaveTextContent("8");
     fireEvent.click(bell);
     const menu = screen.getByRole("region", { name: "Notifications" });
     expect(within(menu).getByRole("link", { name: /1 donor report overdue/ })).toHaveAttribute(
@@ -37,13 +39,26 @@ describe("NotificationsMenu", () => {
     expect(within(menu).queryByText(/referral/)).not.toBeInTheDocument();
   });
 
-  it("clears the unread marker after confirming Mark all read", async () => {
+  it("colours the count red only while a report is overdue, and caps it at 99+", () => {
+    const { rerender } = render(<NotificationsMenu status={status} />);
+    const badge = () =>
+      screen.getByRole("button", { name: /^Notifications, / }).querySelector("span")!;
+    expect(badge()).toHaveClass("bg-creaw-danger");
+    rerender(<NotificationsMenu status={{ ...status, overdueReports: 0 }} />);
+    expect(badge()).toHaveTextContent("7");
+    expect(badge()).not.toHaveClass("bg-creaw-danger");
+    rerender(<NotificationsMenu status={{ ...status, pendingSubmissions: 150 }} />);
+    expect(badge()).toHaveTextContent("99+");
+  });
+
+  it("clears the count after confirming Mark all read", async () => {
     render(<NotificationsMenu status={status} />);
-    fireEvent.click(screen.getByRole("button", { name: "Notifications, 3 unread" }));
+    fireEvent.click(screen.getByRole("button", { name: "Notifications, 8 items waiting" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark all read" }));
     const dialog = await screen.findByRole("dialog", { name: "Mark all as read?" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Mark all read" }));
-    expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+    const bell = screen.getByRole("button", { name: "Notifications" });
+    expect(bell).not.toHaveTextContent(/\d/);
   });
 
   it("says when there is nothing waiting", () => {
