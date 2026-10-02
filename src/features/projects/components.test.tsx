@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { chooseOption, clearSelect, selectInput } from "@/test/searchable-select";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/features/grants/actions", () => ({
@@ -190,7 +191,7 @@ describe("projects register", () => {
       target: { value: "Amani grants" },
     });
     fireEvent.change(within(dialog).getByLabelText("Pillar"), { target: { value: "2" } });
-    fireEvent.change(within(dialog).getByLabelText("Donor"), { target: { value: "3" } });
+    await chooseOption("Donor", "master", "Mastercard Foundation", dialog);
     fireEvent.change(within(dialog).getByLabelText("Start date"), {
       target: { value: "2026-03-01" },
     });
@@ -228,7 +229,7 @@ describe("projects register", () => {
     fireEvent.change(within(dialog).getByLabelText("End date"), {
       target: { value: "2027-03-31" },
     });
-    await within(dialog).findByRole("option", { name: "Mastercard Foundation" });
+    await waitFor(() => expect(selectInput("Donor", dialog)).toHaveValue("Mastercard Foundation"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
     await waitFor(() =>
       expect(saveProjectAction).toHaveBeenCalledWith(
@@ -251,12 +252,12 @@ describe("projects register", () => {
     fireEvent.click(screen.getByText("Jasiri business grants"));
     fireEvent.click(screen.getByRole("button", { name: "Edit project" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit project" });
-    await within(dialog).findByRole("option", { name: "Mastercard Foundation" });
+    await waitFor(() => expect(selectInput("Donor", dialog)).toHaveValue("Mastercard Foundation"));
     fireEvent.change(within(dialog).getByLabelText("Project name"), {
       target: { value: "Jasiri II" },
     });
     fireEvent.change(within(dialog).getByLabelText("Pillar"), { target: { value: "1" } });
-    fireEvent.change(within(dialog).getByLabelText("Donor"), { target: { value: "" } });
+    await clearSelect("Donor", dialog);
     fireEvent.change(within(dialog).getByLabelText("Start date"), {
       target: { value: "2026-02-01" },
     });

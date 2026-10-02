@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -90,14 +91,11 @@ export function RegisterOrganisationDialog({
         </label>
         <label className="text-sm">
           Ward of operation
-          <select name="wardId" defaultValue="" className={fieldClass}>
-            <option value="">Not recorded</option>
-            {wards.map((ward) => (
-              <option key={ward.id} value={ward.id}>
-                {ward.name}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="wardId"
+            emptyLabel="Not recorded"
+            options={wards.map((ward) => ({ value: ward.id, label: ward.name }))}
+          />
         </label>
         <label className="text-sm">
           Programme category

@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -213,38 +214,27 @@ export function SessionFormDialog({
         </label>
         <label className="text-sm sm:col-span-2">
           Facilitator
-          <select
+          <SearchableSelect
             name="facilitator"
             required
+            emptyLabel="Choose a facilitator"
             defaultValue={defaultFacilitator}
-            className={fieldClass}
-          >
-            {defaultFacilitator === "" && (
-              <option value="" disabled>
-                Choose a facilitator
-              </option>
-            )}
-            {keptCurrent && <option value={keptCurrent.value}>{keptCurrent.label}</option>}
-            {fallbackMe && <option value={fallbackMe.value}>{fallbackMe.label}</option>}
-            {staff.length > 0 && (
-              <optgroup label="CREAW staff">
-                {staff.map((item) => (
-                  <option key={item.id} value={`staff:${item.id}`}>
-                    {item.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {providers.length > 0 && (
-              <optgroup label="External providers">
-                {providers.map((item) => (
-                  <option key={item.id} value={`provider:${item.id}`}>
-                    {`${item.name} · ${item.detail}`}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+            options={[
+              ...[keptCurrent, fallbackMe]
+                .filter((item): item is { value: string; label: string } => Boolean(item))
+                .map((item) => ({ value: item.value, label: item.label })),
+              ...staff.map((item) => ({
+                value: `staff:${item.id}`,
+                label: item.name,
+                group: "CREAW staff",
+              })),
+              ...providers.map((item) => ({
+                value: `provider:${item.id}`,
+                label: `${item.name} · ${item.detail}`,
+                group: "External providers",
+              })),
+            ]}
+          />
         </label>
         <label className="text-sm sm:col-span-2">
           Notes

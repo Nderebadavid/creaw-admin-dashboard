@@ -1,4 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  chooseOption,
+  optionLabels,
+  searchSelect,
+  selectInput,
+  submittedValue,
+} from "@/test/searchable-select";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
@@ -426,15 +433,13 @@ describe("session facilitators in the UI", () => {
   it("groups staff and providers and defaults to the current user when logging", async () => {
     const dialog = await openLog();
     expect(actions.loadSessionOptionsAction).toHaveBeenCalledWith("srhr");
-    const select = within(dialog).getByLabelText("Facilitator") as HTMLSelectElement;
-    expect([...select.querySelectorAll("optgroup")].map((g) => g.label)).toEqual([
-      "CREAW staff",
-      "External providers",
-    ]);
-    expect(select.value).toBe("staff:1");
-    expect([...select.options].map((o) => o.text)).toContain(
-      "Faith Kimani · Counsellor · Kibera Clinic"
-    );
+    expect(submittedValue("facilitator", dialog)).toBe("staff:1");
+    await searchSelect("Facilitator", "", dialog);
+    expect(screen.getByText("CREAW staff")).toBeInTheDocument();
+    expect(screen.getByText("External providers")).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Faith Kimani · Counsellor · Kibera Clinic" })
+    ).toBeInTheDocument();
   });
 
   it("offers only Me when the options could not be loaded", async () => {
@@ -449,9 +454,8 @@ describe("session facilitators in the UI", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Could not load the options."
     );
-    const select = within(dialog).getByLabelText("Facilitator") as HTMLSelectElement;
-    expect([...select.options].map((o) => o.text)).toEqual(["Me (Amina Hassan)"]);
-    expect(select.value).toBe("staff:1");
+    expect(submittedValue("facilitator", dialog)).toBe("staff:1");
+    expect(await optionLabels("Facilitator", "", dialog)).toEqual(["Me (Amina Hassan)"]);
   });
 
   it("keeps an edited session's facilitator selected when it is not among the options", async () => {
@@ -472,9 +476,8 @@ describe("session facilitators in the UI", () => {
       />
     );
     await screen.findByRole("option", { name: "Health Talk" });
-    const select = screen.getByLabelText("Facilitator") as HTMLSelectElement;
-    expect(select.value).toBe("provider:1");
-    expect(select.selectedOptions[0].text).toBe("Faith Kimani");
+    expect(submittedValue("facilitator")).toBe("provider:1");
+    expect(selectInput("Facilitator")).toHaveValue("Faith Kimani");
   });
 
   it("does not assign the editor when a session has no facilitator", async () => {
@@ -489,19 +492,18 @@ describe("session facilitators in the UI", () => {
       />
     );
     await screen.findByRole("option", { name: "Health Talk" });
-    const select = screen.getByLabelText("Facilitator") as HTMLSelectElement;
-    expect(select.value).toBe("");
-    expect(select.selectedOptions[0].text).toBe("Choose a facilitator");
-    expect(select.required).toBe(true);
+    const input = selectInput("Facilitator");
+    expect(submittedValue("facilitator")).toBe("");
+    expect(input).toHaveValue("");
+    expect(input).toHaveAttribute("placeholder", "Choose a facilitator");
+    expect(input).toBeRequired();
   });
 
   it("submits the chosen facilitator", async () => {
     const dialog = await openLog();
     fireEvent.change(within(dialog).getByLabelText("Activity type"), { target: { value: "4" } });
     fireEvent.change(within(dialog).getByLabelText("Topic"), { target: { value: "11" } });
-    fireEvent.change(within(dialog).getByLabelText("Facilitator"), {
-      target: { value: "provider:1" },
-    });
+    await chooseOption("Facilitator", "faith", "Faith Kimani · Counsellor · Kibera Clinic", dialog);
     fireEvent.click(within(dialog).getByRole("button", { name: "Log session" }));
     await vi.waitFor(() =>
       expect(actions.logSessionAction).toHaveBeenCalledWith(

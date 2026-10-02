@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { fieldClass } from "@/components/ui/form-styles";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -113,7 +114,7 @@ function FieldInput({
           // Masked values ("••••") are never sent back as the new text.
           defaultValue={typeof value === "string" && !value.startsWith("••") ? value : ""}
         />
-      ) : field.kind === "select" ? (
+      ) : field.kind === "select" && field.choices ? (
         <select
           className={fieldClass}
           name={field.key}
@@ -121,20 +122,23 @@ function FieldInput({
           defaultValue={value == null ? "" : String(value)}
         >
           <option value="">{field.required ? "Select" : "None"}</option>
-          {field.choices
-            ? field.choices.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))
-            : options
-                .filter((option) => option.id > 0)
-                .map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
+          {field.choices.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
+      ) : field.kind === "select" ? (
+        // Parent records (counties, sub-counties, pillars…) can be long, so they are searchable.
+        <SearchableSelect
+          name={field.key}
+          required={field.required}
+          emptyLabel={field.required ? "Select" : "None"}
+          defaultValue={value == null ? null : String(value)}
+          options={options
+            .filter((option) => option.id > 0)
+            .map((option) => ({ value: option.id, label: option.name }))}
+        />
       ) : (
         <input
           className={fieldClass}

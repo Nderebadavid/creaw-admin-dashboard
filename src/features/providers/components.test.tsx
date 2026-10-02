@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { optionLabels, selectInput } from "@/test/searchable-select";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
@@ -120,7 +121,7 @@ describe("provider directory", () => {
     );
   });
 
-  it("keeps an institution that is missing from the list selected when editing", () => {
+  it("keeps an institution that is missing from the list selected when editing", async () => {
     const orphaned: ProviderDirectory = {
       ...directory,
       institutions: [{ id: 7, name: "Other Clinic" }],
@@ -131,11 +132,8 @@ describe("provider directory", () => {
     render(<ProviderRegister directory={orphaned} can={all} />);
     fireEvent.click(screen.getByRole("button", { name: "Open Faith Kimani" }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Edit" }));
-    const select = screen.getByLabelText("Affiliated institution") as HTMLSelectElement;
-    expect(select.value).toBe("1");
-    expect(select.selectedOptions[0].text).toBe("Unknown institution");
-    expect([...select.options].map((o) => o.text)).toEqual([
-      "None",
+    expect(selectInput("Affiliated institution")).toHaveValue("Unknown institution");
+    expect(await optionLabels("Affiliated institution")).toEqual([
       "Unknown institution",
       "Other Clinic",
     ]);

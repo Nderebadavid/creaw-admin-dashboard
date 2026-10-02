@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { chooseOption, selectInput } from "@/test/searchable-select";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("./actions", () => ({
   createReferralAction: vi.fn(),
@@ -101,13 +102,16 @@ it("submits an external institution destination from the referral dialog", async
   );
   fireEvent.click(screen.getByRole("button", { name: "New referral" }));
   const dialog = screen.getByRole("dialog");
-  await within(dialog).findByRole("option", { name: /Faith Njeri/ });
+  await waitFor(() =>
+    expect(selectInput("Participant and origin enrollment", dialog).value).toMatch(/Faith Njeri/)
+  );
   fireEvent.change(within(dialog).getByRole("combobox", { name: "Destination type" }), {
     target: { value: "external" },
   });
   fireEvent.change(within(dialog).getByRole("combobox", { name: "Responsible pillar" }), {
     target: { value: "1" },
   });
+  await chooseOption("Partner institution", "shelter", "Nairobi Women's Shelter", dialog);
   fireEvent.change(within(dialog).getByRole("textbox", { name: "Reason" }), {
     target: { value: "Shelter placement" },
   });

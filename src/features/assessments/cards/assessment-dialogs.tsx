@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useState, type FormEvent } from "react";
 import { ActionDialog } from "@/components/ui/action-dialog";
@@ -224,21 +225,13 @@ export function NewAssessmentDialog({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             Organisation
-            <select
+            <SearchableSelect
               name="organisationId"
               required
-              defaultValue={organisationId ?? ""}
-              className={fieldClass}
-            >
-              <option value="" disabled>
-                Choose an organisation
-              </option>
-              {options.organisations.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+              emptyLabel="Choose an organisation"
+              defaultValue={organisationId}
+              options={options.organisations.map((item) => ({ value: item.id, label: item.name }))}
+            />
           </label>
           <label className="block text-sm">
             Assessment instrument

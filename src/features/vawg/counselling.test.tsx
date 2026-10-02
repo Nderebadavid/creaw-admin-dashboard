@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { selectInput, submittedValue } from "@/test/searchable-select";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import {
   listSurvivorsAction,
@@ -259,10 +260,10 @@ describe("counselling dialog", () => {
     fireEvent.click(within(drawer).getByRole("button", { name: /Log session/ }));
     const dialog = screen.getByRole("dialog");
     // The options load when the dialog opens.
-    await within(dialog).findByRole("option", { name: "Cynthia Chelimo" });
+    await waitFor(() => expect(selectInput("Counsellor", dialog)).toHaveValue("Cynthia Chelimo"));
     expect(loadCounsellingOptionsAction).toHaveBeenCalled();
     expect(dialog).toHaveTextContent("This will be session 3 for Aisha Mohamed.");
-    expect(within(dialog).getByLabelText("Counsellor")).toHaveValue("staff:6");
+    expect(submittedValue("counsellor", dialog)).toBe("staff:6");
     expect(within(dialog).getByLabelText("Session type")).toHaveValue("follow_up");
     fireEvent.change(within(dialog).getByLabelText("Notes"), { target: { value: "Check-in" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Log session" }));
@@ -288,13 +289,13 @@ describe("counselling dialog", () => {
     const drawer = await openSurvivor("Halima Noor");
     fireEvent.click(within(drawer).getByRole("button", { name: "Edit session 1" }));
     const dialog = screen.getByRole("dialog");
-    await within(dialog).findByRole("option", { name: "Cynthia Chelimo" });
+    await waitFor(() => expect(submittedValue("counsellor", dialog)).toBe("provider:1"));
     expect(within(dialog).getByLabelText("Notes")).toHaveValue("");
     expect(within(dialog).getByLabelText("Notes")).toHaveAttribute(
       "placeholder",
       "Leave blank to keep the current notes"
     );
-    expect(within(dialog).getByLabelText("Counsellor")).toHaveValue("provider:1");
+    expect(selectInput("Counsellor", dialog)).toHaveValue("Faith Kimani");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save changes" }));
     await waitFor(() =>
       expect(updateCounsellingAction).toHaveBeenCalledWith(
@@ -323,7 +324,7 @@ describe("counselling dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open CRW-VAWG-0002" }));
     fireEvent.click(screen.getByRole("button", { name: /Log counselling/ }));
     const dialog = screen.getByRole("dialog");
-    await within(dialog).findByRole("option", { name: "Cynthia Chelimo" });
+    await waitFor(() => expect(selectInput("Counsellor", dialog)).toHaveValue("Cynthia Chelimo"));
     expect(dialog).toHaveTextContent("This will be session 3 for Aisha Mohamed.");
   });
 });

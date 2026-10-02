@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { chooseOption } from "@/test/searchable-select";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("./actions", () => ({
   listAssessmentsAction: vi.fn(),
@@ -146,7 +147,7 @@ describe("assessment cards", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "New assessment" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Organisation"), { target: { value: "7" } });
+    await chooseOption("Organisation", "kilifi", "Kilifi Mothers Forum", dialog);
     expect(within(dialog).getByLabelText("Assessment instrument")).toHaveValue("2");
     // Every domain must be scored, as on the mobile app.
     fireEvent.click(within(dialog).getByRole("radio", { name: "Governance: 4" }));

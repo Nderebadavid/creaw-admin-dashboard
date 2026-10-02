@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -103,20 +104,22 @@ export function TraineeFormDialog({
         {!trainee && (
           <label className="text-sm sm:col-span-2">
             Participant
-            <select name="enrollmentId" required defaultValue="" className={fieldClass}>
-              <option value="" disabled>
-                {options.loading
+            <SearchableSelect
+              key={options.data ? "ready" : "loading"}
+              name="enrollmentId"
+              required
+              emptyLabel={
+                options.loading
                   ? "Loading participants…"
                   : options.data?.enrollments.length
                     ? "Choose a Skilling participant"
-                    : "No Skilling participants available"}
-              </option>
-              {(options.data?.enrollments ?? []).map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+                    : "No Skilling participants available"
+              }
+              options={(options.data?.enrollments ?? []).map((item) => ({
+                value: item.id,
+                label: item.label,
+              }))}
+            />
           </label>
         )}
         <label className="text-sm">
@@ -148,29 +151,21 @@ export function TraineeFormDialog({
         </label>
         <label className="text-sm">
           Institution
-          <select
+          <SearchableSelect
             name="institutionId"
-            defaultValue={trainee?.institutionId ?? ""}
-            className={fieldClass}
-          >
-            <option value="">None</option>
-            {institutions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+            emptyLabel="None"
+            defaultValue={trainee?.institutionId}
+            options={institutions.map((item) => ({ value: item.id, label: item.label }))}
+          />
         </label>
         <label className="text-sm">
           Trainer
-          <select name="trainerId" defaultValue={trainee?.trainerId ?? ""} className={fieldClass}>
-            <option value="">Not assigned</option>
-            {trainers.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="trainerId"
+            emptyLabel="Not assigned"
+            defaultValue={trainee?.trainerId}
+            options={trainers.map((item) => ({ value: item.id, label: item.label }))}
+          />
         </label>
         <label className="text-sm">
           Start date

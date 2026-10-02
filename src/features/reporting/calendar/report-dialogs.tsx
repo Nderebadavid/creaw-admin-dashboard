@@ -1,4 +1,5 @@
 "use client";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { fieldClass } from "@/components/ui/form-styles";
 import { useState, type FormEvent } from "react";
 import { useActionSubmit } from "@/components/ui/use-action-submit";
@@ -59,13 +60,13 @@ export function AddDeadlineDialog({
         </label>
         <label className="block text-sm">
           Programme
-          <select name="projectId" required className={fieldClass}>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="projectId"
+            required
+            emptyLabel="Choose a programme"
+            defaultValue={projects[0]?.id}
+            options={projects.map((project) => ({ value: project.id, label: project.name }))}
+          />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
