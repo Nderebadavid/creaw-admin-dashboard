@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
-import { Barlow, Barlow_Condensed } from "next/font/google";
+import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const barlow = Barlow({
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-barlow",
-  subsets: ["latin"],
-});
-
-const barlowCondensed = Barlow_Condensed({
-  weight: ["500", "600", "700"],
-  variable: "--font-barlow-condensed",
+// Inter is the portal's one typeface, for body text and headings alike.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -26,7 +20,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${barlow.variable} ${barlowCondensed.variable} h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
     >
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>

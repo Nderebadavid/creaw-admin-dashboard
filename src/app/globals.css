@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-barlow);
+  --font-sans: var(--font-inter);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-heading: var(--font-barlow-condensed);
+  --font-heading: var(--font-inter);
   --color-creaw-orange: var(--creaw-orange);
   --color-creaw-ink: var(--creaw-ink);
   --color-creaw-canvas: var(--creaw-canvas);
