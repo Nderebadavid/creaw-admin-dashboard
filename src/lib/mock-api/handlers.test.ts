@@ -46,13 +46,13 @@ describe("mock repository contracts", () => {
       success: false,
     });
   });
-  it("returns 404 for unknown paths and missing rows, and 403 for denied users", async () => {
+  it("returns 404 for unknown paths and missing rows, 403 for users without grants and 401 without a token", async () => {
     expect(await request({ path: "/not-a-route" })).toMatchObject({ resultCode: 404 });
     expect(
       await request({ path: "/participants/999", routeTemplate: "/participants/:id" })
     ).toMatchObject({ resultCode: 404 });
     expect(await request({ token: "mock-user-999" })).toMatchObject({ resultCode: 403 });
-    expect(await request({ token: undefined })).toMatchObject({ resultCode: 403 });
+    expect(await request({ token: undefined })).toMatchObject({ resultCode: 401 });
   });
   it("soft deletes in place, hides the row and writes a redacted audit record", async () => {
     const before = getMockStore().participant.length;

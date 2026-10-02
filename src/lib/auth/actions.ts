@@ -3,7 +3,19 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { postAuth, SERVICE_UNREACHABLE, type AuthActionResult } from "./auth-request";
-import { LOGIN_CHALLENGE_COOKIE_NAME, SESSION_COOKIE_NAME, toPortalSessionUser } from "./session";
+import { createPortalApiClient } from "../api/portal-client";
+import {
+  LOGIN_CHALLENGE_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+  toPortalSessionUser,
+} from "./session";
+import {
+  clearSessionCookies,
+  parseTokenPair,
+  protectedCookie,
+  writeSessionCookies,
+} from "./tokens";
 
 export type { AuthActionResult };
 
@@ -26,7 +38,6 @@ export interface VerifyOtpActionResult extends OtpActionResult {
 }
 
 const CHALLENGE_SECONDS = 60 * 10;
-const SESSION_SECONDS = 60 * 60 * 12;
 const RESULT_LOCKED = 423;
 const RESULT_GONE = 410;
 const CHALLENGE_EXPIRED: OtpActionResult = {
@@ -35,27 +46,27 @@ const CHALLENGE_EXPIRED: OtpActionResult = {
   error: "Your verification code has expired. Sign in again to get a new one.",
 };
 
-const protectedCookie = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
-  path: "/",
-} as const;
-
 const challengeData = z.object({
   challengeId: z.string().min(1),
   maskedPhone: z.string().nullable(),
   maskedEmail: z.string().nullable(),
 });
-const sessionData = z.object({
-  token: z.string().min(1),
-  user: z.object({
-    id: z.number(),
-    first_name: z.string(),
-    last_name: z.string(),
-    email: z.string().nullable(),
-  }),
-  roles: z.array(z.string()).default([]),
+const SIGN_IN_FAILED = { success: false, error: "Sign in failed. Please try again." } as const;
+const currentUser = z.object({
+  resultCode: z.number(),
+  success: z.boolean(),
+  message: z.string(),
+  data: z
+    .object({
+      user: z.object({
+        id: z.number(),
+        first_name: z.string(),
+        last_name: z.string(),
+        email: z.string().nullable(),
+      }),
+      roles: z.array(z.string()).default([]),
+    })
+    .nullable(),
 });
 const challengeCookie = z.object({ id: z.string().min(1), remember: z.boolean() });
 
@@ -98,7 +109,7 @@ export async function loginAction(
     // A response without a challenge (for example a bare token) is refused:
     // a password alone must never sign anyone in.
     const data = challengeData.safeParse(response.data);
-    if (!data.success) return { success: false, error: "Sign in failed. Please try again." };
+    if (!data.success) return SIGN_IN_FAILED;
     const { challengeId, maskedPhone, maskedEmail } = data.data;
     (await cookies()).set(
       LOGIN_CHALLENGE_COOKIE_NAME,
@@ -111,7 +122,10 @@ export async function loginAction(
   }
 }
 
-/** Step two: exchanges the one-time code for the session cookie. */
+/**
+ * Step two: exchanges the one-time code for the token pair, stores it in protected
+ * cookies, and reads the signed-in user from `/auth/me` for the welcome screen.
+ */
 export async function verifyOtpAction(code: string): Promise<VerifyOtpActionResult> {
   if (typeof code !== "string" || !/^\d{6}$/.test(code))
     return { success: false, error: "Enter the 6-digit code." };
@@ -125,15 +139,17 @@ export async function verifyOtpAction(code: string): Promise<VerifyOtpActionResu
       cookieStore.delete(LOGIN_CHALLENGE_COOKIE_NAME);
       return { ...CHALLENGE_EXPIRED, error: response.message };
     }
-    const data = sessionData.safeParse(response.data);
-    if (!data.success) return { success: false, error: "Sign in failed. Please try again." };
+    const pair = parseTokenPair(response.data);
+    if (!pair) return SIGN_IN_FAILED;
+    const me = await createPortalApiClient().request(
+      { method: "GET", path: "/auth/me", routeTemplate: "/auth/me", token: pair.token },
+      currentUser
+    );
+    if (!me.success || !me.data) return SIGN_IN_FAILED;
     cookieStore.delete(LOGIN_CHALLENGE_COOKIE_NAME);
-    cookieStore.set(SESSION_COOKIE_NAME, data.data.token, {
-      ...protectedCookie,
-      ...(challenge.remember ? { maxAge: SESSION_SECONDS } : {}),
-    });
-    const { firstName, initials } = toPortalSessionUser(data.data.user);
-    return { success: true, user: { firstName, initials, role: data.data.roles[0] ?? null } };
+    writeSessionCookies(cookieStore, pair, challenge.remember);
+    const { firstName, initials } = toPortalSessionUser(me.data.user);
+    return { success: true, user: { firstName, initials, role: me.data.roles[0] ?? null } };
   } catch {
     return SERVICE_UNREACHABLE;
   }
@@ -161,15 +177,17 @@ export async function resendOtpAction(): Promise<OtpActionResult> {
   }
 }
 
+/** Revokes the access and refresh tokens upstream, then clears every session cookie. */
 export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (token) {
+  const refreshToken = cookieStore.get(REFRESH_COOKIE_NAME)?.value;
+  if (token || refreshToken) {
     try {
-      await postAuth("/auth/logout", undefined, token);
+      await postAuth("/auth/logout", refreshToken ? { refreshToken } : undefined, token);
     } catch {
       // A failed upstream logout must not leave the browser signed in.
     }
   }
-  cookieStore.delete(SESSION_COOKIE_NAME);
+  clearSessionCookies(cookieStore);
 }

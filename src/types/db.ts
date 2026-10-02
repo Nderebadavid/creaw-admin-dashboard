@@ -430,8 +430,28 @@ export interface MockLoginChallenge {
   expiresAt: number;
   wrongCodes: number;
 }
+/** An issued access token. */
+export interface MockAccessToken {
+  userId: number;
+  expiresAt: number;
+}
+/** A refresh token; once rotated it points at the pair that replaced it. */
+export interface MockRefreshToken {
+  userId: number;
+  /** Fixed at sign-in: rotation never extends the session past it. */
+  expiresAt: number;
+  rotated?: { at: number; successor: MockTokenPair };
+}
+/** What sign-in and refresh return, as the API writes it. */
+export interface MockTokenPair {
+  token: string;
+  expireAt: string;
+  refreshToken: string;
+  refreshExpireAt: string;
+}
 export type MockStore = { [K in TableName]: DbTables[K][] } & {
-  sessions: Map<string, number>;
+  sessions: Map<string, MockAccessToken>;
+  refreshTokens: Map<string, MockRefreshToken>;
   loginChallenges: Map<string, MockLoginChallenge>;
   /** Failed password attempts per account; `lockedUntil` is 0 while unlocked. */
   failedLogins: Map<string, { count: number; lockedUntil: number }>;

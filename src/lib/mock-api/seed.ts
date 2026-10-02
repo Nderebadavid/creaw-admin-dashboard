@@ -38,6 +38,7 @@ export function createSeed(): MockStore {
     Object.keys(tableDefinitions).map((table) => [table, []])
   ) as unknown as MockStore;
   store.sessions = new Map();
+  store.refreshTokens = new Map();
   store.loginChallenges = new Map();
   store.failedLogins = new Map();
   store.resetTokens = new Map();

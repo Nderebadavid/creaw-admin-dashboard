@@ -34,13 +34,14 @@ Five wrong passwords lock an account for 15 minutes. "Forgot password?" walks th
 
 ## Environment
 
-| Variable                | Default | Purpose                                                                                                                                           |
-| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORTAL_API_MODE`       | `mock`  | `mock` serves every request from an in-process repository and makes no network calls. `live` sends the same requests to the backend with `fetch`. |
-| `PORTAL_API_BASE_URL`   | none    | Backend base URL. Required when `PORTAL_API_MODE=live`.                                                                                           |
-| `PORTAL_API_TIMEOUT_MS` | `10000` | Per-request timeout for live mode.                                                                                                                |
+| Variable                | Default  | Purpose                                                                                                                                           |
+| ----------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORTAL_API_MODE`       | `mock`   | `mock` serves every request from an in-process repository and makes no network calls. `live` sends the same requests to the backend with `fetch`. |
+| `PORTAL_API_BASE_URL`   | none     | Backend base URL. Required when `PORTAL_API_MODE=live`.                                                                                           |
+| `PORTAL_API_TIMEOUT_MS` | `10000`  | Per-request timeout for live mode.                                                                                                                |
+| `PORTAL_API_UTC_OFFSET` | `+03:00` | Clock the auth API's zone-less token expiry times (`2026-09-26 17:37:27`) are read in. Timestamps that carry their own offset ignore it.          |
 
-All three are server-only. Switching modes changes the transport only; pages, components and Server Actions stay the same.
+All four are server-only. Switching modes changes the transport only; pages, components and Server Actions stay the same.
 
 **Mock state is in memory.** Changes made in mock mode last only as long as the server process. Restarting `yarn dev` or `yarn start` restores the deterministic seed data and signs everyone out.
 

@@ -27,6 +27,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -126,26 +127,93 @@ describe("password step", () => {
 });
 
 describe("verification step", () => {
-  it("sets only the opaque token in a protected cookie and returns no token", async () => {
+  it("stores the token pair in protected cookies and returns no token", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-30T08:00:00Z"));
     await loginAction("judy.mwangi", "creaw-demo", true);
     const result = await verifyOtpAction(OTP);
     expect(result).toEqual({
       success: true,
       user: { firstName: "Judy", initials: "JM", role: "System Administrator" },
     });
-    expect(cookieStore.set).toHaveBeenLastCalledWith(
+    const protectedFor = (maxAge: number) =>
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", maxAge });
+    expect(cookieStore.set).toHaveBeenCalledWith(
       "creaw_session",
       expect.stringMatching(/^[0-9a-f-]{36}$/i),
-      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 43200 })
+      protectedFor(30 * 60)
     );
+    expect(cookieStore.set).toHaveBeenCalledWith(
+      "creaw_refresh",
+      expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      protectedFor(7 * 24 * 60 * 60)
+    );
+    expect(JSON.parse(jar.get("creaw_session_meta")!)).toEqual({
+      expiresAt: Date.parse("2026-09-30T08:30:00Z"),
+      remember: true,
+    });
     expect(JSON.stringify(result)).not.toContain(jar.get("creaw_session"));
+    expect(JSON.stringify(result)).not.toContain(jar.get("creaw_refresh"));
     expect(jar.has("creaw_login_challenge")).toBe(false);
     expect((await me(jar.get("creaw_session")!)).resultCode).toBe(200);
   });
 
-  it("makes a browser-session cookie when the user does not stay signed in", async () => {
+  it("makes browser-session cookies when the user does not stay signed in", async () => {
     await signIn(false);
-    expect(cookieStore.set.mock.lastCall?.[2]).not.toHaveProperty("maxAge");
+    for (const [name, , options] of cookieStore.set.mock.calls)
+      if (name !== "creaw_login_challenge") expect(options).not.toHaveProperty("maxAge");
+  });
+
+  it("reads a live token pair with the API's zone-less timestamps", async () => {
+    await loginAction("judy.mwangi", "creaw-demo", true);
+    vi.stubEnv("PORTAL_API_MODE", "live");
+    vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");
+    const envelope = (data: unknown, message = "OK") =>
+      new Response(JSON.stringify({ resultCode: 200, success: true, message, data }));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelope(
+            {
+              token: "1DZ0bhqd6An9XTlUWj4FouNIxXn2eTQUPZ8ja49m-QQ",
+              expireAt: "2026-09-26 17:37:27",
+              refreshToken: "d38rpKxC6YUhfX7spl1eTzYZJCmc3QczezpQJwnJ7q8",
+              refreshExpireAt: "2026-10-03 17:07:27",
+            },
+            "Login successful"
+          )
+        )
+        .mockResolvedValueOnce(
+          envelope({
+            user: { id: 1, first_name: "Judy", last_name: "Mwangi", email: null },
+            grants: [],
+            roles: [],
+          })
+        )
+    );
+    expect(await verifyOtpAction(OTP)).toMatchObject({ success: true });
+    expect(jar.get("creaw_session")).toBe("1DZ0bhqd6An9XTlUWj4FouNIxXn2eTQUPZ8ja49m-QQ");
+    expect(jar.get("creaw_refresh")).toBe("d38rpKxC6YUhfX7spl1eTzYZJCmc3QczezpQJwnJ7q8");
+    expect(JSON.parse(jar.get("creaw_session_meta")!).expiresAt).toBe(
+      Date.parse("2026-09-26T14:37:27Z")
+    );
+  });
+
+  it("refuses a token pair without readable expiry", async () => {
+    await loginAction("judy.mwangi", "creaw-demo", true);
+    stubLiveResponse(200, {
+      resultCode: 200,
+      success: true,
+      message: "Login successful",
+      data: { token: "t", expireAt: "soon", refreshToken: "r", refreshExpireAt: "later" },
+    });
+    expect(await verifyOtpAction(OTP)).toEqual({
+      success: false,
+      error: "Sign in failed. Please try again.",
+    });
+    expect(jar.has("creaw_session")).toBe(false);
   });
 
   it("keeps the challenge after a wrong code and creates no session", async () => {
@@ -185,11 +253,23 @@ describe("verification step", () => {
 });
 
 describe("logout", () => {
-  it("revokes the token and removes the cookie", async () => {
+  it("revokes both tokens and removes every session cookie", async () => {
     const token = await signIn();
+    const refreshToken = jar.get("creaw_refresh")!;
     await logoutAction();
-    expect(cookieStore.delete).toHaveBeenCalledWith("creaw_session");
-    expect((await me(token)).resultCode).toBe(403);
+    for (const name of ["creaw_session", "creaw_refresh", "creaw_session_meta"])
+      expect(cookieStore.delete).toHaveBeenCalledWith(name);
+    expect((await me(token)).resultCode).toBe(401);
+    const refreshed = await createPortalApiClient().request(
+      {
+        method: "POST",
+        path: "/auth/refresh",
+        routeTemplate: "/auth/refresh",
+        body: { refreshToken },
+      },
+      createEnvelopeSchema(z.unknown())
+    );
+    expect(refreshed.resultCode).toBe(401);
   });
 
   it("allows a fresh login after revoking a previous token", async () => {

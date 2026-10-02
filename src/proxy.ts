@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import {
+  REFRESH_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+  SESSION_META_COOKIE_NAME,
+} from "@/lib/auth/session";
+import {
+  clearSessionCookies,
+  needsRefresh,
+  readSessionMeta,
+  refreshSession,
+  writeSessionCookies,
+} from "@/lib/auth/tokens";
 
 // Routes reachable without a session. Everything else under the matcher
 // below requires a CREAW session cookie.
@@ -17,25 +28,49 @@ function redirectToLogin(request: NextRequest): NextResponse {
   }
   const response = NextResponse.redirect(url);
   // Clears anything stale/invalid so the login page doesn't inherit it.
-  response.cookies.delete(SESSION_COOKIE_NAME);
+  clearSessionCookies(response.cookies);
   return response;
 }
 
-// Proxy performs only the fast, optimistic cookie-presence check recommended
-// by Next.js 16. Portal layouts and every Server Action authoritatively
-// validate the token through /auth/me and re-check permissions.
-export function proxy(request: NextRequest) {
+// Proxy performs the fast, optimistic cookie check recommended by Next.js 16, and keeps
+// the short-lived access token fresh: when it is missing or about to expire, it is renewed
+// with the refresh token before the page or Server Action runs. Portal layouts and every
+// Server Action still authoritatively validate the token through /auth/me.
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (!token) {
-    return redirectToLogin(request);
+  const refreshToken = request.cookies.get(REFRESH_COOKIE_NAME)?.value;
+  const meta = readSessionMeta(request.cookies.get(SESSION_META_COOKIE_NAME)?.value);
+  if (!refreshToken || !needsRefresh(token, meta)) {
+    return token ? NextResponse.next() : redirectToLogin(request);
   }
 
-  return NextResponse.next();
+  const outcome = await refreshSession(refreshToken);
+  if (outcome.status === "rejected") return redirectToLogin(request);
+  // An unreachable API leaves the current token to stand or fall on its own.
+  if (outcome.status === "unavailable") {
+    return token ? NextResponse.next() : redirectToLogin(request);
+  }
+
+  // The request carries the new cookies on to the page or Server Action, and the
+  // response stores them in the browser.
+  const remember = meta?.remember ?? false;
+  // Request cookies take a name and value only; writing them also rewrites the Cookie header.
+  writeSessionCookies(
+    {
+      set: (name, value) => request.cookies.set(name, value),
+      delete: (name) => request.cookies.delete(name),
+    },
+    outcome.pair,
+    remember
+  );
+  const response = NextResponse.next({ request: { headers: new Headers(request.headers) } });
+  writeSessionCookies(response.cookies, outcome.pair, remember);
+  return response;
 }
 
 export const config = {
