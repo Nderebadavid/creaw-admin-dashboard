@@ -26,7 +26,7 @@ describe("location filter", () => {
   it("offers lower levels only once the parent is chosen", async () => {
     const onChange = vi.fn();
     const { rerender } = render(<LocationFilter value={{}} onChange={onChange} />);
-    await screen.findByRole("combobox", { name: "County" });
+    await screen.findByPlaceholderText("All counties");
     await chooseOption("County", "nai", "Nairobi");
     expect(onChange).toHaveBeenLastCalledWith({
       countyId: 2,
@@ -54,7 +54,7 @@ describe("location filter", () => {
     render(
       <LocationFilter value={{ countyId: 2, subCountyId: 10, wardId: 100 }} onChange={onChange} />
     );
-    await screen.findByRole("combobox", { name: "County" });
+    await screen.findByPlaceholderText("All counties");
     await chooseOption("County", "kis", "Kisumu");
     expect(onChange).toHaveBeenLastCalledWith({
       countyId: 1,

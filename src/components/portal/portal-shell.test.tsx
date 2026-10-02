@@ -26,32 +26,17 @@ const session = {
   },
   grants: [{ permissionCode: "DASHBOARD_VIEW", pillarId: null }],
 };
-it("puts the dashboard's period in the URL, keeping its other filters", () => {
+it("shows the signed-in identity and collapses the sidebar", () => {
   render(
     <PortalShell session={session}>
       <p>Content</p>
     </PortalShell>
   );
   expect(screen.getByText("Judy Mwangi")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /Date range/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Last year" }));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  const lastYear = new Date().getFullYear() - 1;
-  expect(navigation.push).toHaveBeenCalledWith(
-    `/dashboard?countyId=4&from=${lastYear}-01-01&to=${lastYear}-12-31`,
-    { scroll: false }
-  );
+  // The dashboard's period picker sits with its other filters, not in the header.
+  expect(screen.queryByRole("button", { name: /Date range/ })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
   expect(screen.getByText("Dashboard")).toHaveClass("sr-only");
-});
-it("shows the period picker only on the dashboard", () => {
-  navigation.pathname = "/participants";
-  render(
-    <PortalShell session={session}>
-      <p>Content</p>
-    </PortalShell>
-  );
-  expect(screen.queryByRole("button", { name: /Date range/ })).toBeNull();
 });
 it("opens a labelled mobile drawer and the notifications panel", async () => {
   render(

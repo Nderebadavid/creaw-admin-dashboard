@@ -8,7 +8,6 @@ import type { NavigationStatus } from "./navigation";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import { pillarLook } from "./pillars";
-import type { ReactNode } from "react";
 
 /** "System-wide" for any unscoped grant, otherwise the pillars the grants cover. */
 function scopeOf(grants: readonly EffectiveGrant[]) {
@@ -22,7 +21,6 @@ export function PortalHeader({
   collapsed,
   onToggleSidebar,
   onOpenMobile,
-  range,
   grants,
   status,
 }: {
@@ -32,8 +30,6 @@ export function PortalHeader({
   collapsed: boolean;
   onToggleSidebar: () => void;
   onOpenMobile: () => void;
-  /** The page's period control, when the page has a period (the dashboard). */
-  range?: ReactNode;
 }) {
   const title = useHeaderTitle();
   return (
@@ -58,7 +54,6 @@ export function PortalHeader({
       </Button>
       <p className="min-w-0 flex-1 truncate font-heading text-xl font-bold lg:text-2xl">{title}</p>
       <div className="flex items-center gap-3">
-        {range}
         <NotificationsMenu status={status} />
         <UserMenu
           user={user}

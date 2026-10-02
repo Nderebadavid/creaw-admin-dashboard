@@ -5,7 +5,7 @@ import { DateRangePicker } from "./date-range-picker";
 import { usePortalNavigation } from "./portal-navigation";
 
 /**
- * The header's period picker on the dashboard. The period lives in the URL with the
+ * The dashboard's period picker, beside its location filter. The period lives in the URL with the
  * dashboard's other filters, so a reload or shared link shows the same figures.
  */
 export function DashboardRange() {
@@ -17,6 +17,7 @@ export function DashboardRange() {
       hint="filters what happened in the period"
       maxDays={MAX_PERIOD_DAYS}
       busy={pending}
+      compact
       onChange={(range) => {
         const next = new URLSearchParams(params);
         next.set("from", range.from);
