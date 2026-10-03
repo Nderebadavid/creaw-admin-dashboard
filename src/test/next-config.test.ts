@@ -6,4 +6,9 @@ describe("next config", () => {
   it("keeps Server Function arguments out of development logs", () => {
     expect(nextConfig.logging && nextConfig.logging.serverFunctions).toBe(false);
   });
+
+  // docker/Dockerfile copies .next/standalone into the runtime image.
+  it("emits a standalone server bundle", () => {
+    expect(nextConfig.output).toBe("standalone");
+  });
 });
