@@ -3,8 +3,6 @@
 import { filterSelectClass } from "@/components/ui/form-styles";
 import { FormBanner } from "@/components/ui/form-banner";
 import { useState } from "react";
-import { UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { Pagination, type PageSize } from "@/components/data-table/pagination";
 import { TableCard } from "@/components/data-table/table-card";
@@ -17,14 +15,15 @@ import { SRHR_PILLAR_ID } from "./curriculum";
 import { exportParticipantsAction, listParticipantsAction } from "./actions";
 import { participantColumns } from "./registry/columns";
 import { ParticipantDrawer } from "./registry/participant-drawer";
-import { EditParticipantDialog, RegisterParticipantDialog } from "./registry/participant-dialogs";
+import { EditParticipantDialog } from "./registry/participant-dialogs";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { LocationFilter } from "@/components/data-table/location-filter";
 import { hasLocation } from "@/lib/api/location";
 
 /**
  * Participant registry: one record per person across every pillar. Rows open a
- * record drawer; registering and editing happen in dialogs.
+ * record drawer; editing happens in a dialog. Participants are registered from the
+ * field app, so the registry offers no "Register participant".
  */
 export function ParticipantsContent({
   heading,
@@ -46,10 +45,7 @@ export function ParticipantsContent({
   const [search, setSearch] = useState("");
   const [feedback, setFeedback] = useState("");
   const [selected, setSelected] = useState<ParticipantView | null>(null);
-  const [modal, setModal] = useState<"register" | "edit" | null>(null);
-  const enrollablePillars = catalog.pillars.filter((item) =>
-    hasPermission(grants, "PARTICIPANT_EDIT", { pillarId: item.id })
-  );
+  const [modal, setModal] = useState<"edit" | null>(null);
   // Short names ("VAWG"), as in the design's chips; the registry name is the fallback.
   const pillarName = (id: number) =>
     pillarLook(id)?.name ?? catalog.pillars.find((item) => item.id === id)?.name ?? `Pillar #${id}`;
@@ -61,18 +57,8 @@ export function ParticipantsContent({
     void list.refresh();
   };
 
-  const actions = (
-    <>
-      {hasModulePermission(grants, "REPORT_EXPORT_CSV") && (
-        <ExportButton exportAction={() => exportParticipantsAction(list.query)} />
-      )}
-      {enrollablePillars.length > 0 && (
-        <Button onClick={() => setModal("register")}>
-          <UserPlus size={16} />
-          Register participant
-        </Button>
-      )}
-    </>
+  const actions = hasModulePermission(grants, "REPORT_EXPORT_CSV") && (
+    <ExportButton exportAction={() => exportParticipantsAction(list.query)} />
   );
 
   return (
@@ -177,13 +163,6 @@ export function ParticipantsContent({
         pillarName={pillarName}
         onClose={() => setSelected(null)}
         onEdit={() => setModal("edit")}
-      />
-      <RegisterParticipantDialog
-        open={modal === "register"}
-        catalog={catalog}
-        pillars={enrollablePillars}
-        onClose={() => setModal(null)}
-        onDone={done}
       />
       <EditParticipantDialog
         participant={modal === "edit" ? selected : null}

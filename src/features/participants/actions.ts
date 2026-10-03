@@ -81,6 +81,7 @@ export async function loadParticipantCurriculumAction(id: number) {
   }
 }
 
+/** Participants are registered from the field app; no portal screen calls this. */
 export async function registerParticipantAction(input: unknown) {
   const session = await requireSession();
   const parsed = participantRegistrationSchema.safeParse(input);
