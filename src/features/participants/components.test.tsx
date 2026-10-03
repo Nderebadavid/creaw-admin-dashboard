@@ -2,49 +2,16 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 vi.mock("./actions", () => ({
   listParticipantsAction: vi.fn(),
-  registerParticipantAction: vi.fn(),
   updateParticipantAction: vi.fn(),
   exportParticipantsAction: vi.fn(),
   loadParticipantCurriculumAction: vi.fn(),
 }));
-import {
-  listParticipantsAction,
-  loadParticipantCurriculumAction,
-  registerParticipantAction,
-} from "./actions";
+import { listParticipantsAction, loadParticipantCurriculumAction } from "./actions";
 import { ParticipantsContent } from "./components";
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-});
-
-it("announces registration failure inside the active dialog", async () => {
-  vi.mocked(registerParticipantAction).mockResolvedValue({
-    resultCode: 422,
-    success: false,
-    message: "Duplicate participant",
-    data: null,
-  });
-  render(
-    <ParticipantsContent
-      initial={{ items: [], page: 1, pageSize: 25, totalItems: 0, totalPages: 0 }}
-      catalog={{ pillars: [{ id: 1, name: "VAWG" }], counties: [], wards: [] }}
-      grants={[{ permissionCode: "PARTICIPANT_EDIT", pillarId: 1 }]}
-    />
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Register participant" }));
-  const dialog = screen.getByRole("dialog");
-  fireEvent.change(within(dialog).getByRole("textbox", { name: "First name" }), {
-    target: { value: "Faith" },
-  });
-  fireEvent.change(within(dialog).getByRole("textbox", { name: "Last name" }), {
-    target: { value: "Njeri" },
-  });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Register participant" }));
-  await waitFor(() =>
-    expect(within(dialog).getByRole("alert")).toHaveTextContent("Duplicate participant")
-  );
 });
 
 const faith = {
@@ -108,7 +75,6 @@ it("puts the page actions beside the heading, like the design", () => {
   const header = heading.closest("[data-page-heading]") as HTMLElement;
   // Page headers carry no buttons; a list\'s actions sit beside the list.
   expect(within(header).queryAllByRole("button")).toHaveLength(0);
-  expect(screen.getByRole("button", { name: "Register participant" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Export CSV/ })).toBeInTheDocument();
 });
 

@@ -13,12 +13,9 @@ import { withSortValues } from "@/components/data-table/sorting";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ExportButton } from "@/components/ui/export-button";
 import { PageHeading, type PageHeadingText } from "@/components/portal/page-heading";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { pillarLook } from "@/components/portal/pillars";
 import { formatDate, initials, titleCase } from "@/lib/format";
-import type { GrantPage, GrantProgramme, GrantQuery, GrantRow } from "./api";
-import { NewApplicationDialog } from "./queue/new-application-dialog";
+import type { GrantPage, GrantQuery, GrantRow } from "./api";
 import { GrantSummaryCards } from "./queue/summary-cards";
 import { exportGrantsAction, listGrantsAction } from "./actions";
 
@@ -90,14 +87,11 @@ export function GrantsContent({
   initial,
   pillars,
   canExport,
-  programmes = [],
 }: {
   heading?: PageHeadingText;
   initial: GrantPage;
   pillars: { id: number; name: string }[];
   canExport: boolean;
-  /** Programmes the user may file a new application for; none hides the button. */
-  programmes?: readonly GrantProgramme[];
 }) {
   const router = useRouter();
   const list = usePagedList<GrantRow, GrantQuery>(
@@ -106,25 +100,14 @@ export function GrantsContent({
     listGrantsAction
   );
   const [search, setSearch] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const actions = (canExport || programmes.length > 0) && (
-    <>
-      {canExport && <ExportButton exportAction={() => exportGrantsAction(list.query)} />}
-      {programmes.length > 0 && (
-        <Button onClick={() => setCreating(true)}>
-          <Plus />
-          New application
-        </Button>
-      )}
-    </>
-  );
+  // Applications are filed from the field device, so the queue offers no "New application".
+  // Whether the portal will need to file them too is not yet decided.
+  const actions = canExport && <ExportButton exportAction={() => exportGrantsAction(list.query)} />;
 
   return (
     <div className="space-y-5">
       {heading && <PageHeading {...heading} />}
       <GrantSummaryCards counts={list.data.facets?.status} />
-      <FormBanner tone="success">{feedback}</FormBanner>
       <FormBanner tone="error">{list.error}</FormBanner>
       <TableCard
         actions={actions}
@@ -199,16 +182,6 @@ export function GrantsContent({
           rowOpenLabel={(row) => `Open application from ${row.applicant}`}
         />
       </TableCard>
-      <NewApplicationDialog
-        open={creating}
-        programmes={programmes}
-        onClose={() => setCreating(false)}
-        onDone={(message) => {
-          setCreating(false);
-          setFeedback(message);
-          void list.refresh();
-        }}
-      />
     </div>
   );
 }

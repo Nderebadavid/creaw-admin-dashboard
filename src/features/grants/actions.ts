@@ -73,9 +73,10 @@ export async function listGrantRecommendationsAction() {
 }
 
 /**
- * Files a new application from the grants queue. The applicant must already
- * be enrolled in the programme's pillar, and the officer filing it needs the
- * prepare permission there.
+ * Files a new application. The applicant must already be enrolled in the
+ * programme's pillar, and the officer filing it needs the prepare permission there.
+ * Applications are filed from the field device; no portal screen calls this yet,
+ * as whether the portal will need to file them is not yet decided.
  */
 export async function createGrantApplicationAction(input: unknown) {
   const session = await requireSession();
