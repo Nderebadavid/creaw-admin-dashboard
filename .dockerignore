@@ -10,3 +10,4 @@ docs
 !.env.example
 tsconfig.tsbuildinfo
 docker
+**/stack.*.env

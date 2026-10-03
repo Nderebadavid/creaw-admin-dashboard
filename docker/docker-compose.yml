@@ -1,0 +1,35 @@
+services:
+  admin-dashboard:
+    image: egrouptechlab/apps:creaw-admin-dashboard-${ENV:-development} # Defaults to dev if ENV not set
+    container_name: creaw-admin-dashboard-${ENV:-development} # Defaults to dev if ENV not set
+    expose:
+      - "3000" # internal only — reached over the nginx-proxy-manager network, never published to the host
+    env_file:
+      # Per-environment file (stack.development.env / stack.production.env), selected by ENV.
+      # Lives only on the server — git-ignored, never committed or pulled; see stack.example.env
+      # for the keys. PORTAL_API_* are read by the Next.js server at request time, so changing
+      # this file needs a container restart, not a new image. Portainer also appends its
+      # registered stack variables to this file at deploy time.
+      - stack.${ENV:-development}.env
+    labels:
+      logging: "promtail"
+      service: creaw-admin-dashboard-${ENV:-development}
+    environment:
+      # Pinned here so a PORT/HOSTNAME in the stack file can't move the server off what
+      # `expose` and the healthcheck expect. `environment` overrides `env_file`.
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    restart: unless-stopped # Better than 'no' for production
+    networks:
+      - nginx-proxy-manager
+    healthcheck:
+      # The image is Alpine (busybox wget, no curl). /login is the one public page.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  nginx-proxy-manager:
+    external: true # must already exist — created by NPM's own docker-compose
