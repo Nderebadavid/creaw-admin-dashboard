@@ -1,0 +1,105 @@
+# CI/CD for the CREAW admin dashboard (Next.js).
+#
+# Two jobs run in sequence:
+#   1. test           – every PR and push: lint, type check, format check, unit tests, build.
+#   2. build-and-push – pushes to main/development only, and only if `test` passed:
+#                       builds docker/Dockerfile and pushes the image to Docker Hub.
+#
+# Required repository secrets: DOCKER_USERNAME, DOCKER_TOKEN.
+
+name: CREAW Admin Dashboard CI/CD
+
+# Run on PRs targeting, and direct pushes (including merges) to, the long-lived branches.
+on:
+  pull_request:
+    branches:
+      - main
+      - development
+  push:
+    branches:
+      - main
+      - development
+
+# Least privilege: the workflow only needs to read the code.
+permissions:
+  contents: read
+
+# A newer commit on the same branch/PR cancels the run still in progress for the older one.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Quality gate. Any failing step stops the pipeline, so no image is published.
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v7
+
+      # Node 22 LTS; caches the Yarn download cache keyed on yarn.lock.
+      - name: "Set up Node.js 22"
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "yarn"
+
+      # --frozen-lockfile fails if yarn.lock is out of date with package.json.
+      - name: "Install dependencies"
+        run: yarn install --frozen-lockfile --non-interactive
+
+      - name: "Lint"
+        run: yarn lint
+
+      - name: "Type check"
+        run: yarn typecheck
+
+      # Fails on unformatted files; fix locally with `yarn format`.
+      - name: "Check formatting"
+        run: yarn format:check
+
+      # Vitest in single-run mode (no watch).
+      - name: "Run tests"
+        run: yarn test:run
+
+      # Catches build-only errors on PRs, which never reach the Docker job.
+      - name: "Build"
+        run: yarn build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  # Release: publish a Docker image for the branch that was pushed.
+  build-and-push:
+    needs: test
+    # PRs are tested but never published; only real pushes to main/development are.
+    if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'development')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v7
+
+      # Buildx enables the GitHub Actions layer cache used below.
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Log in to Docker Hub"
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      # The Dockerfile installs, builds and packages the standalone Next.js server itself.
+      # Tag: main -> creaw-admin-dashboard-production, development -> creaw-admin-dashboard-development.
+      # The image has no environment baked in: PORTAL_API_* variables are supplied at `docker run`.
+      - name: "Build and push Docker image"
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: egrouptechlab/apps:creaw-admin-dashboard-${{ github.ref_name == 'main' && 'production' || github.ref_name }}
+          # Reuse unchanged image layers from previous runs to speed up builds.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -143,5 +143,7 @@ describe("configuration controls", () => {
         ids: [4],
       })
     );
+    // Let the dialog settle on the refusal so no React work outlives the test environment.
+    expect(await screen.findByText("No download")).toBeInTheDocument();
   });
 });

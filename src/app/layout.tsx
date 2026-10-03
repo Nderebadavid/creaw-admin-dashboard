@@ -17,11 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${inter.variable} h-full antialiased`}
-    >
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <ThemeProvider

@@ -111,19 +111,17 @@ describe("proxy", () => {
     vi.stubEnv("PORTAL_API_BASE_URL", "https://example.test");
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(
-            JSON.stringify({
-              resultCode: status,
-              success: false,
-              message: "Try later",
-              data: null,
-            }),
-            { status }
-          )
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            resultCode: status,
+            success: false,
+            message: "Try later",
+            data: null,
+          }),
+          { status }
         )
+      )
     );
     const response = await proxy(
       requestWith({

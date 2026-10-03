@@ -35,6 +35,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# server-only docker stack env files (hold secrets; live on the deploy host only)
+stack.*.env
+!stack.example.env
+
 # vercel
 .vercel
 
