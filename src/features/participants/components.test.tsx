@@ -225,3 +225,33 @@ it("shows no curriculum section for a participant without progress", () => {
   expect(within(drawer).queryByRole("region", { name: "Curriculum" })).not.toBeInTheDocument();
   expect(loadParticipantCurriculumAction).not.toHaveBeenCalled();
 });
+
+it("shows the registry's headline counts and each participant's disability status", () => {
+  render(
+    <ParticipantsContent
+      initial={{
+        items: [faith, { ...faith, id: 12, name: "Grace Atieno", disability: true }],
+        page: 1,
+        pageSize: 25,
+        totalItems: 2,
+        totalPages: 1,
+        facets: {
+          status: { ACTIVE: 3, INACTIVE: 1 },
+          is_person_with_disability: { true: 1, false: 3 },
+          is_refugee: { false: 4 },
+        },
+      }}
+      catalog={{ pillars: [{ id: 1, name: "VAWG" }], counties: [], wards: [] }}
+      grants={[]}
+    />
+  );
+  const card = (label: string) => screen.getByRole("heading", { name: label }).closest("article")!;
+  expect(card("Participants")).toHaveTextContent("41 inactive");
+  expect(card("Active")).toHaveTextContent("375%");
+  expect(card("Persons with disability")).toHaveTextContent("125%");
+  expect(card("Refugees")).toHaveTextContent("00%");
+  expect(screen.getByRole("columnheader", { name: /PWD/ })).toBeInTheDocument();
+  const row = (name: string) => screen.getByText(name).closest("tr")!;
+  expect(within(row("Grace Atieno")).getByText("Yes")).toBeInTheDocument();
+  expect(within(row("Faith Wanjiku")).getByText("No")).toBeInTheDocument();
+});

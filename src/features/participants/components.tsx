@@ -15,6 +15,7 @@ import { SRHR_PILLAR_ID } from "./curriculum";
 import { exportParticipantsAction, listParticipantsAction } from "./actions";
 import { participantColumns } from "./registry/columns";
 import { ParticipantDrawer } from "./registry/participant-drawer";
+import { ParticipantSummaryCards } from "./registry/summary-cards";
 import { EditParticipantDialog } from "./registry/participant-dialogs";
 import { usePagedList } from "@/components/data-table/use-paged-list";
 import { LocationFilter } from "@/components/data-table/location-filter";
@@ -66,6 +67,7 @@ export function ParticipantsContent({
       {heading && <PageHeading {...heading} />}
       <FormBanner tone="success">{feedback}</FormBanner>
       {!modal && <FormBanner tone="error">{list.error}</FormBanner>}
+      <ParticipantSummaryCards facets={list.data.facets} />
       <TableCard
         actions={actions}
         title="Participant registry"

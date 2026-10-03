@@ -182,6 +182,20 @@ describe("curriculum through the participants API", () => {
     expect(pwd.items.every((row) => row.disability)).toBe(true);
   });
 
+  it("returns the registry's headline counts as facets over the current filters", async () => {
+    const api = apiFor(1);
+    const all = await api.list({ pageSize: 100 });
+    const statusTotal = Object.values(all.facets?.status ?? {}).reduce((a, b) => a + b, 0);
+    expect(statusTotal).toBe(all.totalItems);
+    expect(all.facets?.is_person_with_disability?.true ?? 0).toBe(
+      all.items.filter((row) => row.disability).length
+    );
+    expect(all.facets?.is_refugee?.true ?? 0).toBe(all.items.filter((row) => row.refugee).length);
+    // The disability count ignores its own filter, so the card holds while it is applied.
+    const pwd = await api.list({ pwd: true, pageSize: 100 });
+    expect(pwd.facets?.is_person_with_disability).toEqual(all.facets?.is_person_with_disability);
+  });
+
   it("lets only record managers correct identity details", async () => {
     const person = getMockStore().participant.find((row) => !row.is_deleted)!;
     // Head of MERL edits participants everywhere but cannot correct identity details.

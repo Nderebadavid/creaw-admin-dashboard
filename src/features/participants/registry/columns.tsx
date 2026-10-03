@@ -7,7 +7,7 @@ import { formatDate, initials, titleCase } from "@/lib/format";
 import type { ParticipantView } from "../api";
 import { participantSortValues } from "../sort-values";
 
-/** Registry columns from the design: participant, county, pillars, stage, registered, status. */
+/** Registry columns from the design: participant, county, disability (PWD), pillars, stage, registered, status. */
 export function participantColumns(
   pillarName: (id: number) => string
 ): DataColumn<ParticipantView>[] {
@@ -28,14 +28,7 @@ export function participantColumns(
               {initials(row.name)}
             </span>
             <div>
-              <span className="flex items-center gap-2 whitespace-nowrap font-semibold">
-                {row.name}
-                {row.disability && (
-                  <span title="Person living with a disability">
-                    <StatusBadge tone="info">PWD</StatusBadge>
-                  </span>
-                )}
-              </span>
+              <span className="whitespace-nowrap font-semibold">{row.name}</span>
               <p className="whitespace-nowrap text-[12.5px] text-creaw-faint">
                 {row.idNumber ? `ID ${row.idNumber}` : "No ID recorded"}
               </p>
@@ -53,6 +46,18 @@ export function participantColumns(
           <p className="text-[12.5px] font-normal text-creaw-faint">{row.ward}</p>
         </div>
       ),
+    },
+    {
+      id: "disability",
+      header: "PWD",
+      cell: (row) =>
+        row.disability ? (
+          <span title="Person living with a disability">
+            <StatusBadge tone="info">Yes</StatusBadge>
+          </span>
+        ) : (
+          <StatusBadge tone="neutral">No</StatusBadge>
+        ),
     },
     {
       id: "pillars",
