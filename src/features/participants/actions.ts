@@ -44,6 +44,7 @@ export async function listParticipantsAction(query: ParticipantQuery) {
           "status",
           "updated",
           "curriculum",
+          "disability",
         ],
       }
     );

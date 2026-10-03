@@ -12,5 +12,6 @@ export const participantSortValues = (
   stage: (row) => row.currentStage,
   registered: (row) => dateSortValue(row.registered),
   status: (row) => row.status,
+  disability: (row) => (row.disability ? 1 : 0),
   curriculum: (row) => (row.curriculum ? row.curriculum.done : -1),
 });

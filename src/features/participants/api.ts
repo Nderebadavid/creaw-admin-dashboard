@@ -34,7 +34,11 @@ export const PARTICIPANT_SORT_KEYS: Record<string, string> = {
   status: "status",
   updated: "updated_at",
   curriculum: "curriculum_done",
+  disability: "is_person_with_disability",
 };
+
+/** The registry's headline counts, read from the list's facets. */
+const PARTICIPANT_FACETS = "status,is_person_with_disability,is_refugee";
 
 export interface ParticipantQuery extends LocationQuery {
   /** A displayed column to sort by, mapped to an API field by the list. */
@@ -108,6 +112,11 @@ export interface ParticipantPage {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+  /**
+   * Participants per value of `status`, `is_person_with_disability` and `is_refugee`
+   * (keys "true"/"false"), each over every filter but that field's own.
+   */
+  facets?: Record<string, Record<string, number>>;
 }
 export interface ParticipantCatalog {
   pillars: { id: number; name: string }[];
@@ -239,6 +248,7 @@ export function createParticipantsApi(client: ApiClient, token: string) {
             ...locationParams(query),
             ...(query.behind ? { curriculum_behind: "true" } : {}),
             ...(query.pwd ? { is_person_with_disability: "true" } : {}),
+            facet: PARTICIPANT_FACETS,
           },
         },
         participantListSchema
