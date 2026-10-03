@@ -62,7 +62,7 @@ it("announces a decision failure inside the active dialog", async () => {
       grants={[{ permissionCode: "REFERRAL_VIEW", pillarId: 2 }]}
     />
   );
-  fireEvent.click(screen.getByRole("button", { name: /^Open referral/ }));
+  fireEvent.click(within(screen.getByRole("table")).getAllByRole("row")[1]);
   const dialog = screen.getByRole("dialog");
   fireEvent.click(within(dialog).getByRole("button", { name: "Save response" }));
   await waitFor(() =>
@@ -154,7 +154,7 @@ it("shows the external destination name in both the queue and decision dialog", 
     />
   );
   expect(screen.getAllByText("Nairobi Women's Shelter").length).toBeGreaterThan(0);
-  fireEvent.click(screen.getByRole("button", { name: /^Open referral/ }));
+  fireEvent.click(within(screen.getByRole("table")).getAllByRole("row")[1]);
   expect(
     within(screen.getByRole("dialog")).getAllByText(/Nairobi Women's Shelter/).length
   ).toBeGreaterThan(0);
@@ -222,4 +222,7 @@ it("lays out the queue like the design", () => {
   expect(screen.getByText("Not recorded")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "New" })).toHaveAttribute("aria-pressed", "false");
   expect(screen.getByRole("button", { name: "Actions for Aisha Mohamed" })).toBeInTheDocument();
+  // Rows open on click; the actions menu replaces the trailing chevron.
+  expect(screen.queryByRole("button", { name: /^Open / })).not.toBeInTheDocument();
+  expect(screen.queryByRole("columnheader", { name: "Open" })).not.toBeInTheDocument();
 });

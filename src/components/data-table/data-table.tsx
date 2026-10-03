@@ -27,6 +27,11 @@ export interface DataTableProps<T> {
   onRowOpen?: (row: T) => void;
   /** Accessible name for a row's open button, e.g. "Open Faith Wanjiku". */
   rowOpenLabel?: (row: T) => string;
+  /**
+   * Draws the chevron open button (default). Pass false when the row's actions menu
+   * already reaches what opening does; the row stays clickable.
+   */
+  openButton?: boolean;
   /** Draws its own card border; pass false inside a TableCard. */
   framed?: boolean;
   /** Detail shown in a full-width row under a record, e.g. an opened audit entry. */
@@ -52,12 +57,14 @@ export function DataTable<T>({
   rowActions,
   onRowOpen,
   rowOpenLabel = () => "Open record",
+  openButton = true,
   framed = true,
   renderExpanded,
   sort,
   onSortChange,
 }: DataTableProps<T>) {
-  const span = columns.length + (rowActions ? 1 : 0) + (onRowOpen ? 1 : 0);
+  const chevron = Boolean(onRowOpen && openButton);
+  const span = columns.length + (rowActions ? 1 : 0) + (chevron ? 1 : 0);
   return (
     <div className={cn("overflow-hidden bg-white", framed && "rounded-2xl border")}>
       {loading || error || !rows.length ? (
@@ -91,7 +98,7 @@ export function DataTable<T>({
                     <span className="sr-only">Actions</span>
                   </th>
                 )}
-                {onRowOpen && (
+                {chevron && (
                   <th scope="col" className="w-10">
                     <span className="sr-only">Open</span>
                   </th>
@@ -121,12 +128,12 @@ export function DataTable<T>({
                         </td>
                       ))}
                       {rowActions && <td className="px-3 py-2 text-right">{rowActions(row)}</td>}
-                      {onRowOpen && (
+                      {chevron && (
                         <td className="py-3 pr-3.5 text-right">
                           <button
                             type="button"
                             aria-label={rowOpenLabel(row)}
-                            onClick={() => onRowOpen(row)}
+                            onClick={() => onRowOpen?.(row)}
                             className="rounded-md p-0.5 text-[#A39A92] hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
                           >
                             <ChevronRight size={20} aria-hidden="true" />

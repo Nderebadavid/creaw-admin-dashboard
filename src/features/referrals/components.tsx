@@ -165,7 +165,8 @@ export function ReferralsContent({
             if (referral.canRespond) setModal({ kind: "decide", referral });
             else if (referral.canEdit) setModal({ kind: "edit", referral });
           }}
-          rowOpenLabel={(row) => `Open referral for ${row.participant}`}
+          // The row menu already holds Decide and Edit, so the row needs no open chevron.
+          openButton={false}
           rowActions={(referral) => (
             <RowActions
               label={referral.participant}
